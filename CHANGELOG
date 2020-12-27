@@ -1,3 +1,8 @@
+Version 4.0:
+
+* version used in season 4 deployment
+* fix bug in how new cell colors are assigned. previously, always defaulted to team 1 (legacy mode) when an equal number of parent cells of each color were present. now, uses checkerboard pattern to determine team.
+
 Version 3.0:
 
 * version used in season 3 deployment
