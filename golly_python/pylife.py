@@ -90,6 +90,12 @@ class GOL(object):
             self.halt = True
         self.found_victor = False
 
+        # Neighbor color legacy mode was used in Seasons 1-3
+        if 'neighbor_color_legacy_mode' in kwargs:
+            self.neighbor_color_legacy_mode = kwargs['neighbor_color_legacy_mode']
+        else:
+            self.neighbor_color_legacy_mode = False
+
     def load_state(self):
         """
         Load the listlife state from the initial conditions.
@@ -181,17 +187,15 @@ class GOL(object):
             elif (row[0] > y):
                 break
 
-        return 2
+        for row in self.actual_state2:
+            if (row[0] == y):
+                for c in row[1:]:
+                    if c==x:
+                        return 2
+            elif (row[0] > y):
+                break
 
-        #for row in self.actual_state2:
-        #    if (row[0] == y):
-        #        for c in row[1:]:
-        #            if c==x:
-        #                return 2
-        #    elif (row[0] > y):
-        #        break
-
-        #return 0
+        return 0
 
     def remove_cell(self, x, y, state):
         """
@@ -406,10 +410,17 @@ class GOL(object):
                             break
 
         color = 0
-        if neighbors1 >= neighbors2:
+        if neighbors1 > neighbors2:
             color = 1
-        else:
+        elif neighbors2 > neighbors1:
             color = 2
+        else:
+            if self.neighbor_color_legacy_mode:
+                color = 1
+            elif x%2==y%2:
+                color = 1
+            else:
+                color = 2
 
         return dict(neighbors = neighbors, color = color)
 
@@ -532,7 +543,12 @@ class GOL(object):
         elif color1 < color2:
             return 2
         else:
-            return 0
+            if self.neighbor_color_legacy_mode:
+                color = 1
+            elif x%2==y%2:
+                color = 1
+            else:
+                color = 2
 
     def next_generation(self):
         """
