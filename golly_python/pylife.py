@@ -545,7 +545,7 @@ class GOL(object):
         else:
             if self.neighbor_color_legacy_mode:
                 color = 1
-            elif xx%2==yy%2:
+            elif x%2==y%2:
                 color = 1
             else:
                 color = 2
