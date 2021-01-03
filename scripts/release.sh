@@ -3,6 +3,8 @@
 set -euo pipefail
 set -x
 
+REMOTE="gh"
+
 if [ -z "${GOLLY_PYTHON_HOME}" ]; then
 	echo 'You must set the $GOLLY_PYTHON_HOME environment variable to proceed.'
 	exit 1
@@ -16,7 +18,6 @@ if [[ $# != 2 ]]; then
 	echo " - create a git tag"
 	echo " - reset head of destination branch to head of source branch"
 	echo " - push result to git repo"
-	echo " - if environment.${DEST} is found, source it and run make deploy"
     echo
     echo "Usage: $(basename $0) source_branch dest_branch"
     echo "Example: $(basename $0) development dev"
@@ -24,11 +25,16 @@ if [[ $# != 2 ]]; then
 fi
 
 if ! git diff-index --quiet HEAD --; then
-    echo "You have uncommitted files in your Git repository. Please commit or stash them, or run $0 with --force."
+    echo "You have uncommitted files in your Git repository. Please commit or stash them."
     exit 1
 fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
+
+if [[ "$(git log ${REMOTE}/${PROMOTE_FROM_BRANCH}..HEAD)" ]]; then
+    echo "You have unpushed changes on your promote from branch ${PROMOTE_FROM_BRANCH}! Aborting."
+    exit 1
+fi
 
 RELEASE_TAG=$(date -u +"%Y-%m-%d-%H-%M-%S")-${PROMOTE_DEST_BRANCH}.release
 
@@ -45,9 +51,8 @@ if ! git --no-pager diff --ignore-submodules=untracked --exit-code; then
 fi
 
 git fetch --all
-git -c advice.detachedHead=false checkout gh/$PROMOTE_FROM_BRANCH
+git -c advice.detachedHead=false checkout ${REMOTE}/$PROMOTE_FROM_BRANCH
 git checkout -B $PROMOTE_DEST_BRANCH
 git tag $RELEASE_TAG
-git push --force gh $PROMOTE_DEST_BRANCH
-git push --tags gh
-
+git push --force $REMOTE $PROMOTE_DEST_BRANCH
+git push --tags $REMOTE
