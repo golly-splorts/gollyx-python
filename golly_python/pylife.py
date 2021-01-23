@@ -31,7 +31,7 @@ class GOL(object):
 
     def __repr__(self):
         s = []
-        s.append("+" + "-"*(self.columns) + "+")
+        s.append("+" + "-" * (self.columns) + "+")
         for i in range(self.rows):
             row = "|"
             for j in range(self.columns):
@@ -47,52 +47,54 @@ class GOL(object):
                     row += "."
             row += "|"
             s.append(row)
-        s.append("+" + "-"*(self.columns) + "+")
+        s.append("+" + "-" * (self.columns) + "+")
         rep = "\n".join(s)
         rep += "\n"
 
         livecounts = self.get_live_counts()
 
         rep += "\nGeneration: %d" % (self.generation)
-        rep += "\nLive cells, color 1: %d" % (livecounts['liveCells1'])
-        rep += "\nLive cells, color 2: %d" % (livecounts['liveCells2'])
-        rep += "\nLive cells, total: %d" % (livecounts['liveCells'])
-        rep += "\nVictory Percent: %0.1f %%" % (livecounts['victoryPct'])
-        rep += "\nCoverage: %0.2f %%" % (livecounts['coverage'])
-        rep += "\nTerritory, color 1: %0.2f %%" % (livecounts['territory1'])
-        rep += "\nTerritory, color 2: %0.2f %%" % (livecounts['territory2'])
+        rep += "\nLive cells, color 1: %d" % (livecounts["liveCells1"])
+        rep += "\nLive cells, color 2: %d" % (livecounts["liveCells2"])
+        rep += "\nLive cells, total: %d" % (livecounts["liveCells"])
+        rep += "\nVictory Percent: %0.1f %%" % (livecounts["victoryPct"])
+        rep += "\nCoverage: %0.2f %%" % (livecounts["coverage"])
+        rep += "\nTerritory, color 1: %0.2f %%" % (livecounts["territory1"])
+        rep += "\nTerritory, color 2: %0.2f %%" % (livecounts["territory2"])
 
         return rep
 
     def load_config(self, **kwargs):
         """Load configuration from user-provided input params"""
-        if 's1' in kwargs and 's2' in kwargs:
-            self.ic1 = kwargs['s1']
-            self.ic2 = kwargs['s2']
+        if "s1" in kwargs and "s2" in kwargs:
+            self.ic1 = kwargs["s1"]
+            self.ic2 = kwargs["s2"]
         else:
             raise Exception("ERROR: s1 and s2 parameters must both be specified")
 
-        if 'rows' in kwargs and 'columns' in kwargs:
-            self.rows = kwargs['rows']
-            self.columns = kwargs['columns']
+        if "rows" in kwargs and "columns" in kwargs:
+            self.rows = kwargs["rows"]
+            self.columns = kwargs["columns"]
         else:
-            raise Exception("ERROR: rows and columns parameters must be provided to GOL constructor")
+            raise Exception(
+                "ERROR: rows and columns parameters must be provided to GOL constructor"
+            )
 
-        if 'team1' in kwargs and 'team2' in kwargs:
-            self.team_names = [kwargs['team1'], kwargs['team2']]
+        if "team1" in kwargs and "team2" in kwargs:
+            self.team_names = [kwargs["team1"], kwargs["team2"]]
         else:
-            self.team_names = ['Team 1', 'Team 2']
+            self.team_names = ["Team 1", "Team 2"]
 
         # Whether to stop when a victor is detected
-        if 'halt' in kwargs:
-            self.halt = kwargs['halt']
+        if "halt" in kwargs:
+            self.halt = kwargs["halt"]
         else:
             self.halt = True
         self.found_victor = False
 
         # Neighbor color legacy mode was used in Seasons 1-3
-        if 'neighbor_color_legacy_mode' in kwargs:
-            self.neighbor_color_legacy_mode = kwargs['neighbor_color_legacy_mode']
+        if "neighbor_color_legacy_mode" in kwargs:
+            self.neighbor_color_legacy_mode = kwargs["neighbor_color_legacy_mode"]
         else:
             self.neighbor_color_legacy_mode = False
 
@@ -119,8 +121,10 @@ class GOL(object):
                     self.actual_state = self.add_cell(xx, yy, self.actual_state)
                     self.actual_state2 = self.add_cell(xx, yy, self.actual_state2)
 
-        maxdim = max(2*self.columns, 2*self.rows)
-        self.running_avg_window = [0, ]*maxdim
+        maxdim = max(2 * self.columns, 2 * self.rows)
+        self.running_avg_window = [
+            0,
+        ] * maxdim
 
     def prepare(self):
         # This actually inserts a calculation, I don't think we want that?
@@ -129,13 +133,15 @@ class GOL(object):
 
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
-            maxdim = max(2*self.columns, 2*self.rows)
+            maxdim = max(2 * self.columns, 2 * self.rows)
             if self.generation < maxdim:
-                self.running_avg_window[self.generation] = livecounts['victoryPct']
+                self.running_avg_window[self.generation] = livecounts["victoryPct"]
             else:
-                self.running_avg_window = self.running_avg_window[1:] + [livecounts['victoryPct']]
+                self.running_avg_window = self.running_avg_window[1:] + [
+                    livecounts["victoryPct"]
+                ]
                 summ = sum(self.running_avg_window)
-                running_avg = summ/(1.0*len(self.running_avg_window))
+                running_avg = summ / (1.0 * len(self.running_avg_window))
 
                 # update running average last 3
                 removed = self.running_avg_last3[0]
@@ -144,31 +150,37 @@ class GOL(object):
                 tol = 1e-8
                 # skip the first few steps where we're removing zeros
                 if not self.approx_equal(removed, 0.0, tol):
-                    b1 = self.approx_equal(self.running_avg_last3[0], self.running_avg_last3[1], tol)
-                    b2 = self.approx_equal(self.running_avg_last3[1], self.running_avg_last3[2], tol)
-                    zerocells = livecounts['liveCells1'] == 0 or livecounts['liveCells2'] == 0
+                    b1 = self.approx_equal(
+                        self.running_avg_last3[0], self.running_avg_last3[1], tol
+                    )
+                    b2 = self.approx_equal(
+                        self.running_avg_last3[1], self.running_avg_last3[2], tol
+                    )
+                    zerocells = (
+                        livecounts["liveCells1"] == 0 or livecounts["liveCells2"] == 0
+                    )
                     if (b1 and b2) or zerocells:
                         z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
                         z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
                         z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
                         if (not (z1 or z2 or z3)) or zerocells:
-                            if livecounts['liveCells1'] > livecounts['liveCells2']:
+                            if livecounts["liveCells1"] > livecounts["liveCells2"]:
                                 self.found_victor = True
                                 self.who_won = 1
-                            elif livecounts['liveCells1'] < livecounts['liveCells2']:
+                            elif livecounts["liveCells1"] < livecounts["liveCells2"]:
                                 self.found_victor = True
                                 self.who_won = 2
 
     def approx_equal(self, a, b, tol):
         SMOL = 1e-12
-        return (abs(b - a)/abs(a + SMOL)) < tol
+        return (abs(b - a) / abs(a + SMOL)) < tol
 
     def is_alive(self, x, y):
         """
         Boolean function: is the cell at x, y alive
         """
         for row in self.actual_state:
-            if (row[0] == y):
+            if row[0] == y:
                 for c in row[1:]:
                     if c == x:
                         return True
@@ -180,19 +192,19 @@ class GOL(object):
         Get the color of the given cell (1 or 2)
         """
         for row in self.actual_state1:
-            if (row[0] == y):
+            if row[0] == y:
                 for c in row[1:]:
                     if c == x:
                         return 1
-            elif (row[0] > y):
+            elif row[0] > y:
                 break
 
         for row in self.actual_state2:
-            if (row[0] == y):
+            if row[0] == y:
                 for c in row[1:]:
                     if c == x:
                         return 2
-            elif (row[0] > y):
+            elif row[0] > y:
                 break
 
         return 0
@@ -205,11 +217,11 @@ class GOL(object):
             if row[0] == y:
                 if len(row) == 2:
                     # Remove the entire row
-                    state = state[:i] + state[i+1:]
+                    state = state[:i] + state[i + 1 :]
                     return
                 else:
                     j = indexOf(row, x)
-                    state[i] = row[:j] + row[j+1:]
+                    state[i] = row[:j] + row[j + 1 :]
 
     def add_cell(self, x, y, state):
         """
@@ -224,12 +236,12 @@ class GOL(object):
             return [[y, x]]
 
         # figure out where in the list to insert the new cell
-        if (y < state[0][0]):
+        if y < state[0][0]:
             # y is smaller than any existing y,
             # so put this point at beginning
             return [[y, x]] + state
 
-        elif (y > state[-1][0]):
+        elif y > state[-1][0]:
             # y is larger than any existing y,
             # so put this point at end
             return state + [[y, x]]
@@ -274,17 +286,17 @@ class GOL(object):
 
         # 1 row above current cell
         if i >= 1:
-            if state[i-1][0] == (y-1):
-                for k in range(self.top_pointer, len(state[i-1])):
-                    if state[i-1][k] >= (x-1):
+            if state[i - 1][0] == (y - 1):
+                for k in range(self.top_pointer, len(state[i - 1])):
+                    if state[i - 1][k] >= (x - 1):
 
                         # NW
-                        if state[i-1][k] == (x-1):
+                        if state[i - 1][k] == (x - 1):
                             possible_neighbors_list[0] = None
                             self.top_pointer = k + 1
                             neighbors += 1
-                            xx = state[i-1][k]
-                            yy = state[i-1][0]
+                            xx = state[i - 1][k]
+                            yy = state[i - 1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -292,12 +304,12 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # N
-                        if state[i-1][k] == x:
+                        if state[i - 1][k] == x:
                             possible_neighbors_list[1] = None
                             self.top_pointer = k
                             neighbors += 1
-                            xx = state[i-1][k]
-                            yy = state[i-1][0]
+                            xx = state[i - 1][k]
+                            yy = state[i - 1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -305,15 +317,15 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # NE
-                        if state[i-1][k] == (x+1):
+                        if state[i - 1][k] == (x + 1):
                             possible_neighbors_list[2] = None
                             if k == 1:
                                 self.top_pointer = 1
                             else:
                                 self.top_pointer = k - 1
                             neighbors += 1
-                            xx = state[i-1][k]
-                            yy = state[i-1][0]
+                            xx = state[i - 1][k]
+                            yy = state[i - 1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -321,15 +333,15 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # Break it off early
-                        if state[i-1][k] > (x+1):
+                        if state[i - 1][k] > (x + 1):
                             break
 
         # The row of the current cell
         for k in range(1, len(state[i])):
-            if (state[i][k] >= (x-1)):
+            if state[i][k] >= (x - 1):
 
                 # W
-                if (state[i][k] == (x - 1)):
+                if state[i][k] == (x - 1):
                     possible_neighbors_list[3] = None
                     neighbors += 1
                     xx = state[i][k]
@@ -341,7 +353,7 @@ class GOL(object):
                         neighbors2 += 1
 
                 # E
-                if (state[i][k] == (x+1)):
+                if state[i][k] == (x + 1):
                     possible_neighbors_list[4] = None
                     neighbors += 1
                     xx = state[i][k]
@@ -353,22 +365,22 @@ class GOL(object):
                         neighbors2 += 1
 
                 # Break it off early
-                if (state[i][k] > (x+1)):
+                if state[i][k] > (x + 1):
                     break
 
         # 1 row below current cell
-        if i+1 < len(state):
-            if state[i+1][0] == (y+1):
-                for k in range(self.bottom_pointer, len(state[i+1])):
-                    if (state[i+1][k] >= (x-1)):
+        if i + 1 < len(state):
+            if state[i + 1][0] == (y + 1):
+                for k in range(self.bottom_pointer, len(state[i + 1])):
+                    if state[i + 1][k] >= (x - 1):
 
                         # SW
-                        if (state[i+1][k] == (x-1)):
+                        if state[i + 1][k] == (x - 1):
                             possible_neighbors_list[5] = None
                             self.bottom_pointer = k + 1
                             neighbors += 1
-                            xx = state[i+1][k]
-                            yy = state[i+1][0]
+                            xx = state[i + 1][k]
+                            yy = state[i + 1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -376,12 +388,12 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # S
-                        if (state[i+1][k] == x):
+                        if state[i + 1][k] == x:
                             possible_neighbors_list[6] = None
                             self.bottom_pointer = k
                             neighbors += 1
-                            xx = state[i+1][k]
-                            yy = state[i+1][0]
+                            xx = state[i + 1][k]
+                            yy = state[i + 1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -389,15 +401,15 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # SE
-                        if (state[i+1][k] == (x+1)):
+                        if state[i + 1][k] == (x + 1):
                             possible_neighbors_list[7] = None
                             if k == 1:
                                 self.bottom_pinter = 1
                             else:
-                                self.bottom_pointer = k-1
+                                self.bottom_pointer = k - 1
                             neighbors += 1
-                            xx = state[i+1][k]
-                            yy = state[i+1][0]
+                            xx = state[i + 1][k]
+                            yy = state[i + 1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -405,7 +417,7 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # Break it off early
-                        if state[i+1][k] > (x+1):
+                        if state[i + 1][k] > (x + 1):
                             break
 
         color = 0
@@ -438,103 +450,103 @@ class GOL(object):
         # color1
         for i in range(len(state1)):
             yy = state1[i][0]
-            if yy == (y-1):
+            if yy == (y - 1):
                 # 1 row above current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= (x-1):
-                        if xx == (x-1):
+                    if xx >= (x - 1):
+                        if xx == (x - 1):
                             # NW
                             color1 += 1
                         elif xx == x:
                             # N
                             color1 += 1
-                        elif xx == (x+1):
+                        elif xx == (x + 1):
                             # NE
                             color1 += 1
-                    if xx >= (x+1):
+                    if xx >= (x + 1):
                         break
 
             elif yy == y:
                 # Row of current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= (x-1):
-                        if xx == (x-1):
+                    if xx >= (x - 1):
+                        if xx == (x - 1):
                             # W
                             color1 += 1
-                        elif xx == (x+1):
+                        elif xx == (x + 1):
                             # E
                             color1 += 1
-                    if xx >= (x+1):
+                    if xx >= (x + 1):
                         break
 
-            elif yy == (y+1):
+            elif yy == (y + 1):
                 # 1 row below current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= (x-1):
-                        if xx == (x-1):
+                    if xx >= (x - 1):
+                        if xx == (x - 1):
                             # SW
                             color1 += 1
                         elif xx == x:
                             # S
                             color1 += 1
-                        elif xx == (x+1):
+                        elif xx == (x + 1):
                             # SE
                             color1 += 1
-                    if xx >= (x+1):
+                    if xx >= (x + 1):
                         break
 
         # color2
         for i in range(len(state2)):
             yy = state2[i][0]
-            if yy == (y-1):
+            if yy == (y - 1):
                 # 1 row above current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= (x-1):
-                        if xx == (x-1):
+                    if xx >= (x - 1):
+                        if xx == (x - 1):
                             # NW
                             color2 += 1
                         elif xx == x:
                             # N
                             color2 += 1
-                        elif xx == (x+1):
+                        elif xx == (x + 1):
                             # NE
                             color2 += 1
-                    if xx >= (x+1):
+                    if xx >= (x + 1):
                         break
 
             elif yy == y:
                 # Row of current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= (x-1):
-                        if xx == (x-1):
+                    if xx >= (x - 1):
+                        if xx == (x - 1):
                             # W
                             color2 += 1
-                        elif xx == (x+1):
+                        elif xx == (x + 1):
                             # E
                             color2 += 1
-                    if xx >= (x+1):
+                    if xx >= (x + 1):
                         break
 
-            elif yy == (y+1):
+            elif yy == (y + 1):
                 # 1 row below current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= (x-1):
-                        if xx == (x-1):
+                    if xx >= (x - 1):
+                        if xx == (x - 1):
                             # SW
                             color2 += 1
                         elif xx == x:
                             # S
                             color2 += 1
-                        elif xx == (x+1):
+                        elif xx == (x + 1):
                             # SE
                             color2 += 1
-                    if xx >= (x+1):
+                    if xx >= (x + 1):
                         break
 
         if color1 > color2:
@@ -573,19 +585,21 @@ class GOL(object):
                 # create a list of possible dead neighbors
                 # get_neighbors_from_alive() will pare this down
                 dead_neighbors = [
-                    [x-1, y-1, 1],
-                    [x,   y-1, 1],
-                    [x+1, y-1, 1],
-                    [x-1, y,   1],
-                    [x+1, y,   1],
-                    [x-1, y+1, 1],
-                    [x,   y+1, 1],
-                    [x+1, y+1, 1]
+                    [x - 1, y - 1, 1],
+                    [x, y - 1, 1],
+                    [x + 1, y - 1, 1],
+                    [x - 1, y, 1],
+                    [x + 1, y, 1],
+                    [x - 1, y + 1, 1],
+                    [x, y + 1, 1],
+                    [x + 1, y + 1, 1],
                 ]
 
-                result = self.get_neighbors_from_alive(x, y, i, self.actual_state, dead_neighbors)
-                neighbors = result['neighbors']
-                color = result['color']
+                result = self.get_neighbors_from_alive(
+                    x, y, i, self.actual_state, dead_neighbors
+                )
+                neighbors = result["neighbors"]
+                color = result["color"]
 
                 # join dead neighbors remaining to check list
                 for dead_neighbor in dead_neighbors:
@@ -593,7 +607,7 @@ class GOL(object):
                         # this cell is dead
                         xx = dead_neighbor[0]
                         yy = dead_neighbor[1]
-                        key = str(xx) + ',' + str(yy)
+                        key = str(xx) + "," + str(yy)
 
                         # counting number of dead neighbors
                         if key not in all_dead_neighbors:
@@ -618,7 +632,7 @@ class GOL(object):
             if all_dead_neighbors[key] == 3:
                 # This cell is dead, but has enough neighbors
                 # that are alive that it will make new life
-                key = key.split(',')
+                key = key.split(",")
                 t1 = int(key[0])
                 t2 = int(key[1])
 
@@ -665,20 +679,20 @@ class GOL(object):
         victory = 0.0
         SMOL = 1e-12
         if livecells1 > livecells2:
-            victory = livecells1/(1.0*livecells1 + livecells2 + SMOL)
+            victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
         else:
-            victory = livecells2/(1.0*livecells1 + livecells2 + SMOL)
+            victory = livecells2 / (1.0 * livecells1 + livecells2 + SMOL)
         victory = victory * 100
         self.victory = victory
 
         total_area = self.columns * self.rows
-        coverage = livecells/(1.0*total_area)
+        coverage = livecells / (1.0 * total_area)
         coverage = coverage * 100
         self.coverage = coverage
 
-        territory1 = livecells1/(1.0*total_area)
+        territory1 = livecells1 / (1.0 * total_area)
         territory1 = territory1 * 100
-        territory2 = livecells2/(1.0*total_area)
+        territory2 = livecells2 / (1.0 * total_area)
         territory2 = territory2 * 100
         self.territory1 = territory1
         self.territory2 = territory2
@@ -697,7 +711,7 @@ class GOL(object):
     def next_step(self):
         if self.running is False:
             return self.get_live_counts()
-        elif (self.halt and self.found_victor):
+        elif self.halt and self.found_victor:
             self.running = False
             return self.get_live_counts()
         else:
@@ -712,7 +726,7 @@ def main():
         s1='[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
         s2='[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
         rows=120,
-        columns=100
+        columns=100,
     )
 
     while gol.running:
@@ -721,6 +735,7 @@ def main():
             print(f"Simulating generation {gol.generation}")
 
     from pprint import pprint
+
     pprint(gol.get_live_counts())
 
 
