@@ -1,9 +1,17 @@
 include common.mk
 
+MODULES=golly_python
+
 CB := $(shell git branch --show-current)
 
 all:
 	@echo "no default make rule defined"
+
+lint:
+	flake8 $(MODULES)
+
+mypy:
+	mypy --ignore-missing-imports --no-strict-optional $(MODULES)
 
 help:
 	cat Makefile
