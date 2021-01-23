@@ -3,7 +3,10 @@ import json
 
 
 class GOL(object):
-    team_names = []
+    team_names: list = []
+    actual_state: list = []
+    actual_state1: list = []
+    actual_state2: list = []
     generation = 0
     columns = 0
     rows = 0
@@ -14,12 +17,9 @@ class GOL(object):
     coverage = 0.0
     territory1 = 0.0
     territory2 = 0.0
-    actual_state = []
-    actual_state1 = []
-    actual_state2 = []
     found_victor = False
-    running_avg_window = []
-    running_avg_last3 = [0.0, 0.0, 0.0]
+    running_avg_window: list = []
+    running_avg_last3: list = [0.0, 0.0, 0.0]
     running = False
 
     def __init__(self, **kwargs):
