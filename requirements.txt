@@ -1,2 +1,2 @@
-pylint
+flake8
 mypy
