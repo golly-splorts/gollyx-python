@@ -7,14 +7,14 @@ CB := $(shell git branch --show-current)
 all:
 	@echo "no default make rule defined"
 
+help:
+	cat Makefile
+
 lint:
 	flake8 $(MODULES)
 
 mypy:
 	mypy --ignore-missing-imports --no-strict-optional $(MODULES)
-
-help:
-	cat Makefile
 
 requirements:
 	python3 -m pip install --upgrade -r requirements.txt
