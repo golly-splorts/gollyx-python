@@ -1,3 +1,7 @@
+Version 11.0:
+
+* add tests of algorithm
+
 Version 8.0:
 
 * add linting and typing
