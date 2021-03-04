@@ -121,7 +121,8 @@ class GOL(object):
                     self.actual_state = self.add_cell(xx, yy, self.actual_state)
                     self.actual_state2 = self.add_cell(xx, yy, self.actual_state2)
 
-        maxdim = max(2 * self.columns, 2 * self.rows)
+        maxdim = 240
+        # maxdim = max(2 * self.columns, 2 * self.rows)
         self.running_avg_window = [
             0,
         ] * maxdim
