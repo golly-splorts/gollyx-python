@@ -1,3 +1,7 @@
+Version 14.0:
+
+* add hard-coding of 2*max_dimension (replaced with 240) for average window size
+
 Version 11.0:
 
 * add tests of algorithm
