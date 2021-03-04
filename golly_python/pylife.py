@@ -134,7 +134,8 @@ class GOL(object):
 
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
-            maxdim = max(2 * self.columns, 2 * self.rows)
+            maxdim = 240
+            # maxdim = max(2 * self.columns, 2 * self.rows)
             if self.generation < maxdim:
                 self.running_avg_window[self.generation] = livecounts["victoryPct"]
             else:
