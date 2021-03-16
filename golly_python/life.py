@@ -2,110 +2,28 @@ from operator import indexOf
 import json
 
 
-class GOL(object):
-    team_names: list = []
-    actual_state: list = []
-    actual_state1: list = []
-    actual_state2: list = []
-    generation = 0
-    columns = 0
-    rows = 0
-    livecells = 0
-    livecells1 = 0
-    livecells2 = 0
-    victory = 0.0
-    coverage = 0.0
-    territory1 = 0.0
-    territory2 = 0.0
-    found_victor = False
-    running_avg_window: list = []
-    running_avg_last3: list = [0.0, 0.0, 0.0]
-    running = False
-
-    def __init__(self, **kwargs):
-        """Constructor just sets everything up"""
-        self.load_config(**kwargs)
-        self.load_state()
-        self.prepare()
-        self.running = True
-
-    def __repr__(self):
-        s = []
-        s.append("+" + "-" * (self.columns) + "+")
-        for i in range(self.rows):
-            row = "|"
-            for j in range(self.columns):
-                if self.is_alive(j, i):
-                    color = self.get_cell_color(j, i)
-                    if color == 1:
-                        row += "#"
-                    elif color == 2:
-                        row += "o"
-                    else:
-                        row += "?"
-                else:
-                    row += "."
-            row += "|"
-            s.append(row)
-        s.append("+" + "-" * (self.columns) + "+")
-        rep = "\n".join(s)
-        rep += "\n"
-
-        livecounts = self.get_live_counts()
-
-        rep += "\nGeneration: %d" % (self.generation)
-        rep += "\nLive cells, color 1: %d" % (livecounts["liveCells1"])
-        rep += "\nLive cells, color 2: %d" % (livecounts["liveCells2"])
-        rep += "\nLive cells, total: %d" % (livecounts["liveCells"])
-        rep += "\nVictory Percent: %0.1f %%" % (livecounts["victoryPct"])
-        rep += "\nCoverage: %0.2f %%" % (livecounts["coverage"])
-        rep += "\nTerritory, color 1: %0.2f %%" % (livecounts["territory1"])
-        rep += "\nTerritory, color 2: %0.2f %%" % (livecounts["territory2"])
-
-        return rep
-
-    def load_config(self, **kwargs):
-        """Load configuration from user-provided input params"""
-        if "s1" in kwargs and "s2" in kwargs:
-            self.ic1 = kwargs["s1"]
-            self.ic2 = kwargs["s2"]
-        else:
-            raise Exception("ERROR: s1 and s2 parameters must both be specified")
-
-        if "rows" in kwargs and "columns" in kwargs:
-            self.rows = kwargs["rows"]
-            self.columns = kwargs["columns"]
-        else:
-            raise Exception(
-                "ERROR: rows and columns parameters must be provided to GOL constructor"
-            )
-
-        if "team1" in kwargs and "team2" in kwargs:
-            self.team_names = [kwargs["team1"], kwargs["team2"]]
-        else:
-            self.team_names = ["Team 1", "Team 2"]
-
+class Life(object):
+    def __init__(
+        self,
+        s1: dict,
+        s2: dict,
+        rows: int,
+        columns: int,
+        halt: bool = True,
+        neighbor_color_legacy_mode: bool = False,
+    ):
+        self.ic1 = s1
+        self.ic2 = s2
+        self.rows = rows
+        self.columns = columns
         # Whether to stop when a victor is detected
-        if "halt" in kwargs:
-            self.halt = kwargs["halt"]
-        else:
-            self.halt = True
+        self.halt = halt
         self.found_victor = False
+        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
-        # Neighbor color legacy mode was used in Seasons 1-3
-        if "neighbor_color_legacy_mode" in kwargs:
-            self.neighbor_color_legacy_mode = kwargs["neighbor_color_legacy_mode"]
-        else:
-            self.neighbor_color_legacy_mode = False
-
-    def load_state(self):
-        """
-        Load the listlife state from the initial conditions.
-        Initial conditions are set in the load_config() function
-        and are specified as part of the map.
-        """
-        s1 = json.loads(self.ic1)
-        s2 = json.loads(self.ic2)
+    def prepare(self):
+        s1 = self.ic1
+        s2 = self.ic2
 
         for s1row in s1:
             for y in s1row:
@@ -127,8 +45,6 @@ class GOL(object):
             0,
         ] * maxdim
 
-    def prepare(self):
-        # This actually inserts a calculation, I don't think we want that?
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
 
@@ -225,7 +141,7 @@ class GOL(object):
                     j = indexOf(row, x)
                     state[i] = row[:j] + row[j + 1 :]
 
-    def add_cell(self, x, y, state):
+    def add_cell_inplace(self, x, y, state):
         """
         State is a list of arrays, where the y-coordinate is the first element,
         and the rest of the elements are x-coordinates:
@@ -281,7 +197,7 @@ class GOL(object):
 
             return new_state
 
-    def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
+    def get_neighbors_from_alive(self):
         neighbors = 0
         neighbors1 = 0
         neighbors2 = 0
@@ -436,6 +352,7 @@ class GOL(object):
                 color = 2
 
         return dict(neighbors=neighbors, color=color)
+
 
     def get_color_from_alive(self, x, y):
         """
@@ -721,25 +638,3 @@ class GOL(object):
             live_counts = self.next_generation()
             self.update_moving_avg(live_counts)
             return live_counts
-
-
-def main():
-    gol = GOL(
-        s1='[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
-        s2='[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
-        rows=120,
-        columns=100,
-    )
-
-    while gol.running:
-        gol.next_step()
-        if gol.generation % 500 == 0:
-            print(f"Simulating generation {gol.generation}")
-
-    from pprint import pprint
-
-    pprint(gol.get_live_counts())
-
-
-if __name__ == "__main__":
-    main()
