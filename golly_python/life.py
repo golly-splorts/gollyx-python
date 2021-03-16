@@ -3,6 +3,26 @@ import json
 
 
 class Life(object):
+    actual_state: list = []
+    actual_state1: list = []
+    actual_state2: list = []
+    generation = 0
+    columns = 0
+    rows = 0
+    livecells = 0
+    livecells1 = 0
+    livecells2 = 0
+    victory = 0.0
+    coverage = 0.0
+    territory1 = 0.0
+    territory2 = 0.0
+    running_avg_window: list = []
+    running_avg_last3: list = [0.0, 0.0, 0.0]
+    found_victor: bool = False
+    running: bool = False
+    neighbor_color_legacy_mode: bool = False
+    MAXDIM = 240
+
     def __init__(
         self,
         s1: dict,
@@ -20,6 +40,10 @@ class Life(object):
         self.halt = halt
         self.found_victor = False
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
+        self.running = True
+        self.generation = 0
+
+        self.prepare()
 
     def prepare(self):
         s1 = self.ic1
@@ -39,7 +63,7 @@ class Life(object):
                     self.actual_state = self.add_cell(xx, yy, self.actual_state)
                     self.actual_state2 = self.add_cell(xx, yy, self.actual_state2)
 
-        maxdim = 240
+        maxdim = self.MAXDIM
         # maxdim = max(2 * self.columns, 2 * self.rows)
         self.running_avg_window = [
             0,
@@ -50,7 +74,7 @@ class Life(object):
 
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
-            maxdim = 240
+            maxdim = self.MAXDIM
             # maxdim = max(2 * self.columns, 2 * self.rows)
             if self.generation < maxdim:
                 self.running_avg_window[self.generation] = livecounts["victoryPct"]
@@ -141,7 +165,7 @@ class Life(object):
                     j = indexOf(row, x)
                     state[i] = row[:j] + row[j + 1 :]
 
-    def add_cell_inplace(self, x, y, state):
+    def add_cell(self, x, y, state):
         """
         State is a list of arrays, where the y-coordinate is the first element,
         and the rest of the elements are x-coordinates:
@@ -197,7 +221,7 @@ class Life(object):
 
             return new_state
 
-    def get_neighbors_from_alive(self):
+    def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
         neighbors = 0
         neighbors1 = 0
         neighbors2 = 0
@@ -210,7 +234,7 @@ class Life(object):
 
                         # NW
                         if state[i - 1][k] == (x - 1):
-                            possible_neighbors_list[0] = None
+                            possible_neighbors_list[0] = [-1, -1, -1]
                             self.top_pointer = k + 1
                             neighbors += 1
                             xx = state[i - 1][k]
@@ -223,7 +247,7 @@ class Life(object):
 
                         # N
                         if state[i - 1][k] == x:
-                            possible_neighbors_list[1] = None
+                            possible_neighbors_list[1] = [-1, -1, -1]
                             self.top_pointer = k
                             neighbors += 1
                             xx = state[i - 1][k]
@@ -236,7 +260,7 @@ class Life(object):
 
                         # NE
                         if state[i - 1][k] == (x + 1):
-                            possible_neighbors_list[2] = None
+                            possible_neighbors_list[2] = [-1, -1, -1]
                             if k == 1:
                                 self.top_pointer = 1
                             else:
@@ -260,7 +284,7 @@ class Life(object):
 
                 # W
                 if state[i][k] == (x - 1):
-                    possible_neighbors_list[3] = None
+                    possible_neighbors_list[3] = [-1, -1, -1]
                     neighbors += 1
                     xx = state[i][k]
                     yy = state[i][0]
@@ -272,7 +296,7 @@ class Life(object):
 
                 # E
                 if state[i][k] == (x + 1):
-                    possible_neighbors_list[4] = None
+                    possible_neighbors_list[4] = [-1, -1, -1]
                     neighbors += 1
                     xx = state[i][k]
                     yy = state[i][0]
@@ -294,7 +318,7 @@ class Life(object):
 
                         # SW
                         if state[i + 1][k] == (x - 1):
-                            possible_neighbors_list[5] = None
+                            possible_neighbors_list[5] = [-1, -1, -1]
                             self.bottom_pointer = k + 1
                             neighbors += 1
                             xx = state[i + 1][k]
@@ -307,7 +331,7 @@ class Life(object):
 
                         # S
                         if state[i + 1][k] == x:
-                            possible_neighbors_list[6] = None
+                            possible_neighbors_list[6] = [-1, -1, -1]
                             self.bottom_pointer = k
                             neighbors += 1
                             xx = state[i + 1][k]
@@ -320,7 +344,7 @@ class Life(object):
 
                         # SE
                         if state[i + 1][k] == (x + 1):
-                            possible_neighbors_list[7] = None
+                            possible_neighbors_list[7] = [-1, -1, -1]
                             if k == 1:
                                 self.bottom_pinter = 1
                             else:
@@ -522,7 +546,7 @@ class Life(object):
 
                 # join dead neighbors remaining to check list
                 for dead_neighbor in dead_neighbors:
-                    if dead_neighbor is not None:
+                    if dead_neighbor[2] == -1:
                         # this cell is dead
                         xx = dead_neighbor[0]
                         yy = dead_neighbor[1]
