@@ -1,4 +1,6 @@
-from golly_python.pylife import GOL
+from pprint import pprint
+#from golly_python.pylife import GOL
+from golly_python.manager import GOL
 
 def main():
     gol = GOL(
@@ -11,15 +13,12 @@ def main():
 
     while gol.running:
         live_counts = gol.next_step()
+        if gol.generation % 100 == 0:
+            print(f"Generation {gol.generation}")
+            pprint(gol.get_live_counts())
         if gol.generation == 1000:
-            print(gol.get_live_counts())
             break
-        if gol.generation%500==0:
-            print(f"Simulating generation {gol.generation}")
 
-
-    #from pprint import pprint
-    #pprint(gol.get_live_counts())
 
 if __name__=="__main__":
     main()
