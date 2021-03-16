@@ -17,8 +17,8 @@ class GOL(object):
         for i in range(self.rows):
             row = "|"
             for j in range(self.columns):
-                if self.is_alive(j, i):
-                    color = self.get_cell_color(j, i)
+                if self.life.is_alive(j, i):
+                    color = self.life.get_cell_color(j, i)
                     if color == 1:
                         row += "#"
                     elif color == 2:
@@ -35,7 +35,7 @@ class GOL(object):
 
         livecounts = self.get_live_counts()
 
-        rep += "\nGeneration: %d" % (self.life.generation)
+        rep += "\nGeneration: %d" % (self.generation)
         rep += "\nLive cells, color 1: %d" % (livecounts["liveCells1"])
         rep += "\nLive cells, color 2: %d" % (livecounts["liveCells2"])
         rep += "\nLive cells, total: %d" % (livecounts["liveCells"])
@@ -81,8 +81,19 @@ class GOL(object):
             self.neighbor_color_legacy_mode = False
 
     def create_life(self):
-        s1 = json.loads(self.ic1)
-        s2 = json.loads(self.ic2)
+        try:
+            s1 = json.loads(self.ic1)
+        except json.decoder.JSONDecodeError:
+            err = f"Error: Could not load data as json:\n"
+            err += self.ic1
+            raise Exception(err)
+
+        try:
+            s2 = json.loads(self.ic2)
+        except json.decoder.JSONDecodeError:
+            err = f"Error: Could not load data as json:\n"
+            err += self.ic1
+            raise Exception(err)
         
         self.life = Life(
             s1,
