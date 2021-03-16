@@ -234,7 +234,7 @@ class Life(object):
 
                         # NW
                         if state[i - 1][k] == (x - 1):
-                            possible_neighbors_list[0] = None
+                            possible_neighbors_list[0] = [-1, -1, -1]
                             self.top_pointer = k + 1
                             neighbors += 1
                             xx = state[i - 1][k]
@@ -247,7 +247,7 @@ class Life(object):
 
                         # N
                         if state[i - 1][k] == x:
-                            possible_neighbors_list[1] = None
+                            possible_neighbors_list[1] = [-1, -1, -1]
                             self.top_pointer = k
                             neighbors += 1
                             xx = state[i - 1][k]
@@ -260,7 +260,7 @@ class Life(object):
 
                         # NE
                         if state[i - 1][k] == (x + 1):
-                            possible_neighbors_list[2] = None
+                            possible_neighbors_list[2] = [-1, -1, -1]
                             if k == 1:
                                 self.top_pointer = 1
                             else:
@@ -284,7 +284,7 @@ class Life(object):
 
                 # W
                 if state[i][k] == (x - 1):
-                    possible_neighbors_list[3] = None
+                    possible_neighbors_list[3] = [-1, -1, -1]
                     neighbors += 1
                     xx = state[i][k]
                     yy = state[i][0]
@@ -296,7 +296,7 @@ class Life(object):
 
                 # E
                 if state[i][k] == (x + 1):
-                    possible_neighbors_list[4] = None
+                    possible_neighbors_list[4] = [-1, -1, -1]
                     neighbors += 1
                     xx = state[i][k]
                     yy = state[i][0]
@@ -318,7 +318,7 @@ class Life(object):
 
                         # SW
                         if state[i + 1][k] == (x - 1):
-                            possible_neighbors_list[5] = None
+                            possible_neighbors_list[5] = [-1, -1, -1]
                             self.bottom_pointer = k + 1
                             neighbors += 1
                             xx = state[i + 1][k]
@@ -331,7 +331,7 @@ class Life(object):
 
                         # S
                         if state[i + 1][k] == x:
-                            possible_neighbors_list[6] = None
+                            possible_neighbors_list[6] = [-1, -1, -1]
                             self.bottom_pointer = k
                             neighbors += 1
                             xx = state[i + 1][k]
@@ -344,7 +344,7 @@ class Life(object):
 
                         # SE
                         if state[i + 1][k] == (x + 1):
-                            possible_neighbors_list[7] = None
+                            possible_neighbors_list[7] = [-1, -1, -1]
                             if k == 1:
                                 self.bottom_pinter = 1
                             else:
@@ -546,7 +546,8 @@ class Life(object):
 
                 # join dead neighbors remaining to check list
                 for dead_neighbor in dead_neighbors:
-                    if dead_neighbor is not None:
+                    #if dead_neighbor is not None:
+                    if dead_neighbor[2] != -1:
                         # this cell is dead
                         xx = dead_neighbor[0]
                         yy = dead_neighbor[1]
@@ -558,7 +559,9 @@ class Life(object):
                         else:
                             all_dead_neighbors[key] += 1
 
-                if not (neighbors == 0 or neighbors == 1 or neighbors > 3):
+                if (neighbors < 0 ):
+                    raise Exception(f"Error: neighbors has invalid value of {neighbors}")
+                elif not (neighbors == 0 or neighbors == 1 or neighbors > 3):
                     new_state = self.add_cell(x, y, new_state)
                     if color == 1:
                         new_state1 = self.add_cell(x, y, new_state1)
