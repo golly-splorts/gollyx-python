@@ -1,3 +1,4 @@
+import json
 from .life import Life
 
 
@@ -34,7 +35,7 @@ class GOL(object):
 
         livecounts = self.get_live_counts()
 
-        rep += "\nGeneration: %d" % (self.generation)
+        rep += "\nGeneration: %d" % (self.life.generation)
         rep += "\nLive cells, color 1: %d" % (livecounts["liveCells1"])
         rep += "\nLive cells, color 2: %d" % (livecounts["liveCells2"])
         rep += "\nLive cells, total: %d" % (livecounts["liveCells"])
@@ -93,3 +94,14 @@ class GOL(object):
 
     def next_step(self):
         return self.life.next_step()
+
+    def get_live_counts(self):
+        return self.life.get_live_counts()
+
+    @property
+    def running(self):
+        return self.life.running
+
+    @property
+    def generation(self):
+        return self.life.generation
