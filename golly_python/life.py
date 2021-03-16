@@ -234,7 +234,7 @@ class Life(object):
 
                         # NW
                         if state[i - 1][k] == (x - 1):
-                            possible_neighbors_list[0] = [-1, -1, -1]
+                            possible_neighbors_list[0] = None
                             self.top_pointer = k + 1
                             neighbors += 1
                             xx = state[i - 1][k]
@@ -247,7 +247,7 @@ class Life(object):
 
                         # N
                         if state[i - 1][k] == x:
-                            possible_neighbors_list[1] = [-1, -1, -1]
+                            possible_neighbors_list[1] = None
                             self.top_pointer = k
                             neighbors += 1
                             xx = state[i - 1][k]
@@ -260,7 +260,7 @@ class Life(object):
 
                         # NE
                         if state[i - 1][k] == (x + 1):
-                            possible_neighbors_list[2] = [-1, -1, -1]
+                            possible_neighbors_list[2] = None
                             if k == 1:
                                 self.top_pointer = 1
                             else:
@@ -284,7 +284,7 @@ class Life(object):
 
                 # W
                 if state[i][k] == (x - 1):
-                    possible_neighbors_list[3] = [-1, -1, -1]
+                    possible_neighbors_list[3] = None
                     neighbors += 1
                     xx = state[i][k]
                     yy = state[i][0]
@@ -296,7 +296,7 @@ class Life(object):
 
                 # E
                 if state[i][k] == (x + 1):
-                    possible_neighbors_list[4] = [-1, -1, -1]
+                    possible_neighbors_list[4] = None
                     neighbors += 1
                     xx = state[i][k]
                     yy = state[i][0]
@@ -318,7 +318,7 @@ class Life(object):
 
                         # SW
                         if state[i + 1][k] == (x - 1):
-                            possible_neighbors_list[5] = [-1, -1, -1]
+                            possible_neighbors_list[5] = None
                             self.bottom_pointer = k + 1
                             neighbors += 1
                             xx = state[i + 1][k]
@@ -331,7 +331,7 @@ class Life(object):
 
                         # S
                         if state[i + 1][k] == x:
-                            possible_neighbors_list[6] = [-1, -1, -1]
+                            possible_neighbors_list[6] = None
                             self.bottom_pointer = k
                             neighbors += 1
                             xx = state[i + 1][k]
@@ -344,7 +344,7 @@ class Life(object):
 
                         # SE
                         if state[i + 1][k] == (x + 1):
-                            possible_neighbors_list[7] = [-1, -1, -1]
+                            possible_neighbors_list[7] = None
                             if k == 1:
                                 self.bottom_pinter = 1
                             else:
@@ -546,7 +546,7 @@ class Life(object):
 
                 # join dead neighbors remaining to check list
                 for dead_neighbor in dead_neighbors:
-                    if dead_neighbor[2] == -1:
+                    if dead_neighbor is not None:
                         # this cell is dead
                         xx = dead_neighbor[0]
                         yy = dead_neighbor[1]
