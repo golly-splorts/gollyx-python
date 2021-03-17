@@ -25,15 +25,15 @@ class Life(object):
 
     def __init__(
         self,
-        s1: dict,
-        s2: dict,
+        ic1: dict,
+        ic2: dict,
         rows: int,
         columns: int,
         halt: bool = True,
         neighbor_color_legacy_mode: bool = False,
     ):
-        self.ic1 = s1
-        self.ic2 = s2
+        self.ic1 = ic1
+        self.ic2 = ic2
         self.rows = rows
         self.columns = columns
         # Whether to stop when a victor is detected
