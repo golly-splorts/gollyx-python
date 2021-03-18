@@ -3,7 +3,7 @@ import json
 
 
 class LifeState(object):
-    def __init__(self, rows, columns, neighbor_color_legacy_mode = False):
+    def __init__(self, rows, columns, neighbor_color_legacy_mode=False):
         self.state = []
         self.rows = rows
         self.columns = columns
@@ -13,8 +13,7 @@ class LifeState(object):
         """
         Boolean function: is the cell at x, y alive
         """
-        state = self.state
-        for row in state:
+        for row in self.state:
             if row[0] == y:
                 for c in row[1:]:
                     if c == x:
@@ -23,10 +22,10 @@ class LifeState(object):
 
     def count_live_cells(self):
         livecells = 0
-        for i in range(len(self.state)):
-            if (self.state[i][0] >= 0) and (self.state[i][0] < self.rows):
-                for j in range(1, len(self.state[i])):
-                    if (self.state[i][j] >= 0) and (self.state[i][j] < self.columns):
+        for row in self.state:
+            if (row[0] >= 0) and (row[0] < self.rows):
+                for j in range(1, len(row)):
+                    if (row[j] >= 0) and (row[j] < self.columns):
                         livecells += 1
         return livecells
 
@@ -190,7 +189,10 @@ class CompositeLifeState(LifeState):
             raise Exception(err)
         self.columns = self.state1.columns
 
-        if self.state1.neighbor_color_legacy_mode != self.state2.neighbor_color_legacy_mode:
+        if (
+            self.state1.neighbor_color_legacy_mode
+            != self.state2.neighbor_color_legacy_mode
+        ):
             err = f"Error: CompositeLifeState received states with different neighbor_color_legacy_mode settings"
             raise Exception(err)
         self.neighbor_color_legacy_mode = self.state1.neighbor_color_legacy_mode
@@ -205,7 +207,7 @@ class CompositeLifeState(LifeState):
     def get_cell_color(self, x, y):
         if self.state1.is_alive(x, y):
             return 1
-        elif self.state2.is_alive(x,y):
+        elif self.state2.is_alive(x, y):
             return 2
         return 0
 
@@ -493,7 +495,7 @@ class Life(object):
     #    """
     #    return self.actual_state.is_alive(x, y)
 
-    #def get_cell_color(self, x, y):
+    # def get_cell_color(self, x, y):
     #    """
     #    Get the color of the given cell (1 or 2)
     #    """
@@ -945,7 +947,7 @@ class Life(object):
         Get live counts of cells of each color, and total.
         Compute statistics.
         """
-        livecells  = self.livecells  = self.actual_state.count_live_cells()
+        livecells = self.livecells = self.actual_state.count_live_cells()
         livecells1 = self.livecells1 = self.actual_state1.count_live_cells()
         livecells2 = self.livecells2 = self.actual_state2.count_live_cells()
 
@@ -963,8 +965,8 @@ class Life(object):
         coverage = coverage * 100
         self.coverage = coverage
 
-        territory1 = self.territory1 = (livecells1 / (1.0 * total_area))*100
-        territory2 = self.territory2 = (livecells2 / (1.0 * total_area))*100
+        territory1 = self.territory1 = (livecells1 / (1.0 * total_area)) * 100
+        territory2 = self.territory2 = (livecells2 / (1.0 * total_area)) * 100
 
         return dict(
             generation=self.generation,
