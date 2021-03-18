@@ -32,6 +32,7 @@ class GollyPythonTest(unittest.TestCase):
         """
         Check the actual results of the calculations against known good results
         """
+        import pdb; pdb.set_trace()
         gol = golly_python.GOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',

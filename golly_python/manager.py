@@ -95,6 +95,7 @@ class GOL(object):
             err += self.ic1
             raise Exception(err)
         
+        import pdb; pdb.set_trace()
         self.life = Life(
             s1,
             s2,
