@@ -3,8 +3,11 @@ import json
 
 
 class LifeState(object):
-    def __init__(self):
+    def __init__(self, rows, columns, neighbor_color_legacy_mode = False):
         self.state = []
+        self.rows = rows
+        self.columns = columns
+        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
     def is_alive(self, x, y):
         """
@@ -19,12 +22,11 @@ class LifeState(object):
         return False
 
     def count_live_cells(self):
-        state = self.state
         livecells = 0
-        for i in range(len(state)):
-            if (state[i][0] >= 0) and (state[i][0] < self.rows):
-                for j in range(1, len(state[i])):
-                    if (state[i][j] >= 0) and (state[i][j] < self.columns):
+        for i in range(len(self.state)):
+            if (self.state[i][0] >= 0) and (self.state[i][0] < self.rows):
+                for j in range(1, len(self.state[i])):
+                    if (self.state[i][j] >= 0) and (self.state[i][j] < self.columns):
                         livecells += 1
         return livecells
 
@@ -36,28 +38,29 @@ class LifeState(object):
           [y2, x5, x6, x7, x8, x9]
           [y3, x10]
         """
-        state = self.state
-
         # Empty state case
-        if len(state) == 0:
-            return [[y, x]]
+        if len(self.state) == 0:
+            self.state = [[y, x]]
+            return
 
         # figure out where in the list to insert the new cell
-        if y < state[0][0]:
+        elif y < self.state[0][0]:
             # y is smaller than any existing y,
             # so put this point at beginning
-            return [[y, x]] + state
+            self.state = [[y, x]] + self.state
+            return
 
-        elif y > state[-1][0]:
+        elif y > self.state[-1][0]:
             # y is larger than any existing y,
             # so put this point at end
-            return state + [[y, x]]
+            self.state = self.state + [[y, x]]
+            return
 
         else:
             # Adding to the middle
             new_state = []
             added = False
-            for row in state:
+            for row in self.state:
                 if (not added) and (row[0] == y):
                     # This level already exists
                     new_row = [y]
@@ -87,7 +90,8 @@ class LifeState(object):
             if added is False:
                 raise Exception(f"Error adding cell ({x},{y}): new_state = {new_state}")
 
-            return new_state
+            self.state = new_state
+            return
 
     def remove_cell(self, x, y):
         """
@@ -174,12 +178,36 @@ class CompositeLifeState(LifeState):
         self.state1 = state1
         self.state2 = state2
 
+        if self.state1.rows != self.state2.rows:
+            err = f"Error: CompositeLifeState received states of different sizes:\n"
+            err += f"state 1 rows {self.state1.rows} != state 2 rows {self.state2.rows}"
+            raise Exception(err)
+        self.rows = self.state1.rows
+
+        if self.state1.columns != self.state2.columns:
+            err = f"Error: CompositeLifeState received states of different sizes:\n"
+            err += f"state 1 columns {self.state1.columns} != state 2 columns {self.state2.columns}"
+            raise Exception(err)
+        self.columns = self.state1.columns
+
+        if self.state1.neighbor_color_legacy_mode != self.state2.neighbor_color_legacy_mode:
+            err = f"Error: CompositeLifeState received states with different neighbor_color_legacy_mode settings"
+            raise Exception(err)
+        self.neighbor_color_legacy_mode = self.state1.neighbor_color_legacy_mode
+
     def is_alive(self, x, y):
         if self.state1.is_alive(x, y):
             return True
         elif self.state2.is_alive(x, y):
             return True
         return False
+
+    def get_cell_color(self, x, y):
+        if self.state1.is_alive(x, y):
+            return 1
+        elif self.state2.is_alive(x,y):
+            return 2
+        return 0
 
     def get_neighbors_from_alive(self, x, y, i, possible_neighbors_list):
         state = self.state
@@ -381,8 +409,8 @@ class Life(object):
         self.running = True
         self.generation = 0
 
-        self.actual_state1 = LifeState()
-        self.actual_state2 = LifeState()
+        self.actual_state1 = LifeState(rows, columns, neighbor_color_legacy_mode)
+        self.actual_state2 = LifeState(rows, columns, neighbor_color_legacy_mode)
         self.actual_state = CompositeLifeState(self.actual_state1, self.actual_state2)
 
         self.prepare()
@@ -465,16 +493,16 @@ class Life(object):
     #    """
     #    return self.actual_state.is_alive(x, y)
 
-    def get_cell_color(self, x, y):
-        """
-        Get the color of the given cell (1 or 2)
-        """
-        if self.actual_state1.is_alive(x, y):
-            return 1
-        elif self.actual_state2.is_alive(x, y):
-            return 2
-        else:
-            return 0
+    #def get_cell_color(self, x, y):
+    #    """
+    #    Get the color of the given cell (1 or 2)
+    #    """
+    #    if self.actual_state1.is_alive(x, y):
+    #        return 1
+    #    elif self.actual_state2.is_alive(x, y):
+    #        return 2
+    #    else:
+    #        return 0
 
     # def remove_cell(self, x, y, state):
     #    """
@@ -727,8 +755,8 @@ class Life(object):
     def next_generation(self):
         all_dead_neighbors = {}
 
-        new_state1 = LifeState()
-        new_state2 = LifeState()
+        new_state1 = LifeState(self.rows, self.columns)
+        new_state2 = LifeState(self.rows, self.columns)
         new_state = CompositeLifeState(new_state1, new_state2)
 
         self.redraw_list = []
@@ -781,11 +809,11 @@ class Life(object):
                     )
                 elif not (neighbors == 0 or neighbors == 1 or neighbors > 3):
                     if color == 1:
-                        new_state.add_cell(x, y, new_state)
-                        new_state1.add_cell(x, y, new_state1)
+                        new_state.add_cell(x, y)
+                        new_state1.add_cell(x, y)
                     elif color == 2:
-                        new_state.add_cell(x, y, new_state)
-                        new_state2.add_cell(x, y, new_state2)
+                        new_state.add_cell(x, y)
+                        new_state2.add_cell(x, y)
                     self.redraw_list.append([x, y, 2])
                 else:
                     # Kill cell
