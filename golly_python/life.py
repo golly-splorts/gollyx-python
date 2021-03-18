@@ -1,5 +1,4 @@
 from operator import indexOf
-import json
 
 
 class LifeState(object):
@@ -101,11 +100,11 @@ class LifeState(object):
             if row[0] == y:
                 if len(row) == 2:
                     # Remove the entire row
-                    state = state[:i] + state[i + 1 :]
+                    state = state[:i] + state[i + 1:]
                     return
                 else:
                     j = indexOf(row, x)
-                    state[i] = row[:j] + row[j + 1 :]
+                    state[i] = row[:j] + row[j + 1:]
 
     def get_color_count(self, x, y):
         """
@@ -178,13 +177,13 @@ class CompositeLifeState(LifeState):
         self.state2 = state2
 
         if self.state1.rows != self.state2.rows:
-            err = f"Error: CompositeLifeState received states of different sizes:\n"
+            err = "Error: CompositeLifeState received states of different sizes:\n"
             err += f"state 1 rows {self.state1.rows} != state 2 rows {self.state2.rows}"
             raise Exception(err)
         self.rows = self.state1.rows
 
         if self.state1.columns != self.state2.columns:
-            err = f"Error: CompositeLifeState received states of different sizes:\n"
+            err = "Error: CompositeLifeState received states of different sizes:\n"
             err += f"state 1 columns {self.state1.columns} != state 2 columns {self.state2.columns}"
             raise Exception(err)
         self.columns = self.state1.columns
@@ -193,7 +192,7 @@ class CompositeLifeState(LifeState):
             self.state1.neighbor_color_legacy_mode
             != self.state2.neighbor_color_legacy_mode
         ):
-            err = f"Error: CompositeLifeState received states with different neighbor_color_legacy_mode settings"
+            err = "Error: CompositeLifeState received states with different neighbor_color_legacy_mode settings"
             raise Exception(err)
         self.neighbor_color_legacy_mode = self.state1.neighbor_color_legacy_mode
 

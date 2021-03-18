@@ -84,17 +84,17 @@ class GOL(object):
         try:
             s1 = json.loads(self.ic1)
         except json.decoder.JSONDecodeError:
-            err = f"Error: Could not load data as json:\n"
+            err = "Error: Could not load data as json:\n"
             err += self.ic1
             raise Exception(err)
 
         try:
             s2 = json.loads(self.ic2)
         except json.decoder.JSONDecodeError:
-            err = f"Error: Could not load data as json:\n"
+            err = "Error: Could not load data as json:\n"
             err += self.ic1
             raise Exception(err)
-        
+
         self.life = Life(
             s1,
             s2,
