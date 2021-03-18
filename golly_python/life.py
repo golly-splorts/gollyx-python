@@ -1,13 +1,23 @@
 from .state import LifeState, CompositeLifeState
 
 
-class Life(object):
-    actual_state: CompositeLifeState
-    actual_state1: LifeState
-    actual_state2: LifeState
-    generation = 0
-    columns = 0
-    rows = 0
+# dimension (in time) of time-average window
+MAXDIM = 240
+
+# used to avoid dividing by zero
+SMOL = 1e-12
+
+# used to determine if two numbers are approximately equal
+EQUALTOL = 1e-8
+
+
+# Note: define List classes with same methods as C++ list classes,
+# but that use a Python list under the hood with whatever tricks.
+# Then it will be easier to swap out the type of list without
+# rewriting bunches of code.
+
+
+class LifeStats(object):
     livecells = 0
     livecells1 = 0
     livecells2 = 0
@@ -15,12 +25,99 @@ class Life(object):
     coverage = 0.0
     territory1 = 0.0
     territory2 = 0.0
-    running_avg_window: list = []
+    running_avg_window: list
     running_avg_last3: list = [0.0, 0.0, 0.0]
+
+    def __init__(self, life):
+        self.running_avg_window = [
+            0.0,
+        ] * MAXDIM
+        self.life = life
+        self.rows = life.rows
+        self.columns = life.columns
+
+    def get_live_counts(self, state, state1, state2, generation):
+        livecells = self.livecells = state.count_live_cells()
+        livecells1 = self.livecells1 = state1.count_live_cells()
+        livecells2 = self.livecells2 = state2.count_live_cells()
+
+        victory = 0.0
+        if livecells1 > livecells2:
+            victory = (livecells1 / (1.0 * livecells1 + livecells2 + SMOL)) * 100
+        else:
+            victory = (livecells2 / (1.0 * livecells1 + livecells2 + SMOL)) * 100
+        self.victory = victory
+        total_area = self.columns * self.rows
+
+        coverage = self.coverage = (livecells / (1.0 * total_area)) * 100
+        territory1 = self.territory1 = (livecells1 / (1.0 * total_area)) * 100
+        territory2 = self.territory2 = (livecells2 / (1.0 * total_area)) * 100
+
+        return dict(
+            generation=generation,
+            liveCells=livecells,
+            liveCells1=livecells1,
+            liveCells2=livecells2,
+            victoryPct=victory,
+            coverage=coverage,
+            territory1=territory1,
+            territory2=territory2,
+        )
+
+    def update_moving_avg(self):
+        if not self.life.found_victor:
+            if self.life.generation < MAXDIM:
+                # push_back
+                self.running_avg_window[self.life.generation] = self.victory
+            else:
+                # pop_front
+                # push_back
+                self.running_avg_window = self.running_avg_window[1:] + [self.victory]
+                summ = sum(self.running_avg_window)
+                running_avg = summ / (1.0 * len(self.running_avg_window))
+
+                # update running average last 3
+                removed = self.running_avg_last3[0]
+                self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
+
+                tol = EQUALTOL
+
+                # skip the first few steps where we're removing zeros
+                if not self.approx_equal(removed, 0.0, tol):
+                    b1 = self.approx_equal(
+                        self.running_avg_last3[0], self.running_avg_last3[1], tol
+                    )
+                    b2 = self.approx_equal(
+                        self.running_avg_last3[1], self.running_avg_last3[2], tol
+                    )
+                    zerocells = self.livecells1 == 0 or self.livecells2 == 0
+                    if (b1 and b2) or zerocells:
+                        z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
+                        z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
+                        z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
+                        if (not (z1 or z2 or z3)) or zerocells:
+                            # Declare victory in the life object
+                            if self.livecells1 > self.livecells2:
+                                self.life.found_victor = True
+                                self.life.who_won = 1
+                            elif self.livecells1 < self.livecells2:
+                                self.life.found_victor = True
+                                self.life.who_won = 2
+
+    def approx_equal(self, a, b, tol):
+        return (abs(b - a) / abs(a + SMOL)) < tol
+
+
+class Life(object):
+    actual_state: CompositeLifeState
+    actual_state1: LifeState
+    actual_state2: LifeState
+    generation = 0
+    columns = 0
+    rows = 0
     found_victor: bool = False
     running: bool = False
     neighbor_color_legacy_mode: bool = False
-    MAXDIM = 240
 
     def __init__(
         self,
@@ -35,12 +132,16 @@ class Life(object):
         self.ic2 = ic2
         self.rows = rows
         self.columns = columns
+
+        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
+
         # Whether to stop when a victor is detected
         self.halt = halt
         self.found_victor = False
-        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
+
         self.running = True
         self.generation = 0
+        self.stats = LifeStats(self)
 
         self.actual_state1 = LifeState(rows, columns, neighbor_color_legacy_mode)
         self.actual_state2 = LifeState(rows, columns, neighbor_color_legacy_mode)
@@ -66,59 +167,8 @@ class Life(object):
                     self.actual_state.add_cell(xx, yy)
                     self.actual_state2.add_cell(xx, yy)
 
-        maxdim = self.MAXDIM
-        # maxdim = max(2 * self.columns, 2 * self.rows)
-        self.running_avg_window = [
-            0,
-        ] * maxdim
-
-        livecounts = self.get_live_counts()
-        self.update_moving_avg(livecounts)
-
-    def update_moving_avg(self, livecounts):
-        if not self.found_victor:
-            maxdim = self.MAXDIM
-            # maxdim = max(2 * self.columns, 2 * self.rows)
-            if self.generation < maxdim:
-                self.running_avg_window[self.generation] = livecounts["victoryPct"]
-            else:
-                self.running_avg_window = self.running_avg_window[1:] + [
-                    livecounts["victoryPct"]
-                ]
-                summ = sum(self.running_avg_window)
-                running_avg = summ / (1.0 * len(self.running_avg_window))
-
-                # update running average last 3
-                removed = self.running_avg_last3[0]
-                self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
-
-                tol = 1e-8
-                # skip the first few steps where we're removing zeros
-                if not self.approx_equal(removed, 0.0, tol):
-                    b1 = self.approx_equal(
-                        self.running_avg_last3[0], self.running_avg_last3[1], tol
-                    )
-                    b2 = self.approx_equal(
-                        self.running_avg_last3[1], self.running_avg_last3[2], tol
-                    )
-                    zerocells = (
-                        livecounts["liveCells1"] == 0 or livecounts["liveCells2"] == 0
-                    )
-                    if (b1 and b2) or zerocells:
-                        z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
-                        z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
-                        z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
-                        if (not (z1 or z2 or z3)) or zerocells:
-                            if livecounts["liveCells1"] > livecounts["liveCells2"]:
-                                self.found_victor = True
-                                self.who_won = 1
-                            elif livecounts["liveCells1"] < livecounts["liveCells2"]:
-                                self.found_victor = True
-                                self.who_won = 2
-
-    def approx_equal(self, a, b, tol):
-        SMOL = 1e-12
-        return (abs(b - a) / abs(a + SMOL)) < tol
+        self.get_stats()
+        self.stats.update_moving_avg()
 
     def get_color_from_alive(self, x, y):
         """
@@ -142,7 +192,22 @@ class Life(object):
                 color = 2
             return color
 
-    def next_generation(self):
+    def next_step(self):
+        """Advance the state of the simulator forward by one time step"""
+        if self.running is False:
+            return self.get_stats()
+        elif self.halt and self.found_victor:
+            self.running = False
+            return self.get_stats()
+        else:
+            self.generation += 1
+            live_counts = self._next_generation()
+            # Method above will call stats.get_live_counts()
+            self.stats.update_moving_avg()
+            return live_counts
+
+    def _next_generation(self):
+        """Advance life to the next generation"""
         all_dead_neighbors = {}
 
         new_state1 = LifeState(self.rows, self.columns)
@@ -234,53 +299,13 @@ class Life(object):
         self.actual_state1 = new_state1
         self.actual_state2 = new_state2
 
-        return self.get_live_counts()
+        return self.get_stats()
 
-    def get_live_counts(self):
+    def get_stats(self):
         """
         Get live counts of cells of each color, and total.
         Compute statistics.
         """
-        livecells = self.livecells = self.actual_state.count_live_cells()
-        livecells1 = self.livecells1 = self.actual_state1.count_live_cells()
-        livecells2 = self.livecells2 = self.actual_state2.count_live_cells()
-
-        victory = 0.0
-        SMOL = 1e-12
-        if livecells1 > livecells2:
-            victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
-        else:
-            victory = livecells2 / (1.0 * livecells1 + livecells2 + SMOL)
-        victory = victory * 100
-        self.victory = victory
-
-        total_area = self.columns * self.rows
-        coverage = livecells / (1.0 * total_area)
-        coverage = coverage * 100
-        self.coverage = coverage
-
-        territory1 = self.territory1 = (livecells1 / (1.0 * total_area)) * 100
-        territory2 = self.territory2 = (livecells2 / (1.0 * total_area)) * 100
-
-        return dict(
-            generation=self.generation,
-            liveCells=livecells,
-            liveCells1=livecells1,
-            liveCells2=livecells2,
-            victoryPct=victory,
-            coverage=coverage,
-            territory1=territory1,
-            territory2=territory2,
+        return self.stats.get_live_counts(
+            self.actual_state, self.actual_state1, self.actual_state2, self.generation
         )
-
-    def next_step(self):
-        if self.running is False:
-            return self.get_live_counts()
-        elif self.halt and self.found_victor:
-            self.running = False
-            return self.get_live_counts()
-        else:
-            self.generation += 1
-            live_counts = self.next_generation()
-            self.update_moving_avg(live_counts)
-            return live_counts

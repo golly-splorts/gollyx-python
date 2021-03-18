@@ -38,7 +38,7 @@ class GollyPythonTest(unittest.TestCase):
             rows = 100,
             columns = 120
         )
-        live_counts = gol.get_live_counts()
+        live_counts = gol.count()
         self.assertEqual(live_counts['generation'], 0)
         self.assertEqual(live_counts['liveCells1'], 7)
         self.assertEqual(live_counts['liveCells2'], 7)
@@ -90,7 +90,7 @@ class GollyPythonTest(unittest.TestCase):
             rows=200,
             columns=240,
         )
-        live_counts = gol.get_live_counts()
+        live_counts = gol.count()
         self.assertEqual(live_counts['liveCells1'], 7)
         self.assertEqual(live_counts['liveCells2'], 7)
 

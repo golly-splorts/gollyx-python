@@ -33,7 +33,7 @@ class GOL(object):
         rep = "\n".join(s)
         rep += "\n"
 
-        livecounts = self.get_live_counts()
+        livecounts = self.count()
 
         rep += "\nGeneration: %d" % (self.generation)
         rep += "\nLive cells, color 1: %d" % (livecounts["liveCells1"])
@@ -106,8 +106,8 @@ class GOL(object):
     def next_step(self):
         return self.life.next_step()
 
-    def get_live_counts(self):
-        return self.life.get_live_counts()
+    def count(self):
+        return self.life.get_stats()
 
     @property
     def running(self):
