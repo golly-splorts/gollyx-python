@@ -5,6 +5,45 @@ class LifeState(object):
     def __init__(
         self, rows: int, columns: int, neighbor_color_legacy_mode: bool = False
     ):
+        self.state = LifeList()
+        self.rows = rows
+        self.columns = columns
+        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
+
+    def is_alive(self, x, y):
+        """Boolean: is the cell at (x, y) alive in this state?"""
+        return self.state.contains(x, y)
+
+    def count_live_cells(self):
+        """Return count of live cells"""
+        return self.state.live_count()
+
+    def add_cell(self, x, y):
+        """Insert cell at (x, y) into state list"""
+        return self.state.insert(x, y)
+
+    def remove_cell(self, x, y):
+        """
+        Remove the given cell from the state
+        """
+        return self.state.remove(x, y)
+
+
+
+
+
+
+
+
+
+
+
+
+
+class OldLifeState(object):
+    def __init__(
+        self, rows: int, columns: int, neighbor_color_legacy_mode: bool = False
+    ):
         self.state = []
         self.rows = rows
         self.columns = columns
