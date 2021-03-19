@@ -1,13 +1,13 @@
-class FloatNode(object):
+class EmptyListError(Exception):
+    pass
+
+
+class MovingAvgNode(object):
     next_node = None
     data: float = None
 
     def __init__(self, data: float):
         self.data = data
-
-
-class EmptyListError(Exception):
-    pass
 
 
 class MovingAvgList(object):
@@ -18,7 +18,7 @@ class MovingAvgList(object):
     To get the front of the list, use back.next.
     """
     size: int = 0
-    back_node: FloatNode = None
+    back_node: MovingAvgNode = None
 
     def __init__(self):
         pass
@@ -48,14 +48,14 @@ class MovingAvgList(object):
 
         if self.back_node is None:
             # Empty list
-            node = FloatNode(data)
+            node = MovingAvgNode(data)
             node.next_node = node
             self.back_node = node
             self.size += 1
 
         else:
             # Create a new back node
-            node = FloatNode(data)
+            node = MovingAvgNode(data)
             # New back node's next node points to front node
             node.next_node = self.back_node.next_node
             # Old back node's next node points to new back node
