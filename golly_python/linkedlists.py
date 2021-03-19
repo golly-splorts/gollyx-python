@@ -75,20 +75,31 @@ class SortedRowList(object):
             return self.front_node.data
 
     def insertion_index(self, x):
-        leader = self.front_node.next_node
-        lagger = self.front_node
-        while leader != None and x > leader.data:
-            lagger = leader
-            leader = leader.next_node
-        if leader == None:
-            # Reached end of list without finding x
-            return lagger
-        elif leader.data == x:
-            # x value is in the list
-            return leader
+        """
+        Given an element x, return a pointer to the insertion index
+        (the Node preceding the spot where the new Node would go)
+        """
+        if self.size==0:
+            return None
+
+        elif self.size==1:
+            return self.front_node
+
         else:
-            # x value is not in the list
-            return lagger
+            leader = self.front_node.next_node
+            lagger = self.front_node
+            while leader != None and x > leader.data:
+                lagger = leader
+                leader = leader.next_node
+            if leader == None:
+                # Reached end of list without finding x, return end of list
+                return lagger
+            elif leader.data == x:
+                # x value is in the list, leader points to it
+                return leader
+            else:
+                # x value is not in the list, leader and all following are higher
+                return lagger
 
     def find(self, x):
         """
@@ -101,60 +112,37 @@ class SortedRowList(object):
             return None
 
     def contains(self, x):
-        node = self.find(x)
-        if node is not None:
-            return True
-        else:
+        if self.find(x) is None:
             return False
+        else:
+            return True
 
-    def insert(self, value):
-
-        # The first element into the list is always y value.
-        # This list will maintain the values that follow in sorted order.
+    def insert(self, x):
         if self.size==0:
-            # Create the new node
-            ynode = LocationNode(value)
-            # New node is both front and back
+            # Handle empty list case first:
+            # Create new Node and set it as the front and the back
+            ynode = LocationNode(x)
             self.front_node = ynode
             self.back_node = ynode
             self.size += 1
             return True
+
         else:
-            # The first element into the list is always y,
-            # so maintain values that follow in sorted order.
-            if self.front_node.next_node == None:
-                # There are no other x values
-                caboose = LocationNode(value)
-                self.back_node.next_node = caboose
-                self.back_node = caboose
+            # There is already at least 1 element in the list.
+            # First element is always y. Maintain values following in sorted order.
+            ii = self.insertion_index(x)
+            if ii.data == x:
+                # x is already in this list
+                return False
+            else:
+                # insert x into the list after the insertion index node
+                front = ii
+                back = ii.next_node
+                middle = LocationNode(x)
+                front.next_node = middle
+                middle.next_node = back
                 self.size += 1
                 return True
-
-            else:
-                # Start the leader on the second element
-                leader = self.front_node.next_node
-                lagger = self.front_node
-                while (leader != None) and (value > leader.data):
-                    leader = leader.next_node
-                    lagger = lagger.next_node
-
-                if leader == None:
-                    # Reached end without finding data, so append to end
-                    caboose = LocationNode(value)
-                    self.back_node.next_node = caboose
-                    self.back_node = caboose
-                    self.size += 1
-                    return True
-                elif leader.data == value:
-                    # Data is already in list, return without inserting
-                    return False
-                else:
-                    # Insert new data between leader and lagger
-                    middle = LocationNode(value)
-                    lagger.next_node = middle
-                    middle.next_node = leader
-                    self.size += 1
-                    return True
 
 class RowNode(NodeBase):
     data: SortedRowList = 0
@@ -192,26 +180,56 @@ class LifeList(object):
     def live_count(self):
         return self.ncells
 
-    def find(self, x, y):
-        """Given a coordinate (x, y), return a pointer to the location node, or None"""
+    def insertion_index(self, y):
+        """
+        Given a y value, return the insertion index where
+        a row with that y value would go.
+        """
         if self.size==0:
             return None
-        else:           
-            # Start the leader on the first element
-            leader = self.front_node
-            lagger = None
-            while (leader != None) and (y > leader.data.head()):
+
+        elif self.size==1:
+            return self.front_node
+
+        else:
+            leader = self.front_node.next_node
+            lagger = self.front_node
+            while leader != None and y > leader.data.head():
                 lagger = leader
                 leader = leader.next_node
             if leader == None:
-                # Reached end without finding y, so does not contain
-                return None
-            elif y == leader.data.head():
-                # y matches an existing row, check if that row contains x
-                return leader.data.find(x)
+                # Reached end of list without finding x, return end of list
+                return lagger
+            elif leader.data.head() == y:
+                # row for this y exists, leader points to it
+                return leader
             else:
-                # Life list does not contain this y value
-                return None
+                # row for this y does not exist, leader and all following are higher
+                return lagger
+
+    def _find(self, y):
+        """Given a y value, return a pointer to the row for that element, or None"""
+        node = self.insertion_index(y)
+        if node.data.head() == y:
+            return node
+        else:
+            return None
+
+    def _contains(self, y):
+        if self._find(y):
+            return True
+        else:
+            return False
+
+    def find(self, x, y):
+        """Given an (x, y) coordinate, return a pointer to the LocationNode in the RowNode, or None"""
+        ypointer = self._find(y)
+        if ypointer is not None:
+            row = ypointer.data
+            xpointer = row.find(x)
+            if xpointer is not None:
+                return xpointer
+        return None
 
     def contains(self, x, y):
         if self.find(x, y):
@@ -220,6 +238,39 @@ class LifeList(object):
             return False
 
     def insert(self, x, y):
+        if self.size==0:
+            # Handle empty list case first:
+            # Create new Node and set it as the front
+            row = SortedRowList(x, y)
+            self.front_node = RowNode(row)
+            self.size += 1
+            self.ncells += 1
+            return True
+
+        else:
+            # There is already at least one row in the list.
+            ii = self.insertion_index(y)
+            if ii.data.head() == y:
+                # y already has a row, insert x into it
+                if ii.data.insert(x):
+                    self.ncells += 1
+                    return True
+                else:
+                    return False
+            else:
+                # y does not have a row yet
+                # insert y into the list after the insertion index node
+                front = ii
+                back = ii.next_node
+                row = SortedRowList(x, y)
+                middle = RowNode(row)
+                front.next_node = middle
+                middle.next_node = back
+                self.size += 1
+                self.ncells += 1
+                return True
+
+    def old_insert(self, x, y):
         if self.size==0:
             # Create a new row
             row = SortedRowList(x, y)
@@ -293,6 +344,8 @@ if __name__=="__main__":
     ll.insert(151, 10)
     ll.insert(155, 10)
     ll.insert(154, 10)
+    ll.insert(1, 42)
+    ll.insert(2, 42)
     ll.insert(152, 10)
     ll.insert(153, 10)
     ll.insert(150, 11)
@@ -301,6 +354,11 @@ if __name__=="__main__":
     ll.insert(149, 12)
     ll.insert(155, 12)
     print(ll)
+    print(ll.live_count())
+    ll.insert(1, 42)
+    ll.insert(2, 42)
+    print(ll.live_count())
+
     print('contains 155, 12 (should be true):')
     print(ll.contains(155,12))
     print('contains 12, 155 (should be false):')
