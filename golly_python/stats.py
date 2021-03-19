@@ -1,6 +1,6 @@
 from .constants import SMOL, MAXDIM, EQUALTOL
 from .utils import approx_equal
-from .lists import MovingAvgList
+from .movingavglist import MovingAvgList
 
 
 class LifeStats(object):
