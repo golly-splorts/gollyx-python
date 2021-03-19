@@ -1,5 +1,6 @@
-from .constants import SMOL
+from .constants import SMOL, MAXDIM, EQUALTOL
 from .utils import approx_equal
+from .lists import MovingAvgList
 
 
 class LifeStats(object):
@@ -16,8 +17,8 @@ class LifeStats(object):
     coverage = 0.0
     territory1 = 0.0
     territory2 = 0.0
-    running_avg_window: list
-    running_avg_last3: list = [0.0, 0.0, 0.0]
+    running_avg_window: MovingAvgList
+    running_avg_last3: MovingAvgList
 
     def __init__(self, life):
         self.running_avg_window = [
@@ -26,6 +27,8 @@ class LifeStats(object):
         self.life = life
         self.rows = life.rows
         self.columns = life.columns
+        self.running_avg_window = MovingAvgList()
+        self.running_avg_last3 = MovingAvgList()
 
     def get_live_counts(self, state, state1, state2, generation):
         livecells = self.livecells = state.count_live_cells()
@@ -64,11 +67,11 @@ class LifeStats(object):
                 self.running_avg_window.push_back_pop_front(self.victory)
                 running_avg = self.running_avg_window.avg()
 
-                if running_avg_last3.size() < 3:
-                    running_avg_last3.push_back(running_avg)
+                if self.running_avg_last3.length() < 3:
+                    self.running_avg_last3.push_back(running_avg)
                     removed = 0
                 else:
-                    removed = running_avg_last3.push_back_pop_front(running_avg)
+                    removed = self.running_avg_last3.push_back_pop_front(running_avg)
 
                 tol = EQUALTOL
                 # Skip the first few steps where we're removing zeros

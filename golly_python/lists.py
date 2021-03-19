@@ -32,7 +32,7 @@ class MovingAvgList(object):
         runner = self.back_node.next_node
         for i in range(ix):
             runner = runner.next_node
-        return runner.value
+        return runner.data
 
     def sum(self):
         summ = 0.0
