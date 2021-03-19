@@ -1,120 +1,20 @@
-from .state import LifeState, CompositeLifeState
+from .constants import EQUALTOL, SMOL
+from .state import LifeState, BinaryLifeState
+from .stats import LifeStats
 
 
-# dimension (in time) of time-average window
-MAXDIM = 240
-
-# used to avoid dividing by zero
-SMOL = 1e-12
-
-# used to determine if two numbers are approximately equal
-EQUALTOL = 1e-8
-
-
-# Note: define List classes with same methods as C++ list classes,
-# but that use a Python list under the hood with whatever tricks.
-# Then it will be easier to swap out the type of list without
-# rewriting bunches of code.
-
-
-class LifeStats(object):
-    livecells = 0
-    livecells1 = 0
-    livecells2 = 0
-    victory = 0.0
-    coverage = 0.0
-    territory1 = 0.0
-    territory2 = 0.0
-    running_avg_window: list
-    running_avg_last3: list = [0.0, 0.0, 0.0]
-
-    def __init__(self, life):
-        self.running_avg_window = [
-            0.0,
-        ] * MAXDIM
-        self.life = life
-        self.rows = life.rows
-        self.columns = life.columns
-
-    def get_live_counts(self, state, state1, state2, generation):
-        livecells = self.livecells = state.count_live_cells()
-        livecells1 = self.livecells1 = state1.count_live_cells()
-        livecells2 = self.livecells2 = state2.count_live_cells()
-
-        victory = 0.0
-        if livecells1 > livecells2:
-            victory = (livecells1 / (1.0 * livecells1 + livecells2 + SMOL)) * 100
-        else:
-            victory = (livecells2 / (1.0 * livecells1 + livecells2 + SMOL)) * 100
-        self.victory = victory
-        total_area = self.columns * self.rows
-
-        coverage = self.coverage = (livecells / (1.0 * total_area)) * 100
-        territory1 = self.territory1 = (livecells1 / (1.0 * total_area)) * 100
-        territory2 = self.territory2 = (livecells2 / (1.0 * total_area)) * 100
-
-        return dict(
-            generation=generation,
-            liveCells=livecells,
-            liveCells1=livecells1,
-            liveCells2=livecells2,
-            victoryPct=victory,
-            coverage=coverage,
-            territory1=territory1,
-            territory2=territory2,
-        )
-
-    def update_moving_avg(self):
-        if not self.life.found_victor:
-            if self.life.generation < MAXDIM:
-                # push_back
-                self.running_avg_window[self.life.generation] = self.victory
-            else:
-                # pop_front
-                # push_back
-                self.running_avg_window = self.running_avg_window[1:] + [self.victory]
-                summ = sum(self.running_avg_window)
-                running_avg = summ / (1.0 * len(self.running_avg_window))
-
-                # update running average last 3
-                removed = self.running_avg_last3[0]
-                self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
-
-                tol = EQUALTOL
-
-                # skip the first few steps where we're removing zeros
-                if not self.approx_equal(removed, 0.0, tol):
-                    b1 = self.approx_equal(
-                        self.running_avg_last3[0], self.running_avg_last3[1], tol
-                    )
-                    b2 = self.approx_equal(
-                        self.running_avg_last3[1], self.running_avg_last3[2], tol
-                    )
-                    zerocells = self.livecells1 == 0 or self.livecells2 == 0
-                    if (b1 and b2) or zerocells:
-                        z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
-                        z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
-                        z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
-                        if (not (z1 or z2 or z3)) or zerocells:
-                            # Declare victory in the life object
-                            if self.livecells1 > self.livecells2:
-                                self.life.found_victor = True
-                                self.life.who_won = 1
-                            elif self.livecells1 < self.livecells2:
-                                self.life.found_victor = True
-                                self.life.who_won = 2
-
-    def approx_equal(self, a, b, tol):
-        return (abs(b - a) / abs(a + SMOL)) < tol
-
-
-class Life(object):
-    actual_state: CompositeLifeState
+class BinaryLife(object):
+    """
+    Class to manage the state of a binary game of life.
+    """
+    actual_state: BinaryLifeState
     actual_state1: LifeState
     actual_state2: LifeState
+
     generation = 0
     columns = 0
     rows = 0
+
     found_victor: bool = False
     running: bool = False
     neighbor_color_legacy_mode: bool = False
@@ -145,7 +45,7 @@ class Life(object):
 
         self.actual_state1 = LifeState(rows, columns, neighbor_color_legacy_mode)
         self.actual_state2 = LifeState(rows, columns, neighbor_color_legacy_mode)
-        self.actual_state = CompositeLifeState(self.actual_state1, self.actual_state2)
+        self.actual_state = BinaryLifeState(self.actual_state1, self.actual_state2)
 
         self.prepare()
 
@@ -212,7 +112,7 @@ class Life(object):
 
         new_state1 = LifeState(self.rows, self.columns)
         new_state2 = LifeState(self.rows, self.columns)
-        new_state = CompositeLifeState(new_state1, new_state2)
+        new_state = BinaryLifeState(new_state1, new_state2)
 
         self.redraw_list = []
 

@@ -26,6 +26,14 @@ class MovingAvgList(object):
     def length(self):
         return self.size
 
+    def index(self, ix):
+        if ix < 0 or ix >= self.size:
+            raise IndexError(f"Error: requested index {ix} invalid for list of size {self.size}")
+        runner = self.back_node.next_node
+        for i in range(ix):
+            runner = runner.next_node
+        return runner.value
+
     def sum(self):
         summ = 0.0
         c = 0
@@ -69,7 +77,9 @@ class MovingAvgList(object):
         # Slide the back node pointer up by one
         self.back_node = self.back_node.next_node
         # Replace the value of the new back node
+        old_value = self.back_node.data
         self.back_node.data = value
+        return old_value
 
 
 if __name__=="__main__":
@@ -92,3 +102,7 @@ if __name__=="__main__":
     assert m.length()==3
     assert m.sum()==150
     assert abs(m.avg()-50) < 1e-12
+
+    assert m.index(0)==40
+    assert m.index(1)==50
+    assert m.index(2)==60

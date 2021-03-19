@@ -167,9 +167,9 @@ class LifeState(object):
         return color
 
 
-class CompositeLifeState(LifeState):
+class BinaryLifeState(LifeState):
     """
-    LifeState that combines the LifeStates of multiple colors.
+    A LifeState that combines two LifeStates for a binary game of life.
     This class provides a few additional methods.
     """
 

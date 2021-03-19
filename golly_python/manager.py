@@ -1,5 +1,5 @@
 import json
-from .life import Life
+from .life import BinaryLife
 
 
 class GOL(object):
@@ -95,7 +95,7 @@ class GOL(object):
             err += self.ic1
             raise Exception(err)
 
-        self.life = Life(
+        self.life = BinaryLife(
             s1,
             s2,
             self.rows,
