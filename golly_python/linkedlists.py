@@ -74,21 +74,41 @@ class SortedRowList(object):
         if self.size>0:
             return self.front_node.data
 
-    def contains(self, x):
-        runner = self.front_node.next_node
-        while runner != None and x > runner.data:
-            runner = runner.next_node
-        if runner == None:
-            # We reached the end of the list without finding x
-            return False
-        elif x == runner.data:
+    def insertion_index(self, x):
+        leader = self.front_node.next_node
+        lagger = self.front_node
+        while leader != None and x > leader.data:
+            lagger = leader
+            leader = leader.next_node
+        if leader == None:
+            # Reached end of list without finding x
+            return lagger
+        elif leader.data == x:
             # x value is in the list
-            return True
+            return leader
         else:
             # x value is not in the list
+            return lagger
+
+    def find(self, x):
+        """
+        Given an element x, return a pointer to the Node for that element, or None.
+        """
+        node = self.insertion_index(x)
+        if node.data == x:
+            return node
+        else:
+            return None
+
+    def contains(self, x):
+        node = self.find(x)
+        if node is not None:
+            return True
+        else:
             return False
 
     def insert(self, value):
+
         # The first element into the list is always y value.
         # This list will maintain the values that follow in sorted order.
         if self.size==0:
@@ -166,9 +186,16 @@ class LifeList(object):
         agg += "]"
         return agg
 
-    def contains(self, x, y):
+    def length(self):
+        return self.size
+
+    def live_count(self):
+        return self.ncells
+
+    def find(self, x, y):
+        """Given a coordinate (x, y), return a pointer to the location node, or None"""
         if self.size==0:
-            return False
+            return None
         else:           
             # Start the leader on the first element
             leader = self.front_node
@@ -178,13 +205,19 @@ class LifeList(object):
                 leader = leader.next_node
             if leader == None:
                 # Reached end without finding y, so does not contain
-                return False
+                return None
             elif y == leader.data.head():
                 # y matches an existing row, check if that row contains x
-                return leader.data.contains(x)
+                return leader.data.find(x)
             else:
                 # Life list does not contain this y value
-                return False
+                return None
+
+    def contains(self, x, y):
+        if self.find(x, y):
+            return True
+        else:
+            return False
 
     def insert(self, x, y):
         if self.size==0:
@@ -223,6 +256,10 @@ class LifeList(object):
                 self.size += 1
                 self.ncells += 1
                 return True
+
+    def remove(self, x, y):
+        if self.size==0:
+            return False
 
 
 if __name__=="__main__":
@@ -268,3 +305,7 @@ if __name__=="__main__":
     print(ll.contains(155,12))
     print('contains 12, 155 (should be false):')
     print(ll.contains(12,155))
+    print('contains 151, 10 (should be true):')
+    print(ll.contains(151,10))
+    print('contains 150, 10 (should be false):')
+    print(ll.contains(150,10))
