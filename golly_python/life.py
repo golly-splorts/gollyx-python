@@ -108,6 +108,11 @@ class BinaryLife(object):
 
     def _next_generation(self):
         """Advance life to the next generation"""
+        self.actual_state.next_state()
+
+
+    def _old_next_generation(self):
+        """Advance life to the next generation"""
         all_dead_neighbors = {}
 
         new_state1 = LifeState(self.rows, self.columns)
@@ -184,8 +189,8 @@ class BinaryLife(object):
                 t2 = int(key[1])
 
                 # Get color from neighboring parent cells
-                color = self.get_color_from_alive(t1, t2)
 
+                color = self.get_color_from_alive(t1, t2)
                 if color == 1:
                     new_state.add_cell(t1, t2)
                     new_state1.add_cell(t1, t2)
