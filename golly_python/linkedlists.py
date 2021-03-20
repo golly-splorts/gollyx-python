@@ -34,6 +34,7 @@ class ListBaseIterator(object):
 
 class LocationNode(NodeBase):
     data: int = 0
+    head: bool = False
 
 
 class SortedRowList(object):
@@ -80,6 +81,7 @@ class SortedRowList(object):
         Given an element x, return a pointer to the insertion index
         (the Node preceding the spot where the new Node would go).
         If x is in the list, this returns the Node preceding it.
+        The first element is always y, so elements never go at the front of the list.
         """
         if self.size == 0:
             return None
@@ -97,16 +99,22 @@ class SortedRowList(object):
 
     def find(self, x):
         """
-        Given an element x, return a pointer to the Node for that element, or None.
+        Given an element x, return a pointer to the Node for that element,
+        or return None if the item is not in the list.
+        (To get preceding node, use insertion_index)
         """
         if self.size == 0 or self.size == 1:
             return None
 
         node = self.insertion_index(x)
-        if node.next_node.data == x:
-            return node
-        else:
-            return None
+        if node is None:
+            node = self.front_node
+
+        if node.next_node is not None:
+            if node.next_node.data == x:
+                return node.next_node
+
+        return None
 
     def contains(self, x):
         if self.find(x) is None:
@@ -115,10 +123,13 @@ class SortedRowList(object):
             return True
 
     def insert(self, x):
+        """Insert the given x location into the sorted list"""
+
         if self.size == 0:
             # Handle empty list case first:
             # Create new Node and set it as the front and the back
             ynode = LocationNode(x)
+            ynode.head = True
             self.front_node = ynode
             self.back_node = ynode
             self.size += 1
@@ -129,25 +140,26 @@ class SortedRowList(object):
             # First element is always y. Maintain values following in sorted order.
             ii = self.insertion_index(x)
 
-            if (ii.next_node is not None) and (ii.next_node.data == x):
-                # Already in list
-                return False
+            if ii.next_node is not None:
+                if ii.next_node.data == x:
+                    # Already in list
+                    return False
+
+            # insert x into the list after the insertion index node
+            front = ii
+            back = ii.next_node
+            middle = LocationNode(x)
+            if back is None:
+                # Appending to end of list, update back pointer as well
+                front.next_node = middle
+                self.back_node = middle
+                self.size += 1
+                return True
             else:
-                # insert x into the list after the insertion index node
-                front = ii
-                back = ii.next_node
-                middle = LocationNode(x)
-                if back is None:
-                    # Appending to end of list, update back pointer as well
-                    front.next_node = middle
-                    self.back_node = middle
-                    self.size += 1
-                    return True
-                else:
-                    front.next_node = middle
-                    middle.next_node = back
-                    self.size += 1
-                    return True
+                front.next_node = middle
+                middle.next_node = back
+                self.size += 1
+                return True
 
     def remove(self, x):
         if self.size == 0 or self.size == 1:
@@ -226,7 +238,7 @@ class LifeList(object):
         else:
             response = False
             other_yrunner = other_lifelist.front_node
-            while other_yrunner != None: 
+            while other_yrunner != None:
                 row = other_yrunner.data
                 y = row.head()
                 other_xrunner = row.front_node.next_node
@@ -246,26 +258,36 @@ class LifeList(object):
         if self.size == 0:
             return None
 
-        elif self.size == 1:
-            return self.front_node
-
         else:
-            leader = self.front_node.next_node
-            lagger = self.front_node
+            leader = self.front_node
+            lagger = None
             while leader != None and y > leader.data.head():
                 lagger = leader
                 leader = leader.next_node
             return lagger
 
     def _find(self, y):
-        """Given a y value, return a pointer to the row for that element, or None"""
-        node = self.insertion_index(y)
-        if node.data.head() == y:
-            return node
-        else:
+        """Given a y value, return a pointer to the row node for that y, or None"""
+        if self.size == 0:
             return None
 
+        node = self.insertion_index(y)
+        if node is None:
+            # Insertion index is at front, check if front contains element
+            if self.front_node.data.head() == y:
+                return self.front_node
+            else:
+                return None
+
+        elif node.next_node is not None:
+            if node.next_node.data.head() == y:
+                return node.next_node
+
+        return None
+
     def _contains(self, y):
+        if self.size == 0:
+            return False
         if self._find(y):
             return True
         else:
@@ -273,21 +295,29 @@ class LifeList(object):
 
     def find(self, x, y):
         """Given an (x, y) coordinate, return a pointer to the LocationNode in the RowNode, or None"""
+        if self.size == 0:
+            return None
+
         ypointer = self._find(y)
         if ypointer is not None:
             row = ypointer.data
             xpointer = row.find(x)
             if xpointer is not None:
                 return xpointer
+
         return None
 
     def contains(self, x, y):
+        if self.size == 0:
+            return False
         if self.find(x, y):
             return True
         else:
             return False
 
     def insert(self, x, y):
+        """Insert the given (x, y) location into the correct list location"""
+
         if self.size == 0:
             # Handle empty list case first:
             # Create new Node and set it as the front
@@ -297,7 +327,7 @@ class LifeList(object):
             self.ncells += 1
             return True
 
-        elif (self.size >= 1) and (self.front_node.data.head()==y):
+        elif (self.size >= 1) and (self.front_node.data.head() == y):
             # Handle this case explicitly, to avoid the need for a ghost leader node.
             # In this case, the insertion index would be the ghost node before the front_node.
             this_row = self.front_node
@@ -312,14 +342,26 @@ class LifeList(object):
             # There is already at least one row in the list.
             ii = self.insertion_index(y)
 
-            if (ii.next_node is not None) and (ii.next_node.data.head() == y):
+            if ii is None:
+                # y does not have a row yet
+                # if insertion index is none, the new row goes at the beginning
+                row = SortedRowList(x, y)
+                newfront = RowNode(row)
+                oldfront = self.front_node
+                newfront.next_node = oldfront
+                self.front_node = newfront
+                self.size += 1
+                self.ncells += 1
+
+            elif (ii.next_node is not None) and (ii.next_node.data.head() == y):
                 this_row = ii.next_node
-                # y already has a row, insert x into it
+                # y already has a row in this list, insert x into it
                 if this_row.data.insert(x):
                     self.ncells += 1
                     return True
                 else:
                     return False
+
             else:
                 # y does not have a row yet
                 # insert y into the list after the insertion index node
@@ -338,8 +380,22 @@ class LifeList(object):
             return False
 
         ii = self.insertion_index(y)
-        if (ii.next_node is not None) and (ii.next_node.data.head() == y):
-            # Found it
+        if (ii is None) and (self.front_node.data.head() == y):
+            # y goes at the front of the list, and row exists already
+            rowlist = self.front_node.data
+            remove_worked = rowlist.remove(x)
+            if remove_worked:
+                self.ncells -= 1
+                if rowlist.emptyx():
+                    # This was the last x value in the row, so remove this row from listlife
+                    front = ii
+                    back = ii.next_node.next_node
+                    front.next_node = back
+                    self.size -= 1
+            return remove_worked
+
+        elif (ii.next_node is not None) and (ii.next_node.data.head() == y):
+            # Found it in the list
             rowlist = ii.next_node.data
             remove_worked = rowlist.remove(x)
             if remove_worked:
@@ -356,45 +412,111 @@ class LifeList(object):
             return False
 
     def get_neighbor_count(self, x, y):
-        """Count the number of neighbors of cell (x,y) in this state."""
-        if self.size==0:
+        """Count the number of neighbors for cell (x,y)"""
+        if self.size == 0:
             return 0
 
         neighborcount = 0
 
-        aboverownode = self._find(y-1)
-        if aboverownode:
-            aboverow = aboverownode.data
-            ii = aboverow.insertion_index(x)
-            if ii.data == (x-1):
-                neighborcount += 1
-            if ii.next_node != None and ii.next_node.data == x:
-                neighborcount += 1
-                if ii.next_node.next_node != None and ii.next_node.next_node.data == (x+1):
-                    neighborcount += 1
+        # Find where above row should go
+        aboveii = self.insertion_index(y - 1)
+        if aboveii is None:
+            aboverow = self.front_node.data
+        else:
+            if aboveii.next_node is None:
+                # There is no above cell here, so we have no more points of interest
+                return neighborcount
+            else:
+                aboverow = aboveii.next_node.data
 
-        thisrownode = self._find(y)
-        if thisrownode:
-            thisrow = thisrownode.data
-            ii = thisrow.insertion_index(x)
-            # Verify the cell itself is here
-            if ii.next_node != None and ii.next_node.data == x:
-                # Don't increment neighborcount for cell tiself
-                if ii.data == (x-1):
-                    neighborcount += 1
-                if ii.next_node.next_node != None and ii.next_node.next_node.data == (x+1):
-                    neighborcount += 1
+        # Check if above row is actually y-1
+        if aboverow.head() == (y - 1):
 
-        belowrownode = self._find(y+1)
-        if belowrownode:
-            belowrow = belowrownode.data
-            ii = belowrow.insertion_index(x)
-            if ii.data == (x-1):
+            # if x-1 is here, it has to be at the insertion index for x
+            abovexii = aboverow.insertion_index(x)
+            # Note: the .head check is True when abovexii.data is a y coordinate, checking x coordinates only
+            if abovexii.data == (x - 1) and abovexii.head is False:
                 neighborcount += 1
-            if ii.next_node != None and ii.next_node.data == x:
-                neighborcount += 1
-                if ii.next_node.next_node != None and ii.next_node.next_node.data == (x+1):
+
+            # if x insertion index is at end of list, we are done with above row
+            if abovexii.next_node is not None:
+                # only advance the insertion index if we find x
+                if abovexii.next_node.data == x:
                     neighborcount += 1
+                    abovexii = abovexii.next_node
+                if abovexii.next_node is not None:
+                    if abovexii.next_node.data == (x + 1):
+                        neighborcount += 1
+
+        # Find where middle row should go
+        if aboveii is None:
+            if aboverow.head() == (y - 1):
+                middleii = self.front_node
+            else:
+                middleii = None
+        else:
+            middleii = aboveii.next_node
+
+        if middleii is None:
+            middlerow = self.front_node.data
+        else:
+            if middleii.next_node is None:
+                # Recall that middleii points to above row, so if next node is none, we have no middle row
+                # That means we have no points of interest
+                return neighborcount
+            else:
+                middlerow = middleii.next_node.data
+
+        # Check if middle row is actually y (this should always succeed...)
+        if middlerow.head() == y:
+
+            # if x-1 is here, it is at insertion index for x
+            middlexii = middlerow.insertion_index(x)
+            if middlexii.data == (x - 1) and middlexii.head is False:
+                neighborcount += 1
+
+            # if x insertion index at end of list, done with row
+            if middlexii.next_node is not None:
+                # only advance insertion index if find x
+                if middlexii.next_node.data == x:
+                    # don't increment neighborcount for cell itself
+                    middlexii = middlexii.next_node
+                if middlexii.next_node is not None:
+                    if middlexii.next_node.data == (x + 1):
+                        neighborcount += 1
+
+        # Find where bottom row should go
+        if middleii is None:
+            # middle row is always present
+            # if the middle insertion index is none, the middle row is the first RowNode
+            # that means the bottom row goes after the first RowNode
+            bottomii = self.front_node
+        else:
+            # this is guaranteed not to be None, b/c of return statement above
+            bottomii = middleii.next_node
+
+        if bottomii.next_node is None:
+            # There is no bottom row, we are done
+            return neighborcount
+        else:
+            bottomrow = bottomii.next_node.data
+
+        # Check if bottom row is actually y+1
+        if bottomrow.head() == (y+1):
+
+            bottomxii = bottomrow.insertion_index(x)
+            if bottomxii.data == (x - 1) and bottomxii.head is False:
+                neighborcount += 1
+
+            # if x insertion index at end of list, done with row
+            if bottomxii.next_node is not None:
+                # only advance insertion index if find x
+                if bottomxii.next_node.data == x:
+                    neighborcount += 1
+                    bottomxii = bottomxii.next_node
+                if bottomxii.next_node is not None:
+                    if bottomxii.next_node.data == (x + 1):
+                        neighborcount += 1
 
         return neighborcount
 
@@ -475,30 +597,103 @@ def test_life_list():
 
 
 def test_copy_life_list():
+
     import random
-    print("Life List 1:")
-    l1 = LifeList()
-    for i in range(70):
-        l1.insert(random.randint(10,15), random.randint(100,150))
-    print(l1)
-    print(l1.live_count())
+
+    print("Life List 1a:")
+    l1a = LifeList()
+    for i in range(10):
+        l1a.insert(90, 100 + i)
+        l1a.insert(91, 100 + i)
+        l1a.insert(92, 100 + i)
+        l1a.insert(93, 100 + i)
+    print(l1a)
+    print("live count (should be 40):")
+    print(l1a.live_count())
+
+    print("Life List 1b:")
+    l1b = LifeList()
+    for i in range(10):
+        l1b.insert(90, 180 + i)
+        l1b.insert(91, 180 + i)
+        l1b.insert(92, 180 + i)
+        l1b.insert(93, 180 + i)
+    print(l1b)
+    print("live count (should be 40):")
+    print(l1b.live_count())
+
+    print("Life List 1c:")
+    l1c = LifeList()
+    for i in range(10):
+        l1c.insert(88 + i, 170)
+    print(l1c)
+    print("live count (should be 10):")
+    print(l1c.live_count())
 
     l2 = LifeList()
-    l2.insert(10, 98)
-    l2.insert(11, 99)
+    l2.insert(90, 170)
+    l2.insert(91, 171)
 
     print("Life List 2 before copy:")
     print(l2)
+    print("live count (should be 2):")
     print(l2.live_count())
 
-    l2.copy_points(l1)
+    l2.copy_points(l1a)
+    l2.copy_points(l1b)
+    l2.copy_points(l1c)
 
     print("Life List 2 after copy:")
     print(l2)
+    print("live count (should be 91):")
     print(l2.live_count())
 
 
+def test_get_neighbor_count():
+
+    i = LifeList()
+    i.insert(50, 10)
+    i.insert(49, 11)
+    i.insert(50, 11)
+    i.insert(51, 11)
+    print(i)
+    print(i.live_count())
+    print("Neighbor count for 50, 10 (should be 3):")
+    print(i.get_neighbor_count(50, 10))
+
+    print("\n\n")
+
+    i.insert(49, 10)
+    i.insert(50, 9)
+    print(i)
+    print(f"Live count: {i.live_count()}")
+    print("Neighbor count for 50, 10 (should be 5):")
+    print(i.get_neighbor_count(50, 10))
+
+    print("\n\n")
+
+    i.remove(50, 11)
+    i.remove(51, 11)
+    i.remove(49, 10)
+    print(i)
+    print(f"Live count: {i.live_count()}")
+    print("Neighbor count for 50, 10 (should be 2):")
+    print(i.get_neighbor_count(50, 10))
+
+    print("\n\n")
+
+    i.insert(100, 100)
+    i.insert(102, 100)
+    i.insert(101, 101)
+    i.insert(101, 102)
+    print(i)
+    print(f"Live count: {i.live_count()}")
+    print("Neighbor count for 101, 101 (should be 3):")
+    print(i.get_neighbor_count(101, 101))
+
+
 if __name__ == "__main__":
-    #test_row_list()
-    #test_life_list()
-    test_copy_life_list()
+    # test_row_list()
+    # test_life_list()
+    # test_copy_life_list()
+    test_get_neighbor_count()
