@@ -7,6 +7,7 @@ class BinaryLife(object):
     """
     Class to manage the state of a binary game of life.
     """
+
     actual_state: BinaryLifeState
     actual_state1: LifeState
     actual_state2: LifeState
@@ -109,7 +110,6 @@ class BinaryLife(object):
     def _next_generation(self):
         """Advance life to the next generation"""
         self.actual_state.next_state()
-
 
     def _old_next_generation(self):
         """Advance life to the next generation"""
