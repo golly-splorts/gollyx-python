@@ -43,6 +43,7 @@ class XYCounterStore(object):
         return str(self.mapp)
 
     def accumulate(self, x, y):
+        print(f"Accumulating {x}, {y}")
         if y not in self.mapp:
             self.mapp[y] = XCounterStore()
         self.mapp[y].accumulate(x)
@@ -632,14 +633,9 @@ class LifeList(object):
         if self.size == 0:
             return dead_neighbors
 
-        if self.size == 1:
-            stencily_lag = None
-            stencily_middle = self.front_node
-            stencily_lead = stencily_middle.next_node
-        else:
-            stencily_lag = self.front_node
-            stencily_middle = stencily_lab.next_node
-            stencily_lead = stencily_middle.next_node
+        stencily_lag = None
+        stencily_middle = self.front_node
+        stencily_lead = stencily_middle.next_node
 
         while stencily_middle is not None:
 
@@ -658,6 +654,8 @@ class LifeList(object):
             while stencilx_middle is not None:
 
                 x = stencilx_middle.data
+
+                print(f"Processing point {x}, {y}")
 
                 # Deal with above (lead) row
                 if stencily_lead is None or stencily_lead.data.head() != y + 1:
@@ -687,6 +685,8 @@ class LifeList(object):
                             if not abovexii.next_node.data == (x + 1):
                                 # We do not have cell (x+1, y+1)
                                 dead_neighbors.accumulate(x + 1, y + 1)
+                        else:
+                            dead_neighbors.accumulate(x + 1, y + 1)
 
                 # Deal with below (lag) row
                 if stencily_lag is None or stencily_lag.data.head() != y - 1:
@@ -707,10 +707,12 @@ class LifeList(object):
                         if not belowxii.next_node.data == x:
                             dead_neighbors.accumulate(x, y - 1)
                         else:
-                            belowii = belowii.next_node
+                            belowxii = belowxii.next_node
                         if belowxii.next_node is not None:
                             if not belowxii.next_node.data == (x + 1):
                                 dead_neighbors.accumulate(x + 1, y - 1)
+                        else:
+                            dead_neighbors.accumulate(x + 1, y - 1)
 
                 # Deal with this row
                 # Scan middle row
@@ -735,7 +737,7 @@ class LifeList(object):
             stencily_lag = stencily_middle
             stencily_middle = stencily_middle.next_node
             if stencily_lead is not None:
-                stencily_lead = stencily_lead.next_ndoe
+                stencily_lead = stencily_lead.next_node
 
         return dead_neighbors
 
@@ -762,7 +764,7 @@ class LifeList(object):
     #        stencily_lead = stencily_middle.next_node
     #    else:
     #        stencily_lag = self.front_node
-    #        stencily_middle = stencily_lab.next_node
+    #        stencily_middle = stencily_lag.next_node
     #        stencily_lead = stencily_middle.next_node
 
     #    while stencily_middle is not None:
@@ -859,7 +861,7 @@ class LifeList(object):
     #        stencily_lag = stencily_middle
     #        stencily_middle = stencily_middle.next_node
     #        if stencily_lead is not None:
-    #            stencily_lead = stencily_lead.next_ndoe
+    #            stencily_lead = stencily_lead.next_node
 
     #    return dead_neighbors
 
@@ -1039,9 +1041,19 @@ def test_get_neighbor_count():
 
 
 def test_get_dead_neighbor_counts():
-    i = LifeList()
-    i.insert(1, 1)
-    print(i.get_dead_neighbor_counts())
+
+    #i = LifeList()
+    #i.insert(1, 1)
+    #print(i.get_dead_neighbor_counts())
+
+    j = LifeList()
+    j.insert(1, 1)
+    print(j)
+    j.insert(1, 2)
+    print(j)
+    j.insert(1, 3)
+    print(j)
+    print(j.get_dead_neighbor_counts())
 
 
 if __name__ == "__main__":
