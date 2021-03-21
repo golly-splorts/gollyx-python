@@ -1,3 +1,25 @@
+class DeadCellCounter(object):
+    def __init__(self):
+        self.mapp = dict()
+
+    def __repr__(self):
+        return str(self.mapp)
+
+    def add(self, x, y):
+        key = str(x) + "," + str(y)
+        if key not in self.mapp:
+            self.mapp[key] = 1
+        else:
+            self.mapp[key] += 1
+
+    def count(self, x, y):
+        key = str(x) + "," + str(y)
+        if key in self.mapp:
+            return self.mapp[key]
+        else:
+            return 0
+
+
 class NodeBase(object):
     data = None
     next_node = None
@@ -502,7 +524,7 @@ class LifeList(object):
             bottomrow = bottomii.next_node.data
 
         # Check if bottom row is actually y+1
-        if bottomrow.head() == (y+1):
+        if bottomrow.head() == (y + 1):
 
             bottomxii = bottomrow.insertion_index(x)
             if bottomxii.data == (x - 1) and bottomxii.head is False:
@@ -519,6 +541,119 @@ class LifeList(object):
                         neighborcount += 1
 
         return neighborcount
+
+    def get_dead_neighbor_counts(self):
+        dead_neighbors = DeadCellCounter()
+
+        if self.size == 0:
+            return dead_neighbors
+
+        if self.size == 1:
+            stencily_lag = None
+            stencily_middle = self.front_node
+            stencily_lead = stencily_middle.next_node
+        else:
+            stencily_lag = self.front_node
+            stencily_middle = stencily_lab.next_node
+            stencily_lead = stencily_middle.next_node
+
+        while stencily_middle is not None:
+
+            middlerow = stencily_middle.data
+            y = middlerow.head()
+
+            # Set stencil locations for this row
+            stencilx_lag = middlerow.front_node
+            stencilx_middle = stencilx_lag.next_node
+            if stencilx_middle.next_node is not None:
+                stencilx_lead = stencilx_middle.next_node
+            else:
+                stencilx_lead = None
+            assert stencilx_middle is not None
+
+            while stencilx_middle is not None:
+
+                x = stencilx_middle.data
+
+                # Deal with above (lead) row
+                if stencily_lead is None or stencily_lead.data.head() != y + 1:
+                    # Row for y+1 is missing
+                    # Add (x-1, y+1), (x, y+1), (x+1, y+1) to deadcellcounter
+                    dead_neighbors.add(x - 1, y + 1)
+                    dead_neighbors.add(x, y + 1)
+                    dead_neighbors.add(x + 1, y + 1)
+                else:
+                    # Scan lead row
+                    aboverow = stencily_lead.data
+                    abovexii = aboverow.insertion_index(x)
+                    if not (abovexii.data == (x - 1) and abovexii.head is False):
+                        # We do not have cell (x-1, y+1) in this list
+                        dead_neighbors.add(x - 1, y + 1)
+
+                    # if x insertion index is at end of list, we are done with row
+                    if abovexii.next_node is not None:
+                        # only advance insertion index if we find x
+                        if not abovexii.next_node.data == x:
+                            # We do not have cell (x, y+1) in this list
+                            dead_neighbors.add(x, y + 1)
+                        else:
+                            # We do have cell (x, y+1) in this list, so advance the insertion index yb 1
+                            abovexii = abovexii.next_node
+                        if abovexii.next_node is not None:
+                            if not abovexii.next_node.data == (x + 1):
+                                # We do not have cell (x+1, y+1)
+                                dead_neighbors.add(x + 1, y + 1)
+
+                # Deal with below (lag) row
+                if stencily_lag is None or stencily_lag.data.head() != y - 1:
+                    # Add cell (x-1, y-1), (x, y-1), (x+1, y-1) to deadcellcounter
+                    dead_neighbors.add(x - 1, y - 1)
+                    dead_neighbors.add(x, y - 1)
+                    dead_neighbors.add(x + 1, y - 1)
+                else:
+                    # Scan lag row
+                    belowrow = stencily_lag.data
+                    belowxii = belowrow.insertion_index(x)
+                    if not (belowxii.data == (x - 1) and belowxii.head is False):
+                        # We do not have cell (x-1, y-1) in this list
+                        dead_neighbors.add(x - 1, y - 1)
+
+                    # if x insertion index is at end of list, we are done with row
+                    if belowxii.next_node is not None:
+                        if not belowxii.next_node.data == x:
+                            dead_neighbors.add(x, y - 1)
+                        else:
+                            belowii = belowii.next_node
+                        if belowxii.next_node is not None:
+                            if not belowxii.next_node.data == (x + 1):
+                                dead_neighbors.add(x + 1, y - 1)
+
+                # Deal with this row
+                # Scan middle row
+                if not (
+                    stencilx_lag.data == (x - 1) and stencilx_lag.data.head is False
+                ):
+                    # We do not have cell (x-1, y) in this list
+                    dead_neighbors.add(x - 1, y)
+
+                if stencilx_lead is None or stencilx_lead.data != (x + 1):
+                    # We do not have cell (x+1, y) i this list
+                    dead_neighbors.add(x + 1, y)
+
+                # Increment pointers
+                # If any x pointers left, increment x pointers
+                stencilx_lag = stencilx_lag.next_node
+                stencilx_middle = stencilx_middle.next_node
+                if stencilx_lead is not None:
+                    stencilx_lead = stencilx_lead.next_node
+
+            # Advance y pointers
+            stencily_lag = stencily_middle
+            stencily_middle = stencily_middle.next_node
+            if stencily_lead is not None:
+                stencily_lead = stencily_lead.next_ndoe
+
+        return dead_neighbors
 
 
 def test_row_list():
@@ -692,8 +827,15 @@ def test_get_neighbor_count():
     print(i.get_neighbor_count(101, 101))
 
 
+def test_get_dead_neighbor_counts():
+    i = LifeList()
+    i.insert(1, 1)
+    print(i.get_dead_neighbor_counts())
+
+
 if __name__ == "__main__":
     # test_row_list()
     # test_life_list()
     # test_copy_life_list()
-    test_get_neighbor_count()
+    # test_get_neighbor_count()
+    test_get_dead_neighbor_counts()
