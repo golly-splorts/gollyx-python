@@ -1144,11 +1144,11 @@ def test_get_all_neighbor_counts():
 
     s1 = LifeList()
     s1.insert(1, 1)
-    s1.insert(1, 2)
+    s1.insert(10, 16)
     s1.insert(1, 3)
     s2 = LifeList()
     s2.insert(10, 15)
-    s2.insert(10, 16)
+    s2.insert(1, 2)
     s2.insert(10, 17)
 
     print("Binary state:")
@@ -1168,8 +1168,13 @@ def test_get_all_neighbor_counts():
     print("Dead neighbor counts:")
     print(dead_neighbors)
     print("Should contain the entry 2: [0: 3, 2: 3]")
-    # print("Alive neighbor counter:")
-    # print(alive_neighbors)
+    print("Should contain the entry 16: [9: 3, 11: 3]")
+    print("Alive neighbor counter:")
+    print(alive_neighbors)
+    print("Color 1 neighbor counter:")
+    print(color1_neighbors)
+    print("Color 2 neighbor counter:")
+    print(color2_neighbors)
 
 
 if __name__ == "__main__":
@@ -1177,5 +1182,5 @@ if __name__ == "__main__":
     # test_life_list()
     # test_copy_life_list()
     # test_get_neighbor_count()
-    # test_get_dead_neighbor_counts()
+    test_get_dead_neighbor_counts()
     test_get_all_neighbor_counts()
