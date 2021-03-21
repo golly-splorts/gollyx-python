@@ -87,7 +87,8 @@ class BinaryLifeState(LifeState):
         if self.size==0:
             return
 
-        dead_neighbor_counts = self.state.
+        dead_neighbor_counts = self.state.get_dead_neighbor_counts()
+
 
 
 
