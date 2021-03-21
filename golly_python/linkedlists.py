@@ -9,8 +9,9 @@ class XCounterStore(object):
         self.mapp = dict()
 
     def __repr__(self):
+
         s = "["
-        s += ", ".join([f"{j} ({self.mapp[j]})" for j in self.sorted_values()])
+        s += ", ".join([f"{j}: {self.mapp[j]}" for j in self.sorted_values()])
         s += "]"
         return s
 
@@ -681,12 +682,16 @@ class LifeList(object):
                         else:
                             # We do have cell (x, y+1) in this list, so advance the insertion index yb 1
                             abovexii = abovexii.next_node
+
                         if abovexii.next_node is not None:
                             if not abovexii.next_node.data == (x + 1):
                                 # We do not have cell (x+1, y+1)
                                 dead_neighbors.accumulate(x + 1, y + 1)
                         else:
                             dead_neighbors.accumulate(x + 1, y + 1)
+                    else:
+                        dead_neighbors.accumulate(x, y + 1)
+                        dead_neighbors.accumulate(x + 1, y + 1)
 
                 # Deal with below (lag) row
                 if stencily_lag is None or stencily_lag.data.head() != y - 1:
@@ -713,6 +718,9 @@ class LifeList(object):
                                 dead_neighbors.accumulate(x + 1, y - 1)
                         else:
                             dead_neighbors.accumulate(x + 1, y - 1)
+                    else:
+                        dead_neighbors.accumulate(x, y - 1)
+                        dead_neighbors.accumulate(x + 1, y - 1)
 
                 # Deal with this row
                 # Scan middle row
@@ -809,12 +817,13 @@ class LifeList(object):
                         if (abovexii.next_node.data == x) and (
                             abovexii.next_node.head is False
                         ):
-                            # Found it, advance the insertion index by 1
+                            # Found it
                             alive_neighbors.accumulate(x, y)
                             if color1_lifelist.contains(x, y):
                                 color1_neighbors.accumulate(x, y)
                             else:
                                 color2_neighbors.accumulate(x, y)
+                            # Advance insertion index by 1
                             abovexii = abovexii.next_node
                         else:
                             dead_neighbors.accumulate(x, y + 1)
@@ -831,6 +840,11 @@ class LifeList(object):
                                     color2_neighbors.accumulate(x, y)
                             else:
                                 dead_neighbors.accumulate(x + 1, y + 1)
+                        else:
+                            dead_neighbors.accumulate(x + 1, y + 1)
+                    else:
+                        dead_neighbors.accumulate(x, y + 1)
+                        dead_neighbors.accumulate(x + 1, y + 1)
 
                 # Deal with below (lag) row
                 if stencily_lag is None or stencily_lag.data.head() != y - 1:
@@ -843,7 +857,7 @@ class LifeList(object):
                     belowrow = stencily_lag.data
                     belowxii = belowrow.insertion_index(x)
                     # Check for cell (x-1, y-1
-                    if (belowxii.data == (x-1)) and (belowxii.head is False):
+                    if (belowxii.data == (x - 1)) and (belowxii.head is False):
                         alive_neighbors.accumulate(x, y)
                         if color1_lifelist.contains(x, y):
                             color1_neighbors.accumulate(x, y)
@@ -855,7 +869,9 @@ class LifeList(object):
                     # if x insertion index is at end of list, we are done with row
                     if belowxii.next_node is not None:
 
-                        if (belowxii.next_node.data == x) and (belowxii.next_node.head is False):
+                        if (belowxii.next_node.data == x) and (
+                            belowxii.next_node.head is False
+                        ):
                             alive_neighbors.accumulate(x, y)
                             if color1_lifelist.contains(x, y):
                                 color1_neighbors.accumulate(x, y)
@@ -868,12 +884,17 @@ class LifeList(object):
                         if belowxii.next_node is not None:
                             if belowxii.next_node.data == (x + 1):
                                 alive_neighbors.accumulate(x, y)
-                                if color1_lifelist.contains(x,y ):
+                                if color1_lifelist.contains(x, y):
                                     color1_neighbors.accumulate(x, y)
                                 else:
                                     color2_neighbors.accumulate(x, y)
                             else:
                                 dead_neighbors.accumulate(x + 1, y - 1)
+                        else:
+                            dead_neighbors.accumulate(x + 1, y - 1)
+                    else:
+                        dead_neighbors.accumulate(x, y - 1)
+                        dead_neighbors.accumulate(x + 1, y - 1)
 
                 # Deal with this row
                 # Scan middle row
@@ -884,9 +905,9 @@ class LifeList(object):
                     if color1_lifelist.contains(x, y):
                         color1_neighbors.accumulate(x, y)
                     else:
-                        color2_neighbors.accumulate(x,y)
+                        color2_neighbors.accumulate(x, y)
                 else:
-                    dead_neighbors.accumulate(x-1, y)
+                    dead_neighbors.accumulate(x - 1, y)
 
                 if stencilx_lead is None or stencilx_lead.data != (x + 1):
                     # We do not have cell (x+1, y) i this list
@@ -896,7 +917,7 @@ class LifeList(object):
                     if color1_lifelist.contains(x, y):
                         color1_neighbors.accumulate(x, y)
                     else:
-                        color2_neighbors.accumulate(x,y)
+                        color2_neighbors.accumulate(x, y)
 
                 # Increment pointers
                 # If any x pointers left, increment x pointers
@@ -1087,16 +1108,28 @@ def test_get_neighbor_count():
 
 def test_get_dead_neighbor_counts():
 
-    i = LifeList()
-    i.insert(1, 1)
-    print(i.get_dead_neighbor_counts())
+    # i = LifeList()
+    # i.insert(1, 1)
+    # print("State:")
+    # print(i)
+    # print("Dead neighbor counts:")
+    # print(i.get_dead_neighbor_counts())
 
+    # print("")
+
+    # Vertical line
+    # dead neighbr count should be 3 for two cells:
+    # (0, 2)
+    # (2, 2)
     j = LifeList()
     j.insert(1, 1)
     j.insert(1, 2)
     j.insert(1, 3)
+    print("State:")
     print(j)
+    print("Dead neighbor counts:")
     print(j.get_dead_neighbor_counts())
+    print("Should contain the entry 2: [0: 3, 2: 3]")
 
 
 def test_get_all_neighbor_counts():
@@ -1125,12 +1158,18 @@ def test_get_all_neighbor_counts():
     print("State 2:")
     print(s2)
 
-    dead_neighbors, alive_neighbors, color1_neighbors, color2_neighbors = binary.get_all_neighbor_counts(s1, s2)
+    (
+        dead_neighbors,
+        alive_neighbors,
+        color1_neighbors,
+        color2_neighbors,
+    ) = binary.get_all_neighbor_counts(s1, s2)
 
-    print("Dead neighbor counter:")
+    print("Dead neighbor counts:")
     print(dead_neighbors)
-    print("Alive neighbor counter:")
-    print(alive_neighbors)
+    print("Should contain the entry 2: [0: 3, 2: 3]")
+    # print("Alive neighbor counter:")
+    # print(alive_neighbors)
 
 
 if __name__ == "__main__":
@@ -1138,5 +1177,5 @@ if __name__ == "__main__":
     # test_life_list()
     # test_copy_life_list()
     # test_get_neighbor_count()
-    #test_get_dead_neighbor_counts()
+    # test_get_dead_neighbor_counts()
     test_get_all_neighbor_counts()
