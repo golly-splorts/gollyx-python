@@ -1,26 +1,81 @@
-class DeadCellCounter(object):
+class XCounterStore(object):
+    """
+    Small utilty class used by XYCounterStore
+    to store counters for a set of x values.
+    Wraps a hash map of x values to integer counts.
+    """
+
+    def __init__(self):
+        self.mapp = dict()
+
+    def __repr__(self):
+        s = "["
+        s += ", ".join([f"{j} ({self.mapp[j]})" for j in self.sorted_values()])
+        s += "]"
+
+    def accumulate(self, x):
+        if x not in self.mapp:
+            self.mapp[x] = 1
+        else:
+            self.mapp[x] += 1
+
+    def get(self, x):
+        if x not in self.mapp:
+            return 0
+        else:
+            return self.mapp[x]
+
+    def sorted_values(self):
+        return sorted(list(self.mapp.keys()))
+
+
+class XYCounterStore(object):
+    """
+    Small utility class storing counters for (x,y) values.
+    Wraps a hash map of y values to x counter stores.
+    """
+
     def __init__(self):
         self.mapp = dict()
 
     def __repr__(self):
         return str(self.mapp)
 
-    def add(self, x, y):
-        key = str(x) + "," + str(y)
-        if key not in self.mapp:
-            self.mapp[key] = 1
-        else:
-            self.mapp[key] += 1
+    def accumulate(self, x, y):
+        if y not in self.mapp:
+            self.mapp[y] = XCounterStore()
+        self.mapp[y].accumulate(x)
 
     def count(self, x, y):
-        key = str(x) + "," + str(y)
-        if key in self.mapp:
-            return self.mapp[key]
-        else:
+        if y not in self.mapp:
             return 0
+
+        xstore = self.mapp[y]
+        if x not in xstore.mapp:
+            return 0
+
+        count = xstore.mapp[x]
+        return count
+
+
+class DeadNeighborCounter(XYCounterStore):
+    """
+    Used to count the number of times a dead cell has been a neighbor
+    of a live cell  (used in determining which cells come alive).
+    Wraps a hash map of (x, y) locations to integer counters.
+    """
+    pass
+
+
+
+
 
 
 class NodeBase(object):
+    """
+    Data-agnostic base class for linked list nodes
+    """
+
     data = None
     next_node = None
 
@@ -29,22 +84,31 @@ class NodeBase(object):
 
 
 class ListBase(object):
+    """
+    Data-agnostic base class for linked lists
+    """
+
     size: int = 0
     front_node: NodeBase = None
 
     def __init__(self):
         pass
 
+    def __iter__(self):
+        lbi = ListBaseIterator(self)
+        return lbi
+
     def length(self):
         return self.size
 
 
 class ListBaseIterator(object):
+    """
+    Iterator object returned when iterating over a linked list
+    """
+
     def __init__(self, obj):
         self.obj = obj
-
-    def __iter__(self):
-        return self
 
     def next(self):
         runner = self.obj.front_node
@@ -55,14 +119,19 @@ class ListBaseIterator(object):
 
 
 class LocationNode(NodeBase):
+    """
+    Linked List Node for cell location (integer) data
+    """
     data: int = 0
     head: bool = False
 
 
 class SortedRowList(object):
     """
-    Store one row in a game of life.
-    This stores the coordinates of each cell in the form
+    Linked List storing one row in a game of life.
+
+    Schema for storage is to store the y coordinate as the first element,
+    and sorted x locations as the following elements.
 
     [ y  x1  x2  x3  ... ]
 
@@ -184,6 +253,9 @@ class SortedRowList(object):
                 return True
 
     def remove(self, x):
+        """
+        Remove the given x location into the sorted list.
+        """
         if self.size == 0 or self.size == 1:
             return False
 
@@ -330,6 +402,14 @@ class LifeList(object):
         return None
 
     def contains(self, x, y):
+        # 
+        # NOTE:
+        # 
+        # We could do this in O(1)
+        # if we had a ledger (set of all
+        # (x,y) pairs that have gone into
+        # the list)
+        #
         if self.size == 0:
             return False
         if self.find(x, y):
@@ -432,6 +512,13 @@ class LifeList(object):
         else:
             # y is not in the list
             return False
+
+
+
+
+
+
+
 
     def get_neighbor_count(self, x, y):
         """Count the number of neighbors for cell (x,y)"""
@@ -543,7 +630,7 @@ class LifeList(object):
         return neighborcount
 
     def get_dead_neighbor_counts(self):
-        dead_neighbors = DeadCellCounter()
+        dead_neighbors = DeadNeighborCounter()
 
         if self.size == 0:
             return dead_neighbors
@@ -578,7 +665,7 @@ class LifeList(object):
                 # Deal with above (lead) row
                 if stencily_lead is None or stencily_lead.data.head() != y + 1:
                     # Row for y+1 is missing
-                    # Add (x-1, y+1), (x, y+1), (x+1, y+1) to deadcellcounter
+                    # Add (x-1, y+1), (x, y+1), (x+1, y+1) to deadneighborcounter
                     dead_neighbors.add(x - 1, y + 1)
                     dead_neighbors.add(x, y + 1)
                     dead_neighbors.add(x + 1, y + 1)
@@ -654,6 +741,138 @@ class LifeList(object):
                 stencily_lead = stencily_lead.next_ndoe
 
         return dead_neighbors
+
+
+
+
+
+    ################################
+
+
+
+
+    def get_all_neighbor_counts(self):
+        """
+        Iterate over the entire grid and accumulate the following info:
+        - count number of times dead neighbors are next to live cells
+        - count number of live neighbors of live cells
+        - count number of live (color 1) neighbors of live cells
+        - count number of live (color 2) neighbors of live cells
+        """
+        dead_neighbors = DeadNeighborCounter()
+
+        if self.size == 0:
+            return dead_neighbors
+
+        if self.size == 1:
+            stencily_lag = None
+            stencily_middle = self.front_node
+            stencily_lead = stencily_middle.next_node
+        else:
+            stencily_lag = self.front_node
+            stencily_middle = stencily_lab.next_node
+            stencily_lead = stencily_middle.next_node
+
+        while stencily_middle is not None:
+
+            middlerow = stencily_middle.data
+            y = middlerow.head()
+
+            # Set stencil locations for this row
+            stencilx_lag = middlerow.front_node
+            stencilx_middle = stencilx_lag.next_node
+            if stencilx_middle.next_node is not None:
+                stencilx_lead = stencilx_middle.next_node
+            else:
+                stencilx_lead = None
+            assert stencilx_middle is not None
+
+            while stencilx_middle is not None:
+
+                x = stencilx_middle.data
+
+                # Deal with above (lead) row
+                if stencily_lead is None or stencily_lead.data.head() != y + 1:
+                    # Row for y+1 is missing
+                    # Add (x-1, y+1), (x, y+1), (x+1, y+1) to deadneighborcounter
+                    dead_neighbors.accumulate(x - 1, y + 1)
+                    dead_neighbors.accumulate(x, y + 1)
+                    dead_neighbors.accumulate(x + 1, y + 1)
+                else:
+                    # Scan lead row
+                    aboverow = stencily_lead.data
+                    abovexii = aboverow.insertion_index(x)
+                    if not (abovexii.data == (x - 1) and abovexii.head is False):
+                        # We do not have cell (x-1, y+1) in this list
+                        dead_neighbors.accumulate(x - 1, y + 1)
+
+                    # if x insertion index is at end of list, we are done with row
+                    if abovexii.next_node is not None:
+                        # only advance insertion index if we find x
+                        if not abovexii.next_node.data == x:
+                            # We do not have cell (x, y+1) in this list
+                            dead_neighbors.accumulate(x, y + 1)
+                        else:
+                            # We do have cell (x, y+1) in this list, so advance the insertion index yb 1
+                            abovexii = abovexii.next_node
+                        if abovexii.next_node is not None:
+                            if not abovexii.next_node.data == (x + 1):
+                                # We do not have cell (x+1, y+1)
+                                dead_neighbors.accumulate(x + 1, y + 1)
+
+                # Deal with below (lag) row
+                if stencily_lag is None or stencily_lag.data.head() != y - 1:
+                    # Add cell (x-1, y-1), (x, y-1), (x+1, y-1) to deadcellcounter
+                    dead_neighbors.accumulate(x - 1, y - 1)
+                    dead_neighbors.accumulate(x, y - 1)
+                    dead_neighbors.accumulate(x + 1, y - 1)
+                else:
+                    # Scan lag row
+                    belowrow = stencily_lag.data
+                    belowxii = belowrow.insertion_index(x)
+                    if not (belowxii.data == (x - 1) and belowxii.head is False):
+                        # We do not have cell (x-1, y-1) in this list
+                        dead_neighbors.accumulate(x - 1, y - 1)
+
+                    # if x insertion index is at end of list, we are done with row
+                    if belowxii.next_node is not None:
+                        if not belowxii.next_node.data == x:
+                            dead_neighbors.accumulate(x, y - 1)
+                        else:
+                            belowii = belowii.next_node
+                        if belowxii.next_node is not None:
+                            if not belowxii.next_node.data == (x + 1):
+                                dead_neighbors.accumulate(x + 1, y - 1)
+
+                # Deal with this row
+                # Scan middle row
+                if not (
+                    stencilx_lag.data == (x - 1) and stencilx_lag.data.head is False
+                ):
+                    # We do not have cell (x-1, y) in this list
+                    dead_neighbors.accumulate(x - 1, y)
+
+                if stencilx_lead is None or stencilx_lead.data != (x + 1):
+                    # We do not have cell (x+1, y) i this list
+                    dead_neighbors.accumulate(x + 1, y)
+
+                # Increment pointers
+                # If any x pointers left, increment x pointers
+                stencilx_lag = stencilx_lag.next_node
+                stencilx_middle = stencilx_middle.next_node
+                if stencilx_lead is not None:
+                    stencilx_lead = stencilx_lead.next_node
+
+            # Advance y pointers
+            stencily_lag = stencily_middle
+            stencily_middle = stencily_middle.next_node
+            if stencily_lead is not None:
+                stencily_lead = stencily_lead.next_ndoe
+
+        return dead_neighbors
+
+
+
 
 
 def test_row_list():
