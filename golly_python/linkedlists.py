@@ -43,7 +43,6 @@ class XYCounterStore(object):
         return str(self.mapp)
 
     def accumulate(self, x, y):
-        print(f"Accumulating {x}, {y}")
         if y not in self.mapp:
             self.mapp[y] = XCounterStore()
         self.mapp[y].accumulate(x)
@@ -654,8 +653,6 @@ class LifeList(object):
             while stencilx_middle is not None:
 
                 x = stencilx_middle.data
-
-                print(f"Processing point {x}, {y}")
 
                 # Deal with above (lead) row
                 if stencily_lead is None or stencily_lead.data.head() != y + 1:
