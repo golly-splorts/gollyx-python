@@ -5,35 +5,35 @@ class LifeState(object):
     def __init__(
         self, rows: int, columns: int, neighbor_color_legacy_mode: bool = False
     ):
-        self.state = LifeList()
+        self.statelist = LifeList()
         self.rows = rows
         self.columns = columns
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
     def is_alive(self, x, y):
         """Boolean: is the cell at (x, y) alive in this state?"""
-        return self.state.contains(x, y)
+        return self.statelist.contains(x, y)
 
     def count_live_cells(self):
         """Return count of live cells"""
-        return self.state.live_count()
+        return self.statelist.live_count()
 
     def add_cell(self, x, y):
         """Insert cell at (x, y) into state list"""
-        return self.state.insert(x, y)
+        return self.statelist.insert(x, y)
 
     def remove_cell(self, x, y):
         """
         Remove the given cell from the state
         """
-        return self.state.remove(x, y)
+        return self.statelist.remove(x, y)
 
     def get_color_count(self, x, y):
         self.get_neighbor_count(x, y)
 
     def get_neighbor_count(self, x, y):
         """Return a count of the number of neighbors of cell (x,y)"""
-        neighbor_count = self.state.get_neighbor_count(x, y)
+        neighbor_count = self.statelist.get_neighbor_count(x, y)
         return neighbor_count
 
 
@@ -45,41 +45,41 @@ class BinaryLifeState(LifeState):
 
     def __init__(self, state1: LifeList, state2: LifeList):
 
-        self.state = LifeList()
-        self.state1 = state1
-        self.state2 = state2
+        self.statelist = LifeList()
+        self.statelist1 = state1
+        self.statelist2 = state2
 
-        if self.state1.rows != self.state2.rows:
+        if self.statelist1.rows != self.statelist2.rows:
             err = "Error: CompositeLifeState received states of different sizes:\n"
-            err += f"state 1 rows {self.state1.rows} != state 2 rows {self.state2.rows}"
+            err += f"state 1 rows {self.statelist1.rows} != state 2 rows {self.statelist2.rows}"
             raise Exception(err)
-        self.rows = self.state1.rows
+        self.rows = self.statelist1.rows
 
-        if self.state1.columns != self.state2.columns:
+        if self.statelist1.columns != self.statelist2.columns:
             err = "Error: CompositeLifeState received states of different sizes:\n"
-            err += f"state 1 columns {self.state1.columns} != state 2 columns {self.state2.columns}"
+            err += f"state 1 columns {self.statelist1.columns} != state 2 columns {self.statelist2.columns}"
             raise Exception(err)
-        self.columns = self.state1.columns
+        self.columns = self.statelist1.columns
 
         if (
-            self.state1.neighbor_color_legacy_mode
-            != self.state2.neighbor_color_legacy_mode
+            self.statelist1.neighbor_color_legacy_mode
+            != self.statelist2.neighbor_color_legacy_mode
         ):
             err = "Error: CompositeLifeState received states with different neighbor_color_legacy_mode settings"
             raise Exception(err)
-        self.neighbor_color_legacy_mode = self.state1.neighbor_color_legacy_mode
+        self.neighbor_color_legacy_mode = self.statelist1.neighbor_color_legacy_mode
 
     def is_alive(self, x, y):
-        if self.state1.is_alive(x, y):
+        if self.statelist1.is_alive(x, y):
             return True
-        elif self.state2.is_alive(x, y):
+        elif self.statelist2.is_alive(x, y):
             return True
         return False
 
     def get_cell_color(self, x, y):
-        if self.state1.is_alive(x, y):
+        if self.statelist1.is_alive(x, y):
             return 1
-        elif self.state2.is_alive(x, y):
+        elif self.statelist2.is_alive(x, y):
             return 2
         return 0
 
@@ -87,178 +87,186 @@ class BinaryLifeState(LifeState):
         if self.size==0:
             return
 
-        dead_neighbor_counts = self.state.get_dead_neighbor_counts()
+        (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        ) = self.statelist.get_all_neighbor_counts(self.statelist1, self.statelist2)
+
+        # Now turn cells on or off
+        self.statelist.dead_to_alive(
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+        )
+        self.statelist.alive_to_dead(
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        )
 
 
 
+    #def get_neighbors_from_alive(self, x, y, i, possible_neighbors_list):
+    #    state = self.statelist
 
+    #    neighbors = 0
+    #    neighbors1 = 0
+    #    neighbors2 = 0
 
+    #    # 1 row above current cell
+    #    if i >= 1:
+    #        if state[i - 1][0] == (y - 1):
+    #            for k in range(self.top_pointer, len(state[i - 1])):
+    #                if state[i - 1][k] >= (x - 1):
 
+    #                    # NW
+    #                    if state[i - 1][k] == (x - 1):
+    #                        possible_neighbors_list[0] = [-1, -1, -1]
+    #                        self.top_pointer = k + 1
+    #                        neighbors += 1
+    #                        xx = state[i - 1][k]
+    #                        yy = state[i - 1][0]
+    #                        neighborcolor = self.get_cell_color(xx, yy)
+    #                        if neighborcolor == 1:
+    #                            neighbors1 += 1
+    #                        elif neighborcolor == 2:
+    #                            neighbors2 += 1
 
+    #                    # N
+    #                    if state[i - 1][k] == x:
+    #                        possible_neighbors_list[1] = [-1, -1, -1]
+    #                        self.top_pointer = k
+    #                        neighbors += 1
+    #                        xx = state[i - 1][k]
+    #                        yy = state[i - 1][0]
+    #                        neighborcolor = self.get_cell_color(xx, yy)
+    #                        if neighborcolor == 1:
+    #                            neighbors1 += 1
+    #                        elif neighborcolor == 2:
+    #                            neighbors2 += 1
 
+    #                    # NE
+    #                    if state[i - 1][k] == (x + 1):
+    #                        possible_neighbors_list[2] = [-1, -1, -1]
+    #                        if k == 1:
+    #                            self.top_pointer = 1
+    #                        else:
+    #                            self.top_pointer = k - 1
+    #                        neighbors += 1
+    #                        xx = state[i - 1][k]
+    #                        yy = state[i - 1][0]
+    #                        neighborcolor = self.get_cell_color(xx, yy)
+    #                        if neighborcolor == 1:
+    #                            neighbors1 += 1
+    #                        elif neighborcolor == 2:
+    #                            neighbors2 += 1
 
+    #                    # Break it off early
+    #                    if state[i - 1][k] > (x + 1):
+    #                        break
 
+    #    # The row of the current cell
+    #    for k in range(1, len(state[i])):
+    #        if state[i][k] >= (x - 1):
 
+    #            # W
+    #            if state[i][k] == (x - 1):
+    #                possible_neighbors_list[3] = [-1, -1, -1]
+    #                neighbors += 1
+    #                xx = state[i][k]
+    #                yy = state[i][0]
+    #                neighborcolor = self.get_cell_color(xx, yy)
+    #                if neighborcolor == 1:
+    #                    neighbors1 += 1
+    #                elif neighborcolor == 2:
+    #                    neighbors2 += 1
 
+    #            # E
+    #            if state[i][k] == (x + 1):
+    #                possible_neighbors_list[4] = [-1, -1, -1]
+    #                neighbors += 1
+    #                xx = state[i][k]
+    #                yy = state[i][0]
+    #                neighborcolor = self.get_cell_color(xx, yy)
+    #                if neighborcolor == 1:
+    #                    neighbors1 += 1
+    #                elif neighborcolor == 2:
+    #                    neighbors2 += 1
 
+    #            # Break it off early
+    #            if state[i][k] > (x + 1):
+    #                break
 
-    def get_neighbors_from_alive(self, x, y, i, possible_neighbors_list):
-        state = self.state
+    #    # 1 row below current cell
+    #    if i + 1 < len(state):
+    #        if state[i + 1][0] == (y + 1):
+    #            for k in range(self.bottom_pointer, len(state[i + 1])):
+    #                if state[i + 1][k] >= (x - 1):
 
-        neighbors = 0
-        neighbors1 = 0
-        neighbors2 = 0
+    #                    # SW
+    #                    if state[i + 1][k] == (x - 1):
+    #                        possible_neighbors_list[5] = [-1, -1, -1]
+    #                        self.bottom_pointer = k + 1
+    #                        neighbors += 1
+    #                        xx = state[i + 1][k]
+    #                        yy = state[i + 1][0]
+    #                        neighborcolor = self.get_cell_color(xx, yy)
+    #                        if neighborcolor == 1:
+    #                            neighbors1 += 1
+    #                        elif neighborcolor == 2:
+    #                            neighbors2 += 1
 
-        # 1 row above current cell
-        if i >= 1:
-            if state[i - 1][0] == (y - 1):
-                for k in range(self.top_pointer, len(state[i - 1])):
-                    if state[i - 1][k] >= (x - 1):
+    #                    # S
+    #                    if state[i + 1][k] == x:
+    #                        possible_neighbors_list[6] = [-1, -1, -1]
+    #                        self.bottom_pointer = k
+    #                        neighbors += 1
+    #                        xx = state[i + 1][k]
+    #                        yy = state[i + 1][0]
+    #                        neighborcolor = self.get_cell_color(xx, yy)
+    #                        if neighborcolor == 1:
+    #                            neighbors1 += 1
+    #                        elif neighborcolor == 2:
+    #                            neighbors2 += 1
 
-                        # NW
-                        if state[i - 1][k] == (x - 1):
-                            possible_neighbors_list[0] = [-1, -1, -1]
-                            self.top_pointer = k + 1
-                            neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+    #                    # SE
+    #                    if state[i + 1][k] == (x + 1):
+    #                        possible_neighbors_list[7] = [-1, -1, -1]
+    #                        if k == 1:
+    #                            self.bottom_pinter = 1
+    #                        else:
+    #                            self.bottom_pointer = k - 1
+    #                        neighbors += 1
+    #                        xx = state[i + 1][k]
+    #                        yy = state[i + 1][0]
+    #                        neighborcolor = self.get_cell_color(xx, yy)
+    #                        if neighborcolor == 1:
+    #                            neighbors1 += 1
+    #                        elif neighborcolor == 2:
+    #                            neighbors2 += 1
 
-                        # N
-                        if state[i - 1][k] == x:
-                            possible_neighbors_list[1] = [-1, -1, -1]
-                            self.top_pointer = k
-                            neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+    #                    # Break it off early
+    #                    if state[i + 1][k] > (x + 1):
+    #                        break
 
-                        # NE
-                        if state[i - 1][k] == (x + 1):
-                            possible_neighbors_list[2] = [-1, -1, -1]
-                            if k == 1:
-                                self.top_pointer = 1
-                            else:
-                                self.top_pointer = k - 1
-                            neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+    #    color = 0
+    #    if neighbors1 > neighbors2:
+    #        color = 1
+    #    elif neighbors2 > neighbors1:
+    #        color = 2
+    #    else:
+    #        if self.neighbor_color_legacy_mode:
+    #            color = 1
+    #        elif x % 2 == y % 2:
+    #            color = 1
+    #        else:
+    #            color = 2
 
-                        # Break it off early
-                        if state[i - 1][k] > (x + 1):
-                            break
-
-        # The row of the current cell
-        for k in range(1, len(state[i])):
-            if state[i][k] >= (x - 1):
-
-                # W
-                if state[i][k] == (x - 1):
-                    possible_neighbors_list[3] = [-1, -1, -1]
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-                # E
-                if state[i][k] == (x + 1):
-                    possible_neighbors_list[4] = [-1, -1, -1]
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-                # Break it off early
-                if state[i][k] > (x + 1):
-                    break
-
-        # 1 row below current cell
-        if i + 1 < len(state):
-            if state[i + 1][0] == (y + 1):
-                for k in range(self.bottom_pointer, len(state[i + 1])):
-                    if state[i + 1][k] >= (x - 1):
-
-                        # SW
-                        if state[i + 1][k] == (x - 1):
-                            possible_neighbors_list[5] = [-1, -1, -1]
-                            self.bottom_pointer = k + 1
-                            neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # S
-                        if state[i + 1][k] == x:
-                            possible_neighbors_list[6] = [-1, -1, -1]
-                            self.bottom_pointer = k
-                            neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # SE
-                        if state[i + 1][k] == (x + 1):
-                            possible_neighbors_list[7] = [-1, -1, -1]
-                            if k == 1:
-                                self.bottom_pinter = 1
-                            else:
-                                self.bottom_pointer = k - 1
-                            neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # Break it off early
-                        if state[i + 1][k] > (x + 1):
-                            break
-
-        color = 0
-        if neighbors1 > neighbors2:
-            color = 1
-        elif neighbors2 > neighbors1:
-            color = 2
-        else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-
-        return dict(neighbors=neighbors, color=color)
+    #    return dict(neighbors=neighbors, color=color)
 
 
 

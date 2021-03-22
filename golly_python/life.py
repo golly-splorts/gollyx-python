@@ -108,8 +108,16 @@ class BinaryLife(object):
             return live_counts
 
     def _next_generation(self):
-        """Advance life to the next generation"""
+        """
+        Advance life to the next generation.
+        This only updates the game of life state, next_step updates the live counts and victory percent.
+        """
         self.actual_state.next_state()
+
+
+
+
+
 
     def _old_next_generation(self):
         """Advance life to the next generation"""
