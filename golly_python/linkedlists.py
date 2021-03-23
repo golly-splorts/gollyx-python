@@ -22,7 +22,7 @@ class XCounterStore(object):
             self.mapp[x] += 1
 
     def filter(self, lo, hi):
-        for x in self.mapp:
+        for x in list(self.mapp.keys()):
             if not (self.mapp[x] >= lo and self.mapp[x] <= hi):
                 del self.mapp[x]
 
@@ -77,9 +77,10 @@ class XYCounterStore(object):
 
     def filter(self, lo, hi):
         """Filter all counts in this XYCounterStore to values that are between lo and hi"""
-        for y in self.mapp:
+        for y in list(self.mapp.keys()):
             self.mapp[y].filter(lo, hi)
-            if len(self.mapp[y])==0:
+            x_values = self.mapp[y].mapp
+            if len(x_values) == 0:
                 del self.mapp[y]
 
 
@@ -297,10 +298,14 @@ class SortedRowList(object):
         ninserts = 0
         for x in many_x:
             # Advance runner
-            while runner.next_node is not None and (x > runner.next_node.data and runner.next_node.head is False):
+            while runner.next_node is not None and (
+                x > runner.next_node.data and runner.next_node.head is False
+            ):
                 runner = runner.next_node
             # Check this x value is not in the list already
-            if (runner.next_node is None) or not (runner.next_node.data == x and runner.next_node.head is False):
+            if (runner.next_node is None) or not (
+                runner.next_node.data == x and runner.next_node.head is False
+            ):
                 # Insert node
                 front = runner
                 middle = LocationNode(x)
@@ -309,7 +314,7 @@ class SortedRowList(object):
                 middle.next_node = back
                 ninserts += 1
         return ninserts
-            
+
     def remove(self, x):
         """
         Remove the given x location into the sorted list.
@@ -703,7 +708,7 @@ class LifeList(object):
 
     #    return neighborcount
 
-    #def get_dead_neighbor_counts(self):
+    # def get_dead_neighbor_counts(self):
     #    dead_neighbors = DeadNeighborCounter()
 
     #    if self.size == 0:
@@ -1077,15 +1082,112 @@ class LifeList(object):
             if stencily_lead is not None:
                 stencily_lead = stencily_lead.next_node
 
-        return dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, alive_neighbors, color1_neighbors, color2_neighbors
+        return (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        )
 
-    def dead_to_alive(self, dead_neighbors, color1_dead_neighbors, color2_dead_neighbors):
+    def alive_to_dead(
+        self, alive_neighbors, color1_neighbors, color2_neighbors
+    ):
+        """
+        Iterate over every living cell, and kill cells with too many/too few neighbors.
+        This must be called before dead_to_alive!!
+        """
+        if self.size == 0:
+            return
+
+        # Alive neighbors only stay alive if they have 2 or 3 alive neighbors
+        alive_neighbors.filter(2, 3)
+
+        yrunner = self.front_node
+        while yrunner is not None:
+            y = yrunner.data.head()
+            row = yrunner.data
+            xrunner = row.front_node
+            while xrunner is not None:
+                x = xrunner.next_node.data
+                c = alive_neighbors.count(x, y)
+                if c != 2 and c != 3:
+                    # Remove node
+                    self.remove(x, y)
+
+                    ## Could do this manually, a bit faster
+                    #front = xrunner
+                    #middle = front.next_node
+                    #back = middle.next_node
+                    #front.next_node = back
+                    #row.size -= 1
+                    #self.ncells -= 1
+
+    def dead_to_alive(
+        self, dead_neighbors, color1_dead_neighbors, color2_dead_neighbors
+    ):
+        """
+        Use dead neighbor cell count to make dead cells alive
+        """
         if self.size == 0:
             return
 
         # Dead neighbors only come alive if they have exactly 3 alive neighbors
         dead_neighbors.filter(3, 3)
-        print(dead_neighbors)
+
+        yvalues = dead_neighbors.mapp
+        for y in list(yvalues.keys()):
+            
+            yii = self.insertion_index(y)
+            xvalues = list(dead_neighbors.mapp[y].mapp.keys())
+
+            if yii is None:
+
+                # y goes at front of list
+                front = self.front_node
+
+                if front.data.head() == y:
+                    # y value already has a row: the first one
+                    row = self.front_node.data
+                    ninserts = row.insert_many_sorted(xvalues)
+                    self.ncells += ninserts
+                else:
+                    # y value needs a new row
+                    ninserts = row.insert_many_sorted(xvalues)
+                    middle = RowNode(newrow)
+                    back = front.next_node
+                    newrow = SortedRowList(y)
+                    front.next_node = middle
+                    middle.next_node = back
+                    self.ncells += ninserts
+                    self.size += 1
+
+            elif yii.next_node is None:
+                # Next y value goes at end of list
+                newrow = SortedRowList(y)
+                ninserts = newrow.insert_many_sorted(xvalues)
+                back = RowNode(newrow)
+                front.next_node = back
+                self.ncells += ninserts
+                self.nsize += 1
+
+            else:
+                front = yii.next_node
+                row = front.data
+                if row.head() == y:
+                    # y value already has a row
+                    ninserts = row.insert_many_sorted(xvalues)
+                    self.ncells += ninserts
+                else:
+                    # y value needs a new row
+                    newrow = SortedRowList(y)
+                    ninserts = newrows.insert_many_sorted(xvalues)
+                    middle = RowNode(neworw)
+                    middle.next_node = back
+                    front.next_node = middle
+                    self.ncells += ninserts
+                    self.nsize += 1
 
 
 def test_row_list():
@@ -1178,7 +1280,6 @@ def test_insert_many():
     print(srl)
     srl.insert_many_sorted([152, 153, 154])
     print(srl)
-
 
 
 def test_copy_life_list():
@@ -1357,11 +1458,79 @@ def test_get_all_neighbor_counts():
     print(color2_neighbors)
 
 
+def test_dead_neighbors_filter():
+
+    binary = LifeList()
+    binary.insert(1, 1)
+    binary.insert(1, 2)
+    binary.insert(1, 3)
+    binary.insert(10, 15)
+    binary.insert(10, 16)
+    binary.insert(10, 17)
+
+    s1 = LifeList()
+    s1.insert(1, 1)
+    s1.insert(10, 16)
+    s1.insert(1, 3)
+    s2 = LifeList()
+    s2.insert(10, 15)
+    s2.insert(1, 2)
+    s2.insert(10, 17)
+
+    (
+        dead_neighbors,
+        color1_dead_neighbors,
+        color2_dead_neighbors,
+        alive_neighbors,
+        color1_neighbors,
+        color2_neighbors,
+    ) = binary.get_all_neighbor_counts(s1, s2)
+
+    dead_neighbors.filter(3, 3)
+    print(dead_neighbors)
+
+
+def test_dead_alive():
+
+    binary = LifeList()
+    binary.insert(1, 1)
+    binary.insert(1, 2)
+    binary.insert(1, 3)
+    binary.insert(10, 15)
+    binary.insert(10, 16)
+    binary.insert(10, 17)
+
+    s1 = LifeList()
+    s1.insert(1, 1)
+    s1.insert(10, 16)
+    s1.insert(1, 3)
+    s2 = LifeList()
+    s2.insert(10, 15)
+    s2.insert(1, 2)
+    s2.insert(10, 17)
+
+    (
+        dead_neighbors,
+        color1_dead_neighbors,
+        color2_dead_neighbors,
+        alive_neighbors,
+        color1_neighbors,
+        color2_neighbors,
+    ) = binary.get_all_neighbor_counts(s1, s2)
+
+    import pdb ; pdb.set_trace()
+    binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors)
+    binary.dead_to_alive(dead_neighbors, color1_dead_neighbors, color2_dead_neighbors)
+
+
+
 if __name__ == "__main__":
-    #test_row_list()
-    #test_life_list()
-    test_insert_many()
-    #test_copy_life_list()
-    #test_get_neighbor_count()
-    #test_get_dead_neighbor_counts()
-    #test_get_all_neighbor_counts()
+    # test_row_list()
+    # test_life_list()
+    # test_insert_many()
+    # test_copy_life_list()
+    # test_get_neighbor_count()
+    # test_get_dead_neighbor_counts()
+    # test_get_all_neighbor_counts()
+    # test_dead_neighbors_filter()
+    test_dead_alive()
