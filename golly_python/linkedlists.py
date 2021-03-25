@@ -1,4 +1,4 @@
-from counters import (
+from .counters import (
     XCounterStore,
     XYCounterStore,
     DeadNeighborCounter,
@@ -62,7 +62,7 @@ class LocationNode(NodeBase):
     head: bool = False
 
 
-class SortedRowList(object):
+class SortedRowList(ListBase):
     """
     Linked List storing one row in a game of life.
 
@@ -224,6 +224,7 @@ class SortedRowList(object):
                 front.next_node = middle
                 middle.next_node = back
                 ninserts += 1
+        self.size += ninserts
         return ninserts
 
     def remove(self, x):
@@ -651,6 +652,8 @@ class LifeList(object):
                             xm1yp1color = 1
                         elif color2_lifelist.contains(x - 1, y + 1):
                             xm1yp1color = 2
+                        else:
+                            raise Exception(f"Error: color at (x-1, y+1) = {x-1}, {y+1} is unknown")
                         if xm1yp1color == 1:
                             color1_neighbors.accumulate(x, y)
                         elif xm1yp1color == 2:
@@ -679,6 +682,8 @@ class LifeList(object):
                                 xyp1color = 1
                             elif color2_lifelist.contains(x, y + 1):
                                 xyp1color = 2
+                            else:
+                                raise Exception(f"Error: color at (x, y+1) = {x}, {y+1} is unknown")
                             if xyp1color == 1:
                                 color1_neighbors.accumulate(x, y)
                             elif xyp1color == 2:
@@ -709,6 +714,8 @@ class LifeList(object):
                                     xp1yp1color = 1
                                 elif color2_lifelist.contains(x + 1, y + 1):
                                     xp1yp1color = 2
+                                else:
+                                    raise Exception(f"Error: color at (x+1, y+1) = {x+1}, {y+1} is unknown")
                                 if xp1yp1color == 1:
                                     color1_neighbors.accumulate(x, y)
                                 elif xp1yp1color == 2:
@@ -773,6 +780,8 @@ class LifeList(object):
                             xm1ym1color = 1
                         elif color2_lifelist.contains(x - 1, y - 1):
                             xm1ym1color = 2
+                        else:
+                            raise Exception(f"Error: color at (x-1, y-1) = {x-1}, {y-1} is unknown")
                         if xm1ym1color == 1:
                             color1_neighbors.accumulate(x, y)
                         elif xm1ym1color == 2:
@@ -800,6 +809,8 @@ class LifeList(object):
                                 xym1color = 1
                             elif color2_lifelist.contains(x, y - 1):
                                 xym1color = 2
+                            else:
+                                raise Exception(f"Error: color at (x, y-1) = {x}, {y-1} is unknown")
                             if xym1color == 1:
                                 color1_neighbors.accumulate(x, y)
                             elif xym1color == 2:
@@ -830,6 +841,8 @@ class LifeList(object):
                                     xp1ym1color = 1
                                 elif color2_lifelist.contains(x + 1, y - 1):
                                     xp1ym1color = 2
+                                else:
+                                    raise Exception(f"Error: color at (x+1, y-1) = {x+1}, {y-1} is unknown")
                                 if xp1ym1color == 1:
                                     color1_neighbors.accumulate(x, y)
                                 elif xp1ym1color == 2:
@@ -875,6 +888,8 @@ class LifeList(object):
                         xm1ycolor = 1
                     elif color2_lifelist.contains(x - 1, y):
                         xm1ycolor = 2
+                    else:
+                        raise Exception(f"Error: color at (x+1, y) = {x+1}, {y} is unknown")
                     if xm1ycolor == 1:
                         color1_neighbors.accumulate(x, y)
                     elif xm1ycolor == 2:
@@ -902,7 +917,10 @@ class LifeList(object):
                         xp1ycolor = 1
                     elif color2_lifelist.contains(x + 1, y):
                         xp1ycolor = 2
-                    if xp1ycolor == 1:
+                    else:
+                        import pdb; pdb.set_trace()
+                        raise Exception(f"    Error: color at (x+1, y) = {x+1}, {y} is unknown")
+                    if xp1ycolor == 1:        
                         color1_neighbors.accumulate(x, y)
                     elif xp1ycolor == 2:
                         color2_neighbors.accumulate(x, y)
@@ -1038,10 +1056,10 @@ class LifeList(object):
 
                 else:
                     # y value needs a new row
-                    ninserts = row.insert_many_sorted(xvalues)
+                    newrow = SortedRowList(y)
+                    ninserts = newrow.insert_many_sorted(xvalues)
                     middle = RowNode(newrow)
                     back = front.next_node
-                    newrow = SortedRowList(y)
                     front.next_node = middle
                     middle.next_node = back
                     self.ncells += ninserts
@@ -1054,7 +1072,7 @@ class LifeList(object):
                 back = RowNode(newrow)
                 front.next_node = back
                 self.ncells += ninserts
-                self.nsize += 1
+                self.size += 1
 
             else:
                 front = yii.next_node
@@ -1066,12 +1084,13 @@ class LifeList(object):
                 else:
                     # y value needs a new row
                     newrow = SortedRowList(y)
-                    ninserts = newrows.insert_many_sorted(xvalues)
-                    middle = RowNode(neworw)
-                    middle.next_node = back
+                    ninserts = newrow.insert_many_sorted(xvalues)
+                    middle = RowNode(newrow)
+                    back = front.next_node
                     front.next_node = middle
+                    middle.next_node = back
                     self.ncells += ninserts
-                    self.nsize += 1
+                    self.size += 1
 
             # For each new cell being born, determine its color
             # from the majority of its parent colors

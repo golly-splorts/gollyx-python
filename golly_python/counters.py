@@ -1,4 +1,3 @@
-
 class XCounterStore(object):
     """
     Small utilty class used by XYCounterStore
@@ -101,5 +100,3 @@ class AliveNeighborCounter(XYCounterStore):
     """
 
     pass
-
-

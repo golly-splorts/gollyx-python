@@ -113,106 +113,102 @@ class BinaryLife(object):
         This only updates the game of life state, next_step updates the live counts and victory percent.
         """
         self.actual_state.next_state()
-
-
-
-
-
-
-    def _old_next_generation(self):
-        """Advance life to the next generation"""
-        all_dead_neighbors = {}
-
-        new_state1 = LifeState(self.rows, self.columns)
-        new_state2 = LifeState(self.rows, self.columns)
-        new_state = BinaryLifeState(new_state1, new_state2)
-
-        self.redraw_list = []
-
-        for i in range(len(self.actual_state.state)):
-            self.actual_state.top_pointer = 1
-            self.actual_state.bottom_pointer = 1
-
-            for j in range(1, len(self.actual_state.state[i])):
-                x = self.actual_state.state[i][j]
-                y = self.actual_state.state[i][0]
-
-                # create a list of possible dead neighbors
-                # get_neighbors_from_alive() will pare this down
-                dead_neighbors = [
-                    [x - 1, y - 1, 1],
-                    [x, y - 1, 1],
-                    [x + 1, y - 1, 1],
-                    [x - 1, y, 1],
-                    [x + 1, y, 1],
-                    [x - 1, y + 1, 1],
-                    [x, y + 1, 1],
-                    [x + 1, y + 1, 1],
-                ]
-
-                result = self.actual_state.get_neighbors_from_alive(
-                    x, y, i, dead_neighbors
-                )
-                neighbors = result["neighbors"]
-                color = result["color"]
-
-                # join dead neighbors remaining to check list
-                for dead_neighbor in dead_neighbors:
-                    # if dead_neighbor is not None:
-                    if dead_neighbor[2] != -1:
-                        # this cell is dead
-                        xx = dead_neighbor[0]
-                        yy = dead_neighbor[1]
-                        key = str(xx) + "," + str(yy)
-
-                        # counting number of dead neighbors
-                        if key not in all_dead_neighbors:
-                            all_dead_neighbors[key] = 1
-                        else:
-                            all_dead_neighbors[key] += 1
-
-                if neighbors < 0:
-                    raise Exception(
-                        f"Error: neighbors has invalid value of {neighbors}"
-                    )
-                elif not (neighbors == 0 or neighbors == 1 or neighbors > 3):
-                    if color == 1:
-                        new_state.add_cell(x, y)
-                        new_state1.add_cell(x, y)
-                    elif color == 2:
-                        new_state.add_cell(x, y)
-                        new_state2.add_cell(x, y)
-                    self.redraw_list.append([x, y, 2])
-                else:
-                    # Kill cell
-                    self.redraw_list.append([x, y, 0])
-
-        # Process dead neighbors
-        for key in all_dead_neighbors:
-            if all_dead_neighbors[key] == 3:
-                # This cell is dead, but has enough neighbors
-                # that are alive that it will make new life
-                key = key.split(",")
-                t1 = int(key[0])
-                t2 = int(key[1])
-
-                # Get color from neighboring parent cells
-
-                color = self.get_color_from_alive(t1, t2)
-                if color == 1:
-                    new_state.add_cell(t1, t2)
-                    new_state1.add_cell(t1, t2)
-                elif color == 2:
-                    new_state.add_cell(t1, t2)
-                    new_state2.add_cell(t1, t2)
-
-                self.redraw_list.append([t1, t2, 1])
-
-        self.actual_state = new_state
-        self.actual_state1 = new_state1
-        self.actual_state2 = new_state2
-
         return self.get_stats()
+
+    ### def _old_next_generation(self):
+    ###     """Advance life to the next generation"""
+    ###     all_dead_neighbors = {}
+
+    ###     new_state1 = LifeState(self.rows, self.columns)
+    ###     new_state2 = LifeState(self.rows, self.columns)
+    ###     new_state = BinaryLifeState(new_state1, new_state2)
+
+    ###     self.redraw_list = []
+
+    ###     for i in range(len(self.actual_state.state)):
+    ###         self.actual_state.top_pointer = 1
+    ###         self.actual_state.bottom_pointer = 1
+
+    ###         for j in range(1, len(self.actual_state.state[i])):
+    ###             x = self.actual_state.state[i][j]
+    ###             y = self.actual_state.state[i][0]
+
+    ###             # create a list of possible dead neighbors
+    ###             # get_neighbors_from_alive() will pare this down
+    ###             dead_neighbors = [
+    ###                 [x - 1, y - 1, 1],
+    ###                 [x, y - 1, 1],
+    ###                 [x + 1, y - 1, 1],
+    ###                 [x - 1, y, 1],
+    ###                 [x + 1, y, 1],
+    ###                 [x - 1, y + 1, 1],
+    ###                 [x, y + 1, 1],
+    ###                 [x + 1, y + 1, 1],
+    ###             ]
+
+    ###             result = self.actual_state.get_neighbors_from_alive(
+    ###                 x, y, i, dead_neighbors
+    ###             )
+    ###             neighbors = result["neighbors"]
+    ###             color = result["color"]
+
+    ###             # join dead neighbors remaining to check list
+    ###             for dead_neighbor in dead_neighbors:
+    ###                 # if dead_neighbor is not None:
+    ###                 if dead_neighbor[2] != -1:
+    ###                     # this cell is dead
+    ###                     xx = dead_neighbor[0]
+    ###                     yy = dead_neighbor[1]
+    ###                     key = str(xx) + "," + str(yy)
+
+    ###                     # counting number of dead neighbors
+    ###                     if key not in all_dead_neighbors:
+    ###                         all_dead_neighbors[key] = 1
+    ###                     else:
+    ###                         all_dead_neighbors[key] += 1
+
+    ###             if neighbors < 0:
+    ###                 raise Exception(
+    ###                     f"Error: neighbors has invalid value of {neighbors}"
+    ###                 )
+    ###             elif not (neighbors == 0 or neighbors == 1 or neighbors > 3):
+    ###                 if color == 1:
+    ###                     new_state.add_cell(x, y)
+    ###                     new_state1.add_cell(x, y)
+    ###                 elif color == 2:
+    ###                     new_state.add_cell(x, y)
+    ###                     new_state2.add_cell(x, y)
+    ###                 self.redraw_list.append([x, y, 2])
+    ###             else:
+    ###                 # Kill cell
+    ###                 self.redraw_list.append([x, y, 0])
+
+    ###     # Process dead neighbors
+    ###     for key in all_dead_neighbors:
+    ###         if all_dead_neighbors[key] == 3:
+    ###             # This cell is dead, but has enough neighbors
+    ###             # that are alive that it will make new life
+    ###             key = key.split(",")
+    ###             t1 = int(key[0])
+    ###             t2 = int(key[1])
+
+    ###             # Get color from neighboring parent cells
+
+    ###             color = self.get_color_from_alive(t1, t2)
+    ###             if color == 1:
+    ###                 new_state.add_cell(t1, t2)
+    ###                 new_state1.add_cell(t1, t2)
+    ###             elif color == 2:
+    ###                 new_state.add_cell(t1, t2)
+    ###                 new_state2.add_cell(t1, t2)
+
+    ###             self.redraw_list.append([t1, t2, 1])
+
+    ###     self.actual_state = new_state
+    ###     self.actual_state1 = new_state1
+    ###     self.actual_state2 = new_state2
+
+    ###     return self.get_stats()
 
     def get_stats(self):
         """
