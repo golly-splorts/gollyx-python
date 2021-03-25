@@ -178,6 +178,13 @@ class SortedRowList(object):
     front_node: LocationNode = None
     back_node: LocationNode = None
 
+    # TODO:
+    # Optimally, some of these insert methods would return the node,
+    # so that inserts don't always have to start at the beginning.
+
+    # TODO:
+    # contains() would be faster if we had a hash table of points
+
     def __init__(self, x, y=None):
         if y is not None:
             self.insert(y)
@@ -366,6 +373,14 @@ class LifeList(object):
     ncells: int = 0
     front_node: RowNode = None
 
+    # TODO:
+    # This class will be a lot faster if it keeps a hash table of points it contains
+
+    # TODO:
+    # We could make getting the node associated with (x, y) an O(1) operation
+    # When we add a new Node to the list, and increment count,
+    # store a reference to Node in a hash table under key (x, y)
+
     def __repr__(self):
         agg = "[\n"
         runner = self.front_node
@@ -383,6 +398,15 @@ class LifeList(object):
     def live_count(self):
         return self.ncells
 
+    def soft_replace_with(self, other_life_list):
+        """
+        Replace contents of this lifelist with contents of other_life_list.
+        This is a soft replacement, meaning we're just shifting links around.
+        """
+        self.front_node = other_life_list.front_node
+        self.size = other_life_list.size
+        self.ncells = other_life_list.ncells
+
     def copy_points(self, other_lifelist):
         """
         Copy every point in another LifeList into this LifeList.
@@ -393,7 +417,20 @@ class LifeList(object):
             return False
 
         else:
-            response = False
+            # There is already at least 1 element in the list.
+
+            ### # TODO:
+            ### # Use two yrunners, handling cases where they are empty
+            ### this_yrunner = self.front_node
+            ### other_yrunner = other_lifelist.front_node
+
+            ### while other_yrunner is not None:
+            ###     this_y = this_yrunner.data.head()
+            ###     other_y = other_yrunner.data.head()
+            ###     while other_y > this_y and this_yrunner is not None:
+            ###         this_yrunner = this_yrunner.next_node
+
+            ninserts = 0
             other_yrunner = other_lifelist.front_node
             while other_yrunner != None:
                 row = other_yrunner.data
@@ -401,11 +438,11 @@ class LifeList(object):
                 other_xrunner = row.front_node.next_node
                 while other_xrunner != None:
                     x = other_xrunner.data
-                    result = self.insert(x, y)
-                    response = response or result
+                    if self.insert(x, y):
+                        ninserts += 1
                     other_xrunner = other_xrunner.next_node
                 other_yrunner = other_yrunner.next_node
-            return response
+            return ninserts > 0
 
     def insertion_index(self, y):
         """
@@ -567,275 +604,62 @@ class LifeList(object):
         if self.size == 0:
             return False
 
-        ii = self.insertion_index(y)
-        if (ii is None) and (self.front_node.data.head() == y):
-            # y goes at the front of the list, and row exists already
-            rowlist = self.front_node.data
+        yii = self.insertion_index(y)
+
+        if yii is None:
+
+            # y goes at front of list
+            front = self.front_node
+
+            if front.data.head() == y:
+                # y value already has a row, the first one
+                row = self.front_node.data
+                # remove from first row
+                remove_worked = row.remove(x)
+                if remove_worked:
+                    self.ncells -= 1
+                    # check if last x coordinate, if so remove this list
+                    if row.emptyx():
+                        self.front_node = self.front_node.next_node
+                        self.size -= 1
+                return remove_worked
+
+            else:
+                # y value does not exist in list
+                return False
+
+        elif (yii.next_node is not None) and (yii.next_node.data.head() == y):
+
+            # Found it in the list
+            rowlist = yii.next_node.data
             remove_worked = rowlist.remove(x)
             if remove_worked:
                 self.ncells -= 1
                 if rowlist.emptyx():
                     # This was the last x value in the row, so remove this row from listlife
-                    front = ii
-                    back = ii.next_node.next_node
+                    front = yii
+                    back = yii.next_node.next_node
                     front.next_node = back
                     self.size -= 1
             return remove_worked
 
-        elif (ii.next_node is not None) and (ii.next_node.data.head() == y):
-            # Found it in the list
-            rowlist = ii.next_node.data
-            remove_worked = rowlist.remove(x)
-            if remove_worked:
-                self.ncells -= 1
-                if rowlist.emptyx():
-                    # This was the last x value in the row, so remove this row from listlife
-                    front = ii
-                    back = ii.next_node.next_node
-                    front.next_node = back
-                    self.size -= 1
-            return remove_worked
         else:
             # y is not in the list
             return False
 
-    # def get_neighbor_count(self, x, y):
-    #    """Count the number of neighbors for cell (x,y)"""
-    #    if self.size == 0:
-    #        return 0
-
-    #    neighborcount = 0
-
-    #    # Find where above row should go
-    #    aboveii = self.insertion_index(y - 1)
-    #    if aboveii is None:
-    #        aboverow = self.front_node.data
-    #    else:
-    #        if aboveii.next_node is None:
-    #            # There is no above cell here, so we have no more points of interest
-    #            return neighborcount
-    #        else:
-    #            aboverow = aboveii.next_node.data
-
-    #    # Check if above row is actually y-1
-    #    if aboverow.head() == (y - 1):
-
-    #        # if x-1 is here, it has to be at the insertion index for x
-    #        abovexii = aboverow.insertion_index(x)
-    #        # Note: the .head check is True when abovexii.data is a y coordinate, checking x coordinates only
-    #        if abovexii.data == (x - 1) and abovexii.head is False:
-    #            neighborcount += 1
-
-    #        # if x insertion index is at end of list, we are done with above row
-    #        if abovexii.next_node is not None:
-    #            # only advance the insertion index if we find x
-    #            if abovexii.next_node.data == x:
-    #                neighborcount += 1
-    #                abovexii = abovexii.next_node
-    #            if abovexii.next_node is not None:
-    #                if abovexii.next_node.data == (x + 1):
-    #                    neighborcount += 1
-
-    #    # Find where middle row should go
-    #    if aboveii is None:
-    #        if aboverow.head() == (y - 1):
-    #            middleii = self.front_node
-    #        else:
-    #            middleii = None
-    #    else:
-    #        middleii = aboveii.next_node
-
-    #    if middleii is None:
-    #        middlerow = self.front_node.data
-    #    else:
-    #        if middleii.next_node is None:
-    #            # Recall that middleii points to above row, so if next node is none, we have no middle row
-    #            # That means we have no points of interest
-    #            return neighborcount
-    #        else:
-    #            middlerow = middleii.next_node.data
-
-    #    # Check if middle row is actually y (this should always succeed...)
-    #    if middlerow.head() == y:
-
-    #        # if x-1 is here, it is at insertion index for x
-    #        middlexii = middlerow.insertion_index(x)
-    #        if middlexii.data == (x - 1) and middlexii.head is False:
-    #            neighborcount += 1
-
-    #        # if x insertion index at end of list, done with row
-    #        if middlexii.next_node is not None:
-    #            # only advance insertion index if find x
-    #            if middlexii.next_node.data == x:
-    #                # don't increment neighborcount for cell itself
-    #                middlexii = middlexii.next_node
-    #            if middlexii.next_node is not None:
-    #                if middlexii.next_node.data == (x + 1):
-    #                    neighborcount += 1
-
-    #    # Find where bottom row should go
-    #    if middleii is None:
-    #        # middle row is always present
-    #        # if the middle insertion index is none, the middle row is the first RowNode
-    #        # that means the bottom row goes after the first RowNode
-    #        bottomii = self.front_node
-    #    else:
-    #        # this is guaranteed not to be None, b/c of return statement above
-    #        bottomii = middleii.next_node
-
-    #    if bottomii.next_node is None:
-    #        # There is no bottom row, we are done
-    #        return neighborcount
-    #    else:
-    #        bottomrow = bottomii.next_node.data
-
-    #    # Check if bottom row is actually y+1
-    #    if bottomrow.head() == (y + 1):
-
-    #        bottomxii = bottomrow.insertion_index(x)
-    #        if bottomxii.data == (x - 1) and bottomxii.head is False:
-    #            neighborcount += 1
-
-    #        # if x insertion index at end of list, done with row
-    #        if bottomxii.next_node is not None:
-    #            # only advance insertion index if find x
-    #            if bottomxii.next_node.data == x:
-    #                neighborcount += 1
-    #                bottomxii = bottomxii.next_node
-    #            if bottomxii.next_node is not None:
-    #                if bottomxii.next_node.data == (x + 1):
-    #                    neighborcount += 1
-
-    #    return neighborcount
-
-    # def get_dead_neighbor_counts(self):
-    #    dead_neighbors = DeadNeighborCounter()
-
-    #    if self.size == 0:
-    #        return dead_neighbors
-
-    #    stencily_lag = None
-    #    stencily_middle = self.front_node
-    #    stencily_lead = stencily_middle.next_node
-
-    #    while stencily_middle is not None:
-
-    #        middlerow = stencily_middle.data
-    #        y = middlerow.head()
-
-    #        # Set stencil locations for this row
-    #        stencilx_lag = middlerow.front_node
-    #        stencilx_middle = stencilx_lag.next_node
-    #        if stencilx_middle.next_node is not None:
-    #            stencilx_lead = stencilx_middle.next_node
-    #        else:
-    #            stencilx_lead = None
-    #        assert stencilx_middle is not None
-
-    #        while stencilx_middle is not None:
-
-    #            x = stencilx_middle.data
-
-    #            # Deal with above (lead) row
-    #            if stencily_lead is None or stencily_lead.data.head() != y + 1:
-    #                # Row for y+1 is missing
-    #                # Add (x-1, y+1), (x, y+1), (x+1, y+1) to deadneighborcounter
-    #                dead_neighbors.accumulate(x - 1, y + 1)
-    #                dead_neighbors.accumulate(x, y + 1)
-    #                dead_neighbors.accumulate(x + 1, y + 1)
-    #            else:
-    #                # Scan lead row
-    #                aboverow = stencily_lead.data
-    #                abovexii = aboverow.insertion_index(x)
-    #                if not (abovexii.data == (x - 1) and abovexii.head is False):
-    #                    # We do not have cell (x-1, y+1) in this list
-    #                    dead_neighbors.accumulate(x - 1, y + 1)
-
-    #                # if x insertion index is at end of list, we are done with row
-    #                if abovexii.next_node is not None:
-    #                    # only advance insertion index if we find x
-    #                    if not abovexii.next_node.data == x:
-    #                        # We do not have cell (x, y+1) in this list
-    #                        dead_neighbors.accumulate(x, y + 1)
-    #                    else:
-    #                        # We do have cell (x, y+1) in this list, so advance the insertion index yb 1
-    #                        abovexii = abovexii.next_node
-
-    #                    if abovexii.next_node is not None:
-    #                        if not abovexii.next_node.data == (x + 1):
-    #                            # We do not have cell (x+1, y+1)
-    #                            dead_neighbors.accumulate(x + 1, y + 1)
-    #                    else:
-    #                        dead_neighbors.accumulate(x + 1, y + 1)
-    #                else:
-    #                    dead_neighbors.accumulate(x, y + 1)
-    #                    dead_neighbors.accumulate(x + 1, y + 1)
-
-    #            # Deal with below (lag) row
-    #            if stencily_lag is None or stencily_lag.data.head() != y - 1:
-    #                # Add cell (x-1, y-1), (x, y-1), (x+1, y-1) to deadcellcounter
-    #                dead_neighbors.accumulate(x - 1, y - 1)
-    #                dead_neighbors.accumulate(x, y - 1)
-    #                dead_neighbors.accumulate(x + 1, y - 1)
-    #            else:
-    #                # Scan lag row
-    #                belowrow = stencily_lag.data
-    #                belowxii = belowrow.insertion_index(x)
-    #                if not (belowxii.data == (x - 1) and belowxii.head is False):
-    #                    # We do not have cell (x-1, y-1) in this list
-    #                    dead_neighbors.accumulate(x - 1, y - 1)
-
-    #                # if x insertion index is at end of list, we are done with row
-    #                if belowxii.next_node is not None:
-    #                    if not belowxii.next_node.data == x:
-    #                        dead_neighbors.accumulate(x, y - 1)
-    #                    else:
-    #                        belowxii = belowxii.next_node
-    #                    if belowxii.next_node is not None:
-    #                        if not belowxii.next_node.data == (x + 1):
-    #                            dead_neighbors.accumulate(x + 1, y - 1)
-    #                    else:
-    #                        dead_neighbors.accumulate(x + 1, y - 1)
-    #                else:
-    #                    dead_neighbors.accumulate(x, y - 1)
-    #                    dead_neighbors.accumulate(x + 1, y - 1)
-
-    #            # Deal with this row
-    #            # Scan middle row
-    #            if not (
-    #                stencilx_lag.data == (x - 1) and stencilx_lag.data.head is False
-    #            ):
-    #                # We do not have cell (x-1, y) in this list
-    #                dead_neighbors.accumulate(x - 1, y)
-
-    #            if stencilx_lead is None or stencilx_lead.data != (x + 1):
-    #                # We do not have cell (x+1, y) i this list
-    #                dead_neighbors.accumulate(x + 1, y)
-
-    #            # Increment pointers
-    #            # If any x pointers left, increment x pointers
-    #            stencilx_lag = stencilx_lag.next_node
-    #            stencilx_middle = stencilx_middle.next_node
-    #            if stencilx_lead is not None:
-    #                stencilx_lead = stencilx_lead.next_node
-
-    #        # Advance y pointers
-    #        stencily_lag = stencily_middle
-    #        stencily_middle = stencily_middle.next_node
-    #        if stencily_lead is not None:
-    #            stencily_lead = stencily_lead.next_node
-
-    #    return dead_neighbors
-
-    ################################
-
-    def get_all_neighbor_counts(self, color1_lifelist, color2_lifelist):
+    def get_all_neighbor_counts(
+        self,
+        color1_lifelist,
+        color2_lifelist,
+        neighbor_color_legacy_mode=False,
+    ):
         """
         Iterate over the entire grid and accumulate the following info:
         - count number of times dead neighbors are next to live cells
         - count number of live neighbors of live cells
         - count number of live (color 1) neighbors of live cells
         - count number of live (color 2) neighbors of live cells
+        - based on color counts of live cells, insert into color1_lifelist or color2_lifelist
         """
         dead_neighbors = DeadNeighborCounter()
         color1_dead_neighbors = DeadNeighborCounter()
@@ -871,10 +695,11 @@ class LifeList(object):
 
                 # Look up which color this cell is
                 if color1_lifelist.contains(x, y):
-                    color = 1
-                else:
-                    color = 2
+                    xycolor = 1
+                elif color2_lifelist.contains(x, y):
+                    xycolor = 2
 
+                # -----------------------------------
                 # Deal with above (lead) row
                 if stencily_lead is None or stencily_lead.data.head() != y + 1:
                     # Row for y+1 is missing
@@ -882,11 +707,11 @@ class LifeList(object):
                     dead_neighbors.accumulate(x - 1, y + 1)
                     dead_neighbors.accumulate(x, y + 1)
                     dead_neighbors.accumulate(x + 1, y + 1)
-                    if color == 1:
+                    if xycolor == 1:
                         color1_dead_neighbors.accumulate(x - 1, y + 1)
                         color1_dead_neighbors.accumulate(x, y + 1)
                         color1_dead_neighbors.accumulate(x + 1, y + 1)
-                    else:
+                    elif xycolor == 2:
                         color2_dead_neighbors.accumulate(x - 1, y + 1)
                         color2_dead_neighbors.accumulate(x, y + 1)
                         color2_dead_neighbors.accumulate(x + 1, y + 1)
@@ -894,81 +719,121 @@ class LifeList(object):
                     # Scan lead row
                     aboverow = stencily_lead.data
                     abovexii = aboverow.insertion_index(x)
+
                     # Check for cell (x-1, y+1) in the list
                     if (abovexii.data == (x - 1)) and (abovexii.head is False):
+                        # Found it
                         alive_neighbors.accumulate(x, y)
-                        if color1_lifelist.contains(x, y):
+                        # Accumulate color counts for this cell using the neighbor's color
+                        if color1_lifelist.contains(x - 1, y + 1):
+                            xm1yp1color = 1
+                        elif color2_lifelist.contains(x - 1, y + 1):
+                            xm1yp1color = 2
+                        if xm1yp1color == 1:
                             color1_neighbors.accumulate(x, y)
-                        else:
+                        elif xm1yp1color == 2:
                             color2_neighbors.accumulate(x, y)
                     else:
+                        # Not found
                         dead_neighbors.accumulate(x - 1, y + 1)
-                        if color == 1:
+                        # Accumulate color counts for dead neighbor cell using our color
+                        if xycolor == 1:
                             color1_dead_neighbors.accumulate(x - 1, y + 1)
-                        else:
+                        elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x - 1, y + 1)
 
+                    # Check for cell (x, y+1)
                     # if x insertion index is at end of list, we are done with row
                     if abovexii.next_node is not None:
-                        # only advance insertion index if we find x
-                        # Check for cell (x, y+1)
+
+                        # Only advance insertion index if we find x
                         if (abovexii.next_node.data == x) and (
                             abovexii.next_node.head is False
                         ):
                             # Found it
                             alive_neighbors.accumulate(x, y)
-                            if color1_lifelist.contains(x, y):
+                            # Accumulate color counts for this cell using the neighbor's color
+                            if color1_lifelist.contains(x, y + 1):
+                                xyp1color = 1
+                            elif color2_lifelist.contains(x, y + 1):
+                                xyp1color = 2
+                            if xyp1color == 1:
                                 color1_neighbors.accumulate(x, y)
-                            else:
+                            elif xyp1color == 2:
                                 color2_neighbors.accumulate(x, y)
                             # Advance insertion index by 1
                             abovexii = abovexii.next_node
                         else:
+                            # Not found
                             dead_neighbors.accumulate(x, y + 1)
+                            # Accumulate color counts for dead neighbor cell using our color
+                            if xycolor == 1:
+                                color1_dead_neighbors.accumulate(x, y + 1)
+                            elif xycolor == 2:
+                                color2_dead_neighbors.accumulate(x, y + 1)
 
+                        # Check for cell (x+1, y+1)
+                        # If x+1 insertion index is at end of list, we are done with row
                         if abovexii.next_node is not None:
-                            # Check for cell (x+1, y+1)
+
+                            # Only advance insertion index if we find x+1
                             if (abovexii.next_node.data == (x + 1)) and (
                                 abovexii.next_node.head is False
                             ):
+                                # Found it
                                 alive_neighbors.accumulate(x, y)
-                                if color1_lifelist.contains(x, y):
+                                # Accumulate color counts for this cell using neighbor's color
+                                if color1_lifelist.contains(x + 1, y + 1):
+                                    xp1yp1color = 1
+                                elif color2_lifelist.contains(x + 1, y + 1):
+                                    xp1yp1color = 2
+                                if xp1yp1color == 1:
                                     color1_neighbors.accumulate(x, y)
-                                else:
+                                elif xp1yp1color == 2:
                                     color2_neighbors.accumulate(x, y)
+                                # No need to advance insertion index, done with this row
                             else:
+                                # Cell (x+1, y+1) not found
                                 dead_neighbors.accumulate(x + 1, y + 1)
-                                if color == 1:
+                                # Accumulate color counts for dead neighbor cell using our color
+                                if xycolor == 1:
                                     color1_dead_neighbors.accumulate(x + 1, y + 1)
-                                else:
+                                elif xycolor == 2:
                                     color2_dead_neighbors.accumulate(x + 1, y + 1)
+
                         else:
+                            # Cell (x+1, y+1) not found
                             dead_neighbors.accumulate(x + 1, y + 1)
-                            if color == 1:
+                            # Accumulate color counts for dead neighbor cell using our color
+                            if xycolor == 1:
                                 color1_dead_neighbors.accumulate(x + 1, y + 1)
-                            else:
+                            elif xycolor == 2:
                                 color2_dead_neighbors.accumulate(x + 1, y + 1)
                     else:
+                        # Cell (x, y+1) not found
                         dead_neighbors.accumulate(x, y + 1)
                         dead_neighbors.accumulate(x + 1, y + 1)
-                        if color == 1:
+                        # Accumulate color counts for dead neighbor cell using our color
+                        if xycolor == 1:
                             color1_dead_neighbors.accumulate(x, y + 1)
                             color1_dead_neighbors.accumulate(x + 1, y + 1)
-                        else:
+                        elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x, y + 1)
                             color2_dead_neighbors.accumulate(x + 1, y + 1)
 
+                # -----------------------------------
                 # Deal with below (lag) row
                 if stencily_lag is None or stencily_lag.data.head() != y - 1:
-                    # Add cell (x-1, y-1), (x, y-1), (x+1, y-1) to deadcellcounter
+                    # Row for y-1 is missing
+                    # Add cells (x-1, y-1), (x, y-1), (x+1, y-1) to deadneighborcounter
                     dead_neighbors.accumulate(x - 1, y - 1)
                     dead_neighbors.accumulate(x, y - 1)
                     dead_neighbors.accumulate(x + 1, y - 1)
-                    if color == 1:
+                    if xycolor == 1:
                         color1_dead_neighbors.accumulate(x - 1, y - 1)
                         color1_dead_neighbors.accumulate(x, y - 1)
                         color1_dead_neighbors.accumulate(x + 1, y - 1)
-                    else:
+                    elif xycolor == 2:
                         color2_dead_neighbors.accumulate(x - 1, y - 1)
                         color2_dead_neighbors.accumulate(x, y - 1)
                         color2_dead_neighbors.accumulate(x + 1, y - 1)
@@ -976,98 +841,181 @@ class LifeList(object):
                     # Scan lag row
                     belowrow = stencily_lag.data
                     belowxii = belowrow.insertion_index(x)
-                    # Check for cell (x-1, y-1
+
+                    # Check for cell (x-1, y-1) in the list
                     if (belowxii.data == (x - 1)) and (belowxii.head is False):
+                        # Found it
                         alive_neighbors.accumulate(x, y)
-                        if color1_lifelist.contains(x, y):
+                        # Accumulate color counts for this cell using the neighbor's color
+                        if color1_lifelist.contains(x - 1, y - 1):
+                            xm1ym1color = 1
+                        elif color2_lifelist.contains(x - 1, y - 1):
+                            xm1ym1color = 2
+                        if xm1ym1color == 1:
                             color1_neighbors.accumulate(x, y)
-                        else:
+                        elif xm1ym1color == 2:
                             color2_neighbors.accumulate(x, y)
                     else:
+                        # Not found
                         dead_neighbors.accumulate(x - 1, y - 1)
-                        if color == 1:
+                        # Accumulate color counts for dead neighbor cell using our color
+                        if xycolor == 1:
                             color1_dead_neighbors.accumulate(x - 1, y - 1)
-                        else:
+                        elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x - 1, y - 1)
 
+                    # Check for cell (x, y-1)
                     # if x insertion index is at end of list, we are done with row
                     if belowxii.next_node is not None:
 
                         if (belowxii.next_node.data == x) and (
                             belowxii.next_node.head is False
                         ):
+                            # Found it
                             alive_neighbors.accumulate(x, y)
-                            if color1_lifelist.contains(x, y):
+                            # Accumulate color counts for this cell using the neighbor's color
+                            if color1_lifelist.contains(x, y - 1):
+                                xym1color = 1
+                            elif color2_lifelist.contains(x, y - 1):
+                                xym1color = 2
+                            if xym1color == 1:
                                 color1_neighbors.accumulate(x, y)
-                            else:
+                            elif xym1color == 2:
                                 color2_neighbors.accumulate(x, y)
+                            # Advance insertion index by 1
                             belowxii = belowxii.next_node
                         else:
+                            # Not found
                             dead_neighbors.accumulate(x, y - 1)
-                            if color == 1:
+                            # Accumulate color counts for dead neighbor cell using our color
+                            if xycolor == 1:
                                 color1_dead_neighbors.accumulate(x, y - 1)
-                            else:
+                            elif xycolor == 2:
                                 color2_dead_neighbors.accumulate(x, y - 1)
 
+                        # Check for cell (x+1, y-1)
+                        # If x+1 insertion index is at end of list, we are done with row
                         if belowxii.next_node is not None:
-                            if belowxii.next_node.data == (x + 1):
+
+                            # Only advance insertion index if we find x+1
+                            if (belowxii.next_node.data == (x + 1)) and (
+                                belowxii.next_node.head is False
+                            ):
+                                # Found it
                                 alive_neighbors.accumulate(x, y)
-                                if color1_lifelist.contains(x, y):
+                                # Accumulate color counts for this cell using neighbor's color
+                                if color1_lifelist.contains(x + 1, y - 1):
+                                    xp1ym1color = 1
+                                elif color2_lifelist.contains(x + 1, y - 1):
+                                    xp1ym1color = 2
+                                if xp1ym1color == 1:
                                     color1_neighbors.accumulate(x, y)
-                                else:
+                                elif xp1ym1color == 2:
                                     color2_neighbors.accumulate(x, y)
+
                             else:
+                                # Cell (x+1, y-1) not found
                                 dead_neighbors.accumulate(x + 1, y - 1)
-                                if color == 1:
+                                # Accumulate color counts for dead neighbor cell using our color
+                                if xycolor == 1:
                                     color1_dead_neighbors.accumulate(x + 1, y - 1)
-                                else:
+                                elif xycolor == 2:
                                     color2_dead_neighbors.accumulate(x + 1, y - 1)
+                                # No need to advance insertion index, done with this row
                         else:
+                            # Cell (x+1, y-1) not found
                             dead_neighbors.accumulate(x + 1, y - 1)
-                            if color == 1:
+                            if xycolor == 1:
                                 color1_dead_neighbors.accumulate(x + 1, y - 1)
-                            else:
+                            elif xycolor == 2:
                                 color2_dead_neighbors.accumulate(x + 1, y - 1)
                     else:
+                        # Cell (x, y-1) not found
                         dead_neighbors.accumulate(x, y - 1)
                         dead_neighbors.accumulate(x + 1, y - 1)
-                        if color == 1:
+                        # Accumulate color counts for dead neighbor cell using our color
+                        if xycolor == 1:
                             color1_dead_neighbors.accumulate(x, y - 1)
                             color1_dead_neighbors.accumulate(x + 1, y - 1)
-                        else:
+                        elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x, y - 1)
                             color2_dead_neighbors.accumulate(x + 1, y - 1)
 
+                # -----------------------------------
                 # Deal with this row
-                # Scan middle row
 
                 # Deal with cell (x-1, y)
-                if (stencilx_lag.data == (x - 1)) and (stencilx_lag.data.head is False):
+                if (stencilx_lag.data == (x - 1)) and (stencilx_lag.head is False):
+                    # Found it
                     alive_neighbors.accumulate(x, y)
-                    if color1_lifelist.contains(x, y):
+                    # Accumulate color counts for this cell using the neighbor's color
+                    if color1_lifelist.contains(x - 1, y):
+                        xm1ycolor = 1
+                    elif color2_lifelist.contains(x - 1, y):
+                        xm1ycolor = 2
+                    if xm1ycolor == 1:
                         color1_neighbors.accumulate(x, y)
-                    else:
+                    elif xm1ycolor == 2:
                         color2_neighbors.accumulate(x, y)
                 else:
+                    # Not found
                     dead_neighbors.accumulate(x - 1, y)
-                    if color == 1:
+                    if xycolor == 1:
                         color1_dead_neighbors.accumulate(x - 1, y)
-                    else:
+                    elif xycolor == 2:
                         color2_dead_neighbors.accumulate(x - 1, y)
 
+                # Deal with cell (x+1, y)
                 if stencilx_lead is None or stencilx_lead.data != (x + 1):
                     # We do not have cell (x+1, y) i this list
                     dead_neighbors.accumulate(x + 1, y)
-                    if color == 1:
+                    if xycolor == 1:
                         color1_dead_neighbors.accumulate(x + 1, y)
-                    else:
+                    elif xycolor == 2:
                         color2_dead_neighbors.accumulate(x + 1, y)
                 else:
+                    # Not found
                     alive_neighbors.accumulate(x, y)
-                    if color1_lifelist.contains(x, y):
+                    if color1_lifelist.contains(x + 1, y):
+                        xp1ycolor = 1
+                    elif color2_lifelist.contains(x + 1, y):
+                        xp1ycolor = 2
+                    if xp1ycolor == 1:
                         color1_neighbors.accumulate(x, y)
-                    else:
+                    elif xp1ycolor == 2:
                         color2_neighbors.accumulate(x, y)
+
+                ### # Deal with cell (x, y) last
+                ### # (we require live neighbor counts to know
+                ### # which state to add (x, y) to)
+                ### if (stencilx_middle.data == x) and (stencilx_middle.head is False):
+                ###     alive_neighbors.accumulate(x, y)
+
+                ###     c1 = color1_neighbors.count(x, y)
+                ###     c2 = color2_neighbors.count(x, y)
+
+                ###     if c1 > c2:
+                ###         print(f"updating point {x}, {y} to state 1")
+                ###         print(f"  c1 = {c1}, c2 = {c2}")
+                ###         color1_lifelist.insert(x, y)
+                ###     elif c2 > c1:
+                ###         print(f"updating point {x}, {y} to state 2")
+                ###         print(f"  c1 = {c1}, c2 = {c2}")
+                ###         color2_lifelist.insert(x, y)
+                ###     else:
+
+                ###         if neighbor_color_legacy_mode:
+                ###             print(f"updating point {x}, {y} to state 1")
+                ###             print(f"  c1 = {c1}, c2 = {c2}")
+                ###             color1_lifelist.insert(x, y)
+                ###         elif x % 2 == y % 2:
+                ###             print(f"updating point {x}, {y} to state 1")
+                ###             print(f"  c1 = {c1}, c2 = {c2}")
+                ###             color1_lifelist.insert(x, y)
+                ###         else:
+                ###             print(f"updating point {x}, {y} to state 2")
+                ###             print(f"  c1 = {c1}, c2 = {c2}")
+                ###             color2_lifelist.insert(x, y)
 
                 # Increment pointers
                 # If any x pointers left, increment x pointers
@@ -1092,7 +1040,13 @@ class LifeList(object):
         )
 
     def alive_to_dead(
-        self, alive_neighbors, color1_neighbors, color2_neighbors
+        self,
+        alive_neighbors,
+        color1_neighbors,
+        color2_neighbors,
+        s1,
+        s2,
+        neighbor_color_legacy_mode=False,
     ):
         """
         Iterate over every living cell, and kill cells with too many/too few neighbors.
@@ -1104,28 +1058,58 @@ class LifeList(object):
         # Alive neighbors only stay alive if they have 2 or 3 alive neighbors
         alive_neighbors.filter(2, 3)
 
+        # If cells are dead we remove them from self
+        # If cells are still alive we add them to new state 1 or 2
+        new_s1 = LifeList()
+        new_s2 = LifeList()
+
         yrunner = self.front_node
         while yrunner is not None:
             y = yrunner.data.head()
             row = yrunner.data
-            xrunner = row.front_node
+            xrunner = row.front_node.next_node
             while xrunner is not None:
-                x = xrunner.next_node.data
+                x = xrunner.data
                 c = alive_neighbors.count(x, y)
                 if c != 2 and c != 3:
-                    # Remove node
+                    # Remove point from binary life and color life
                     self.remove(x, y)
 
-                    ## Could do this manually, a bit faster
-                    #front = xrunner
-                    #middle = front.next_node
-                    #back = middle.next_node
-                    #front.next_node = back
-                    #row.size -= 1
-                    #self.ncells -= 1
+                else:
+                    # Check color neighbor counts
+                    c1 = color1_neighbors.count(x, y)
+                    c2 = color2_neighbors.count(x, y)
+        
+                    # TODO:
+                    # These inserts could be more efficient by keeping track
+                    # of the last location inserted into...
+                    if c1 > c2:
+                        new_s1.insert(x, y)
+                    elif c2 > c1:
+                        new_s2.insert(x, y)
+                    else:
+
+                        if neighbor_color_legacy_mode:
+                            new_s1.insert(x, y)
+                        elif x % 2 == y % 2:
+                            new_s1.insert(x, y)
+                        else:
+                            new_s2.insert(x, y)
+
+                xrunner = xrunner.next_node
+            yrunner = yrunner.next_node
+
+        s1.soft_replace_with(new_s1)
+        s2.soft_replace_with(new_s2)
 
     def dead_to_alive(
-        self, dead_neighbors, color1_dead_neighbors, color2_dead_neighbors
+        self,
+        dead_neighbors,
+        color1_dead_neighbors,
+        color2_dead_neighbors,
+        s1,
+        s2,
+        neighbor_color_legacy_mode=False,
     ):
         """
         Use dead neighbor cell count to make dead cells alive
@@ -1136,12 +1120,18 @@ class LifeList(object):
         # Dead neighbors only come alive if they have exactly 3 alive neighbors
         dead_neighbors.filter(3, 3)
 
+        # Then, iterate over dead neighbor counts
+        # Insert new cells into binary state
+        # Then check their color and insert them into the correct new state
+
         yvalues = dead_neighbors.mapp
         for y in list(yvalues.keys()):
-            
+
+            # Insert the new cell into the binary list life
             yii = self.insertion_index(y)
             xvalues = list(dead_neighbors.mapp[y].mapp.keys())
 
+            # This is the easy one - all the points go into the binary life list.
             if yii is None:
 
                 # y goes at front of list
@@ -1150,8 +1140,12 @@ class LifeList(object):
                 if front.data.head() == y:
                     # y value already has a row: the first one
                     row = self.front_node.data
+
+                    # Insert each x into the cell
+                    # (insert into color1/color2 state list happens below)
                     ninserts = row.insert_many_sorted(xvalues)
                     self.ncells += ninserts
+
                 else:
                     # y value needs a new row
                     ninserts = row.insert_many_sorted(xvalues)
@@ -1188,6 +1182,28 @@ class LifeList(object):
                     front.next_node = middle
                     self.ncells += ninserts
                     self.nsize += 1
+
+            # For each new cell being born, determine its color
+            # from the majority of its parent colors
+            for x in xvalues:
+
+                c1 = color1_dead_neighbors.count(x, y)
+                c2 = color2_dead_neighbors.count(x, y)
+
+                if c1 > c2:
+                    s1.insert(x, y)
+                elif c2 > c1:
+                    s2.insert(x, y)
+                else:
+
+                    if neighbor_color_legacy_mode:
+                        s1.insert(x, y)
+                    elif x % 2 == y % 2:
+                        s1.insert(x, y)
+                    else:
+                        s2.insert(x, y)
+
+
 
 
 def test_row_list():
@@ -1509,6 +1525,22 @@ def test_dead_alive():
     s2.insert(1, 2)
     s2.insert(10, 17)
 
+    print("Before:")
+    print(binary)
+    print("Before s1:")
+    print(s1)
+    print("Before s2:")
+    print(s2)
+
+    #print("="*40)
+
+    #print("Before get all neighbor counts:")
+    #print(binary)
+    #print("before get all neighbor counts s1:")
+    #print(s1)
+    #print("before get all neighbor counts s2:")
+    #print(s2)
+
     (
         dead_neighbors,
         color1_dead_neighbors,
@@ -1518,10 +1550,56 @@ def test_dead_alive():
         color2_neighbors,
     ) = binary.get_all_neighbor_counts(s1, s2)
 
-    import pdb ; pdb.set_trace()
-    binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors)
-    binary.dead_to_alive(dead_neighbors, color1_dead_neighbors, color2_dead_neighbors)
+    #print("After get all neighbor counts:")
+    #print(binary)
+    #print("after get all neighbor counts s1:")
+    #print(s1)
+    #print("after get all neighbor counts s2:")
+    #print(s2)
 
+    print("="*40)
+
+    print("Before alive to dead:")
+    print(binary)
+    print("before alive to dead s1:")
+    print(s1)
+    print("before alive to dead s2:")
+    print(s2)
+
+    binary.alive_to_dead(
+        alive_neighbors, 
+        color1_neighbors, 
+        color2_neighbors, 
+        s1, 
+        s2
+    )
+
+    print("After alive to dead:")
+    print(binary)
+    print("After alive to dead s1:")
+    print(s1)
+    print("After alive to dead s2:")
+    print(s2)
+
+    print("="*40)
+
+    print("Before dead to alive:")
+    print(binary)
+    print("before dead to alive s1:")
+    print(s1)
+    print("before dead to alive s2:")
+    print(s2)
+
+    binary.dead_to_alive(
+       dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+    )
+
+    print("After dead to alive:")
+    print(binary)
+    print("After dead to alive s1:")
+    print(s1)
+    print("After dead to alive s2:")
+    print(s2)
 
 
 if __name__ == "__main__":

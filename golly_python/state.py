@@ -101,14 +101,17 @@ class BinaryLifeState(LifeState):
             dead_neighbors,
             color1_dead_neighbors,
             color2_dead_neighbors,
+            self.statelist1,
+            self.statelist2,
+            self.neighbor_color_legacy_mode
         )
         self.statelist.alive_to_dead(
             alive_neighbors,
             color1_neighbors,
             color2_neighbors,
+            self.statelist1,
+            self.statelist2,
         )
-
-
 
     #def get_neighbors_from_alive(self, x, y, i, possible_neighbors_list):
     #    state = self.statelist
