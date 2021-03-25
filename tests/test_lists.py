@@ -187,3 +187,296 @@ class ListsTest(unittest.TestCase):
 
         self.assertTrue(l2.contains(90, 170))
         self.assertTrue(l2.contains(91, 171))
+
+    ### def test_get_dead_neighbor_counts():
+    ### 
+    ###     # i = LifeList()
+    ###     # i.insert(1, 1)
+    ###     # print("State:")
+    ###     # print(i)
+    ###     # print("Dead neighbor counts:")
+    ###     # print(i.get_dead_neighbor_counts())
+    ### 
+    ###     # print("")
+    ### 
+    ###     # Vertical line
+    ###     # dead neighbr count should be 3 for two cells:
+    ###     # (0, 2)
+    ###     # (2, 2)
+    ###     j = LifeList()
+    ###     j.insert(1, 1)
+    ###     j.insert(1, 2)
+    ###     j.insert(1, 3)
+    ###     print("State:")
+    ###     print(j)
+    ###     print("Dead neighbor counts:")
+    ###     print(j.get_dead_neighbor_counts())
+    ###     print("Should contain the entry 2: [0: 3, 2: 3]")
+
+
+    def test_get_all_neighbor_counts(self):
+    
+        binary = LifeList()
+        binary.insert(1, 1)
+        binary.insert(1, 2)
+        binary.insert(1, 3)
+        binary.insert(10, 15)
+        binary.insert(10, 16)
+        binary.insert(10, 17)
+    
+        s1 = LifeList()
+        s1.insert(1, 1)
+        s1.insert(10, 16)
+        s1.insert(1, 3)
+        s2 = LifeList()
+        s2.insert(10, 15)
+        s2.insert(1, 2)
+        s2.insert(10, 17)
+    
+        (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        ) = binary.get_all_neighbor_counts(s1, s2)
+    
+        #tests/test_lists.py::ListsTest::test_get_all_neighbor_counts
+        # {2: [0: 3, 2: 3], 0: [0: 1, 1: 1, 2: 1], 1: [0: 2, 2: 2], 3: [0: 2, 2: 2], 4: [0: 1, 1: 1, 2: 1], 16: [9: 3, 11: 3], 14: [9: 1, 10: 1, 11: 1], 15: [9: 2, 11: 2], 17: [9: 2, 11: 2], 18: [9: 1, 10: 1, 11: 1]}
+
+        # Dead neighbors
+
+        self.assertEqual(dead_neighbors.count(0, 2), 3)
+        self.assertEqual(dead_neighbors.count(2, 2), 3)
+
+        self.assertEqual(dead_neighbors.count(0, 0), 1)
+        self.assertEqual(dead_neighbors.count(1, 0), 1)
+        self.assertEqual(dead_neighbors.count(2, 0), 1)
+
+        self.assertEqual(dead_neighbors.count(0, 1), 2)
+        self.assertEqual(dead_neighbors.count(2, 1), 2)
+
+        self.assertEqual(dead_neighbors.count(0, 3), 2)
+        self.assertEqual(dead_neighbors.count(2, 3), 2)
+
+        self.assertEqual(dead_neighbors.count(0, 4), 1)
+        self.assertEqual(dead_neighbors.count(1, 4), 1)
+        self.assertEqual(dead_neighbors.count(2, 4), 1)
+
+        # Alive neighbors
+
+        self.assertEqual(alive_neighbors.count(1, 1), 1)
+        self.assertEqual(alive_neighbors.count(1, 2), 2)
+        self.assertEqual(alive_neighbors.count(1, 3), 1)
+
+        self.assertEqual(alive_neighbors.count(10, 15), 1)
+        self.assertEqual(alive_neighbors.count(10, 16), 2)
+        self.assertEqual(alive_neighbors.count(10, 17), 1)
+
+        # color 1 alive neighbors
+
+        #print(color1_neighbors)
+        # {2: [1: 2], 15: [10: 1], 17: [10: 1]}
+        self.assertEqual(color1_neighbors.count(1, 2), 2)
+        self.assertEqual(color1_neighbors.count(10, 15), 1)
+        self.assertEqual(color1_neighbors.count(10, 17), 1)
+
+        #print(color2_neighbors)
+        #{1: [1: 1], 3: [1: 1], 16: [10: 2]}
+        self.assertEqual(color2_neighbors.count(1, 1), 1)
+        self.assertEqual(color2_neighbors.count(1, 3), 1)
+        self.assertEqual(color2_neighbors.count(10, 16), 2)
+    
+    ### def test_dead_neighbors_filter():
+    ### 
+    ###     binary = LifeList()
+    ###     binary.insert(1, 1)
+    ###     binary.insert(1, 2)
+    ###     binary.insert(1, 3)
+    ###     binary.insert(10, 15)
+    ###     binary.insert(10, 16)
+    ###     binary.insert(10, 17)
+    ### 
+    ###     s1 = LifeList()
+    ###     s1.insert(1, 1)
+    ###     s1.insert(10, 16)
+    ###     s1.insert(1, 3)
+    ###     s2 = LifeList()
+    ###     s2.insert(10, 15)
+    ###     s2.insert(1, 2)
+    ###     s2.insert(10, 17)
+    ### 
+    ###     (
+    ###         dead_neighbors,
+    ###         color1_dead_neighbors,
+    ###         color2_dead_neighbors,
+    ###         alive_neighbors,
+    ###         color1_neighbors,
+    ###         color2_neighbors,
+    ###     ) = binary.get_all_neighbor_counts(s1, s2)
+    ### 
+    ###     dead_neighbors.filter(3, 3)
+    ###     print(dead_neighbors)
+    ### 
+    ### 
+    ### def test_dead_alive():
+    ### 
+    ###     binary = LifeList()
+    ###     binary.insert(1, 1)
+    ###     binary.insert(1, 2)
+    ###     binary.insert(1, 3)
+    ###     binary.insert(10, 15)
+    ###     binary.insert(10, 16)
+    ###     binary.insert(10, 17)
+    ### 
+    ###     s1 = LifeList()
+    ###     s1.insert(1, 1)
+    ###     s1.insert(10, 16)
+    ###     s1.insert(1, 3)
+    ###     s2 = LifeList()
+    ###     s2.insert(10, 15)
+    ###     s2.insert(1, 2)
+    ###     s2.insert(10, 17)
+    ### 
+    ###     print("Before:")
+    ###     print(binary)
+    ###     print("Before s1:")
+    ###     print(s1)
+    ###     print("Before s2:")
+    ###     print(s2)
+    ### 
+    ###     # print("="*40)
+    ### 
+    ###     # print("Before get all neighbor counts:")
+    ###     # print(binary)
+    ###     # print("before get all neighbor counts s1:")
+    ###     # print(s1)
+    ###     # print("before get all neighbor counts s2:")
+    ###     # print(s2)
+    ### 
+    ###     (
+    ###         dead_neighbors,
+    ###         color1_dead_neighbors,
+    ###         color2_dead_neighbors,
+    ###         alive_neighbors,
+    ###         color1_neighbors,
+    ###         color2_neighbors,
+    ###     ) = binary.get_all_neighbor_counts(s1, s2)
+    ### 
+    ###     # print("After get all neighbor counts:")
+    ###     # print(binary)
+    ###     # print("after get all neighbor counts s1:")
+    ###     # print(s1)
+    ###     # print("after get all neighbor counts s2:")
+    ###     # print(s2)
+    ### 
+    ###     print("=" * 40)
+    ### 
+    ###     print("Before alive to dead:")
+    ###     print(binary)
+    ###     print("before alive to dead s1:")
+    ###     print(s1)
+    ###     print("before alive to dead s2:")
+    ###     print(s2)
+    ### 
+    ###     binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
+    ### 
+    ###     print("After alive to dead:")
+    ###     print(binary)
+    ###     print("After alive to dead s1:")
+    ###     print(s1)
+    ###     print("After alive to dead s2:")
+    ###     print(s2)
+    ### 
+    ###     print("=" * 40)
+    ### 
+    ###     print("Before dead to alive:")
+    ###     print(binary)
+    ###     print("before dead to alive s1:")
+    ###     print(s1)
+    ###     print("before dead to alive s2:")
+    ###     print(s2)
+    ### 
+    ###     binary.dead_to_alive(
+    ###         dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+    ###     )
+    ### 
+    ###     print("After dead to alive:")
+    ###     print(binary)
+    ###     print("After dead to alive s1:")
+    ###     print(s1)
+    ###     print("After dead to alive s2:")
+    ###     print(s2)
+    ### 
+    ### 
+    ### def test_twostep():
+    ### 
+    ###     binary = LifeList()
+    ###     binary.insert(1, 1)
+    ###     binary.insert(1, 2)
+    ###     binary.insert(1, 3)
+    ###     binary.insert(10, 15)
+    ###     binary.insert(10, 16)
+    ###     binary.insert(10, 17)
+    ### 
+    ###     s1 = LifeList()
+    ###     s1.insert(1, 1)
+    ###     s1.insert(10, 16)
+    ###     s1.insert(1, 3)
+    ### 
+    ###     s2 = LifeList()
+    ###     s2.insert(10, 15)
+    ###     s2.insert(1, 2)
+    ###     s2.insert(10, 17)
+    ### 
+    ###     print("="*40)
+    ### 
+    ###     print("Before first step:")
+    ###     print(binary)
+    ###     print(s1)
+    ###     print(s2)
+    ### 
+    ###     (
+    ###         dead_neighbors,
+    ###         color1_dead_neighbors,
+    ###         color2_dead_neighbors,
+    ###         alive_neighbors,
+    ###         color1_neighbors,
+    ###         color2_neighbors,
+    ###     ) = binary.get_all_neighbor_counts(s1, s2)
+    ### 
+    ###     binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
+    ### 
+    ###     binary.dead_to_alive(
+    ###         dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+    ###     )
+    ### 
+    ###     print("="*40)
+    ### 
+    ###     print("After first step:")
+    ###     print(binary)
+    ###     print(s1)
+    ###     print(s2)
+    ### 
+    ###     (
+    ###         dead_neighbors,
+    ###         color1_dead_neighbors,
+    ###         color2_dead_neighbors,
+    ###         alive_neighbors,
+    ###         color1_neighbors,
+    ###         color2_neighbors,
+    ###     ) = binary.get_all_neighbor_counts(s1, s2)
+    ### 
+    ###     binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
+    ### 
+    ###     binary.dead_to_alive(
+    ###         dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+    ###     )
+    ### 
+    ###     print("="*40)
+    ### 
+    ###     print("After second step:")
+    ###     print(binary)
+    ###     print(s1)
+    ###     print(s2)
