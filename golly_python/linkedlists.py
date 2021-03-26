@@ -326,6 +326,26 @@ class LifeList(object):
         agg += "]"
         return agg
 
+    def serialize(self):
+        d = {}
+        yrunner = self.front_node
+        while yrunner != None:
+            row = yrunner.data
+            y = row.head()
+            xrunner = row.front_node.next_node
+            xlist = []
+            while xrunner != None:
+                x = xrunner.data
+                xlist.append(x)
+                xrunner = xrunner.next_node
+            d[y] = xlist
+            yrunner = yrunner.next_node
+        import json
+        import re
+        s = json.dumps([d])
+        s = re.sub(' ', '', s)
+        return s
+    
     def length(self):
         return self.size
 
@@ -336,7 +356,10 @@ class LifeList(object):
         """
         self.front_node = other_life_list.front_node
         self.size = other_life_list.size
+
         self.ncells = other_life_list.ncells
+        self.ncellsongrid = other_life_list.ncellsongrid
+
         self.rows = other_life_list.rows
         self.columns = other_life_list.columns
 
@@ -624,7 +647,7 @@ class LifeList(object):
         self,
         color1_lifelist,
         color2_lifelist,
-        neighbor_color_legacy_mode=False,
+        neighbor_color_legacy_mode = False,
     ):
         """
         Iterate over the entire grid and accumulate the following info:
@@ -675,6 +698,8 @@ class LifeList(object):
                     xycolor = 1
                 elif color2_lifelist.contains(x, y):
                     xycolor = 2
+                else:
+                    raise Exception()
 
                 # -----------------------------------
                 # Deal with above (lead) row
@@ -692,6 +717,8 @@ class LifeList(object):
                         color2_dead_neighbors.accumulate(x - 1, y + 1)
                         color2_dead_neighbors.accumulate(x, y + 1)
                         color2_dead_neighbors.accumulate(x + 1, y + 1)
+                    else:
+                        raise Exception()
                 else:
                     # Scan lead row
                     aboverow = stencily_lead.data
@@ -712,6 +739,8 @@ class LifeList(object):
                             color1_neighbors.accumulate(x, y)
                         elif xm1yp1color == 2:
                             color2_neighbors.accumulate(x, y)
+                        else:
+                            raise Exception()
                     else:
                         # Not found
                         dead_neighbors.accumulate(x - 1, y + 1)
@@ -720,6 +749,8 @@ class LifeList(object):
                             color1_dead_neighbors.accumulate(x - 1, y + 1)
                         elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x - 1, y + 1)
+                        else:
+                            raise Exception()
 
                     # Check for cell (x, y+1)
                     # if x insertion index is at end of list, we are done with row
@@ -742,6 +773,8 @@ class LifeList(object):
                                 color1_neighbors.accumulate(x, y)
                             elif xyp1color == 2:
                                 color2_neighbors.accumulate(x, y)
+                            else:
+                                raise Exception()
                             # Advance insertion index by 1
                             abovexii = abovexii.next_node
                         else:
@@ -752,6 +785,8 @@ class LifeList(object):
                                 color1_dead_neighbors.accumulate(x, y + 1)
                             elif xycolor == 2:
                                 color2_dead_neighbors.accumulate(x, y + 1)
+                            else:
+                                raise Exception()
 
                         # Check for cell (x+1, y+1)
                         # If x+1 insertion index is at end of list, we are done with row
@@ -783,6 +818,8 @@ class LifeList(object):
                                     color1_dead_neighbors.accumulate(x + 1, y + 1)
                                 elif xycolor == 2:
                                     color2_dead_neighbors.accumulate(x + 1, y + 1)
+                                else:
+                                    raise Exception()
 
                         else:
                             # Cell (x+1, y+1) not found
@@ -792,6 +829,8 @@ class LifeList(object):
                                 color1_dead_neighbors.accumulate(x + 1, y + 1)
                             elif xycolor == 2:
                                 color2_dead_neighbors.accumulate(x + 1, y + 1)
+                            else:
+                                raise Exception()
                     else:
                         # Cell (x, y+1) not found
                         dead_neighbors.accumulate(x, y + 1)
@@ -803,6 +842,8 @@ class LifeList(object):
                         elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x, y + 1)
                             color2_dead_neighbors.accumulate(x + 1, y + 1)
+                        else:
+                            raise Exception()
 
                 # -----------------------------------
                 # Deal with below (lag) row
@@ -820,6 +861,8 @@ class LifeList(object):
                         color2_dead_neighbors.accumulate(x - 1, y - 1)
                         color2_dead_neighbors.accumulate(x, y - 1)
                         color2_dead_neighbors.accumulate(x + 1, y - 1)
+                    else:
+                        raise Exception()
                 else:
                     # Scan lag row
                     belowrow = stencily_lag.data
@@ -840,6 +883,8 @@ class LifeList(object):
                             color1_neighbors.accumulate(x, y)
                         elif xm1ym1color == 2:
                             color2_neighbors.accumulate(x, y)
+                        else:
+                            raise Exception()
                     else:
                         # Not found
                         dead_neighbors.accumulate(x - 1, y - 1)
@@ -848,6 +893,8 @@ class LifeList(object):
                             color1_dead_neighbors.accumulate(x - 1, y - 1)
                         elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x - 1, y - 1)
+                        else:
+                            raise Exception()
 
                     # Check for cell (x, y-1)
                     # if x insertion index is at end of list, we are done with row
@@ -869,6 +916,8 @@ class LifeList(object):
                                 color1_neighbors.accumulate(x, y)
                             elif xym1color == 2:
                                 color2_neighbors.accumulate(x, y)
+                            else:
+                                raise Exception()
                             # Advance insertion index by 1
                             belowxii = belowxii.next_node
                         else:
@@ -901,6 +950,8 @@ class LifeList(object):
                                     color1_neighbors.accumulate(x, y)
                                 elif xp1ym1color == 2:
                                     color2_neighbors.accumulate(x, y)
+                                else:
+                                    raise Exception()
 
                             else:
                                 # Cell (x+1, y-1) not found
@@ -910,6 +961,8 @@ class LifeList(object):
                                     color1_dead_neighbors.accumulate(x + 1, y - 1)
                                 elif xycolor == 2:
                                     color2_dead_neighbors.accumulate(x + 1, y - 1)
+                                else:
+                                    raise Exception()
                                 # No need to advance insertion index, done with this row
                         else:
                             # Cell (x+1, y-1) not found
@@ -918,6 +971,8 @@ class LifeList(object):
                                 color1_dead_neighbors.accumulate(x + 1, y - 1)
                             elif xycolor == 2:
                                 color2_dead_neighbors.accumulate(x + 1, y - 1)
+                            else:
+                                raise Exception()
                     else:
                         # Cell (x, y-1) not found
                         dead_neighbors.accumulate(x, y - 1)
@@ -929,6 +984,8 @@ class LifeList(object):
                         elif xycolor == 2:
                             color2_dead_neighbors.accumulate(x, y - 1)
                             color2_dead_neighbors.accumulate(x + 1, y - 1)
+                        else:
+                            raise Exception()
 
                 # -----------------------------------
                 # Deal with this row
@@ -948,6 +1005,8 @@ class LifeList(object):
                         color1_neighbors.accumulate(x, y)
                     elif xm1ycolor == 2:
                         color2_neighbors.accumulate(x, y)
+                    else:
+                        raise Exception()
                 else:
                     # Not found
                     dead_neighbors.accumulate(x - 1, y)
@@ -955,6 +1014,8 @@ class LifeList(object):
                         color1_dead_neighbors.accumulate(x - 1, y)
                     elif xycolor == 2:
                         color2_dead_neighbors.accumulate(x - 1, y)
+                    else:
+                        raise Exception()
 
                 # Deal with cell (x+1, y)
                 if stencilx_lead is None or stencilx_lead.data != (x + 1):
@@ -964,6 +1025,8 @@ class LifeList(object):
                         color1_dead_neighbors.accumulate(x + 1, y)
                     elif xycolor == 2:
                         color2_dead_neighbors.accumulate(x + 1, y)
+                    else:
+                        raise Exception()
                 else:
                     # Not found
                     alive_neighbors.accumulate(x, y)
@@ -977,6 +1040,8 @@ class LifeList(object):
                         color1_neighbors.accumulate(x, y)
                     elif xp1ycolor == 2:
                         color2_neighbors.accumulate(x, y)
+                    else:
+                        raise Exception()
 
                 # Increment pointers
                 # If any x pointers left, increment x pointers
@@ -1007,7 +1072,7 @@ class LifeList(object):
         color2_neighbors,
         s1,
         s2,
-        neighbor_color_legacy_mode=False,
+        neighbor_color_legacy_mode = False,
     ):
         """
         Iterate over every living cell, and kill cells with too many/too few neighbors.
@@ -1073,7 +1138,7 @@ class LifeList(object):
         color2_dead_neighbors,
         s1,
         s2,
-        neighbor_color_legacy_mode=False,
+        neighbor_color_legacy_mode = False,
     ):
         """
         Use dead neighbor cell count to make dead cells alive
