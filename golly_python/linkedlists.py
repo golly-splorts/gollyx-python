@@ -1032,23 +1032,21 @@ class LifeList(object):
         # Insert new cells into binary state
         # Then check their color and insert them into the correct new state
 
-        yvalues = dead_neighbors.mapp
-        for y in list(yvalues.keys()):
+        for y in dead_neighbors.sorted_values():
 
             # Insert the new cell into the binary list life
             yii = self.insertion_index(y)
-            xvalues = list(dead_neighbors.mapp[y].mapp.keys())
+            xvalues = dead_neighbors.sorted_xvalues(y)
 
             # This is the easy one - all the points go into the binary life list.
             if yii is None:
 
                 # y goes at front of list
                 front = self.front_node
+                row = front.data
 
-                if front.data.head() == y:
+                if row.head() == y:
                     # y value already has a row: the first one
-                    row = self.front_node.data
-
                     # Insert each x into the cell
                     # (insert into color1/color2 state list happens below)
                     ninserts = row.insert_many_sorted(xvalues)
@@ -1058,25 +1056,29 @@ class LifeList(object):
                     # y value needs a new row
                     newrow = SortedRowList(y)
                     ninserts = newrow.insert_many_sorted(xvalues)
-                    middle = RowNode(newrow)
-                    back = front.next_node
-                    front.next_node = middle
-                    middle.next_node = back
+                    # insert in front of list
+                    newfront = RowNode(newrow)
+                    oldfront = self.front_node
+                    newfront.next_node = oldfront
+                    self.front_node = newfront
                     self.ncells += ninserts
                     self.size += 1
 
             elif yii.next_node is None:
-                # Next y value goes at end of list
+
+                # y goes at end of list
+                front = yii
                 newrow = SortedRowList(y)
                 ninserts = newrow.insert_many_sorted(xvalues)
+                # insert after insertion index
                 back = RowNode(newrow)
                 front.next_node = back
                 self.ncells += ninserts
                 self.size += 1
 
             else:
-                front = yii.next_node
-                row = front.data
+                front = yii
+                row = front.next_node.data
                 if row.head() == y:
                     # y value already has a row
                     ninserts = row.insert_many_sorted(xvalues)
@@ -1085,6 +1087,7 @@ class LifeList(object):
                     # y value needs a new row
                     newrow = SortedRowList(y)
                     ninserts = newrow.insert_many_sorted(xvalues)
+                    # insert between insertion index and insertion index next
                     middle = RowNode(newrow)
                     back = front.next_node
                     front.next_node = middle
