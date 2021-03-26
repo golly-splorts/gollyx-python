@@ -189,31 +189,6 @@ class ListsTest(unittest.TestCase):
         self.assertTrue(l2.contains(90, 170))
         self.assertTrue(l2.contains(91, 171))
 
-    ### def test_get_dead_neighbor_counts():
-    ###
-    ###     # i = LifeList()
-    ###     # i.insert(1, 1)
-    ###     # print("State:")
-    ###     # print(i)
-    ###     # print("Dead neighbor counts:")
-    ###     # print(i.get_dead_neighbor_counts())
-    ###
-    ###     # print("")
-    ###
-    ###     # Vertical line
-    ###     # dead neighbr count should be 3 for two cells:
-    ###     # (0, 2)
-    ###     # (2, 2)
-    ###     j = LifeList()
-    ###     j.insert(1, 1)
-    ###     j.insert(1, 2)
-    ###     j.insert(1, 3)
-    ###     print("State:")
-    ###     print(j)
-    ###     print("Dead neighbor counts:")
-    ###     print(j.get_dead_neighbor_counts())
-    ###     print("Should contain the entry 2: [0: 3, 2: 3]")
-
     def test_get_all_neighbor_counts(self):
 
         binary, s1, s2 = two_spinners_fixture()
@@ -316,13 +291,56 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(alive_neighbors.count(1, 2), 2)
         self.assertEqual(alive_neighbors.count(1, 3), 1)
 
+        # Color 1 alive
+
         self.assertEqual(color1_neighbors.count(1, 1), 0)
         self.assertEqual(color1_neighbors.count(1, 2), 2)
         self.assertEqual(color1_neighbors.count(1, 3), 0)
 
+        # Color 2 alive
+
         self.assertEqual(color2_neighbors.count(1, 1), 1)
         self.assertEqual(color2_neighbors.count(1, 2), 0)
         self.assertEqual(color2_neighbors.count(1, 3), 1)
+
+    def test_dead_neighbors_filter(self):
+
+        binary, s1, s2 = two_spinners_fixture()
+
+        (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        ) = binary.get_all_neighbor_counts(s1, s2)
+
+        dead_neighbors.filter(3, 3)
+
+        self.assertEqual(dead_neighbors.count(0, 0), 0)
+        self.assertEqual(dead_neighbors.count(1, 0), 0)
+        self.assertEqual(dead_neighbors.count(2, 0), 0)
+
+        self.assertEqual(dead_neighbors.count(0, 1), 0)
+        self.assertEqual(dead_neighbors.count(1, 1), 0)
+        self.assertEqual(dead_neighbors.count(2, 1), 0)
+
+        self.assertEqual(dead_neighbors.count(0, 2), 3)
+        self.assertEqual(dead_neighbors.count(2, 2), 3)
+
+        self.assertEqual(dead_neighbors.count(0, 3), 0)
+        self.assertEqual(dead_neighbors.count(1, 3), 0)
+        self.assertEqual(dead_neighbors.count(2, 3), 0)
+
+        self.assertEqual(dead_neighbors.count(0, 4), 0)
+        self.assertEqual(dead_neighbors.count(1, 4), 0)
+        self.assertEqual(dead_neighbors.count(2, 4), 0)
+
+        self.assertEqual(dead_neighbors.count(9, 16), 3)
+        self.assertEqual(dead_neighbors.count(11, 16), 3)
+
+
 
     ### def test_get_all_neighbor_counts(self):
 
