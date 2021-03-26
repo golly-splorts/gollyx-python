@@ -89,8 +89,6 @@ class BinaryLifeState(LifeState):
         if self.statelist.size==0:
             return
 
-        print(type(self.statelist1))
-
         (
             dead_neighbors,
             color1_dead_neighbors,
