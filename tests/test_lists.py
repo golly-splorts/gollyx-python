@@ -1,7 +1,13 @@
 import golly_python
 import unittest
 from golly_python.linkedlists import ListBase, SortedRowList, LifeList
-from .fixtures import two_spinners_fixture, multicolor_pi_fixture, two_acorn_fixture 
+from .fixtures import (
+    two_spinners_fixture,
+    multicolor_pi_fixture,
+    multicolor_crux_fixture,
+    two_acorn_fixture,
+    bigass_random_fixture,
+)
 
 
 class ListsTest(unittest.TestCase):
@@ -393,9 +399,8 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(dead_neighbors.count(9, 16), 3)
         self.assertEqual(dead_neighbors.count(11, 16), 3)
 
-
     def test_twostep(self):
-    
+
         binary, s1, s2 = two_spinners_fixture()
 
         self.assertTrue(binary.contains(1, 1))
@@ -413,7 +418,7 @@ class ListsTest(unittest.TestCase):
         self.assertTrue(s2.contains(10, 15))
         self.assertTrue(s1.contains(10, 16))
         self.assertTrue(s2.contains(10, 17))
-    
+
         (
             dead_neighbors,
             color1_dead_neighbors,
@@ -422,9 +427,11 @@ class ListsTest(unittest.TestCase):
             color1_neighbors,
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
-    
-        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
-    
+
+        binary.alive_to_dead(
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+        )
+
         binary.dead_to_alive(
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
         )
@@ -468,8 +475,10 @@ class ListsTest(unittest.TestCase):
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
 
-        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
-    
+        binary.alive_to_dead(
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+        )
+
         # The bug is in dead to alive
         binary.dead_to_alive(
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
@@ -506,6 +515,15 @@ class ListsTest(unittest.TestCase):
 
         binary, s1, s2 = multicolor_pi_fixture()
 
+        self.assertEqual(binary.ncells, 7)
+        self.assertEqual(binary.ncellsongrid, 7)
+
+        self.assertEqual(s1.ncells, 4)
+        self.assertEqual(s1.ncellsongrid, 4)
+
+        self.assertEqual(s2.ncells, 3)
+        self.assertEqual(s2.ncellsongrid, 3)
+
         (
             dead_neighbors,
             color1_dead_neighbors,
@@ -514,12 +532,32 @@ class ListsTest(unittest.TestCase):
             color1_neighbors,
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
-    
-        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
-    
+
+        binary.alive_to_dead(
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+        )
+
+        self.assertEqual(binary.ncells, 4)
+        self.assertEqual(binary.ncellsongrid, 4)
+
+        self.assertEqual(s1.ncells, 3)
+        self.assertEqual(s1.ncellsongrid, 3)
+
+        self.assertEqual(s2.ncells, 1)
+        self.assertEqual(s2.ncellsongrid, 1)
+
         binary.dead_to_alive(
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
         )
+
+        self.assertEqual(binary.ncells, 7)
+        self.assertEqual(binary.ncellsongrid, 7)
+
+        self.assertEqual(s1.ncells, 5)
+        self.assertEqual(s1.ncellsongrid, 5)
+
+        self.assertEqual(s2.ncells, 2)
+        self.assertEqual(s2.ncellsongrid, 2)
 
         self.assertTrue(binary.contains(2, 0))
         self.assertTrue(s1.contains(2, 0))
@@ -557,9 +595,11 @@ class ListsTest(unittest.TestCase):
             color1_neighbors,
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
-    
-        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
-    
+
+        binary.alive_to_dead(
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+        )
+
         binary.dead_to_alive(
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
         )
@@ -624,8 +664,10 @@ class ListsTest(unittest.TestCase):
             color1_neighbors,
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
-    
-        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
+
+        binary.alive_to_dead(
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+        )
 
         self.assertEqual(binary.size, 2)
         self.assertEqual(binary.ncells, 4)
@@ -638,7 +680,7 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(s2.size, 1)
         self.assertEqual(s2.ncells, 2)
         self.assertEqual(s2.ncellsongrid, 2)
-    
+
         binary.dead_to_alive(
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
         )
@@ -654,3 +696,111 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(s2.size, 3)
         self.assertEqual(s2.ncells, 8)
         self.assertEqual(s2.ncellsongrid, 8)
+
+    def test_multicolor_crux(self):
+
+        binary, s1, s2 = multicolor_crux_fixture()
+
+        self.assertEqual(binary.size, 10) 
+        self.assertEqual(binary.ncells, 29)
+        self.assertEqual(binary.ncellsongrid, 29)
+
+        self.assertEqual(s1.size, 4)
+        self.assertEqual(s1.ncells, 7)
+        self.assertEqual(s1.ncellsongrid, 7)
+
+        self.assertEqual(s2.size, 7)
+        self.assertEqual(s2.ncells, 22)
+        self.assertEqual(s2.ncellsongrid, 22)
+
+        cellcounts = [
+            [28, 6, 22],
+            [36, 7, 29],
+            [29, 4, 25],
+            [24, 5, 19],
+            [21, 5, 16],
+            [20, 3, 17],
+            [17, 2, 15],
+            [15, 0, 15],
+            [17, 0, 17],
+        ]
+
+        for totalcount, s1count, s2count in cellcounts:
+
+            (
+                dead_neighbors,
+                color1_dead_neighbors,
+                color2_dead_neighbors,
+                alive_neighbors,
+                color1_neighbors,
+                color2_neighbors,
+            ) = binary.get_all_neighbor_counts(s1, s2)
+
+            binary.alive_to_dead(
+                alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            )
+
+            binary.dead_to_alive(
+                dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            )
+
+            self.assertEqual(binary.ncells, totalcount)
+            self.assertEqual(binary.ncellsongrid, totalcount)
+
+            self.assertEqual(s1.ncells, s1count)
+            self.assertEqual(s1.ncellsongrid, s1count)
+
+            self.assertEqual(s2.ncells, s2count)
+            self.assertEqual(s2.ncellsongrid, s2count)
+
+    def test_bigass_random(self):
+
+        binary, s1, s2 = bigass_random_fixture()
+
+        self.assertEqual(binary.ncells, 1440)
+        self.assertEqual(binary.ncellsongrid, 1440)
+
+        self.assertEqual(s1.ncells, 720)
+        self.assertEqual(s1.ncellsongrid, 720)
+
+        self.assertEqual(s2.ncells, 720)
+        self.assertEqual(s2.ncellsongrid, 720)
+
+        cellcounts = [
+            [858, 421, 437],
+            [692, 327, 365],
+            [661, 308, 353],
+            [633, 303, 330],
+            [658, 312, 346],
+            [638, 309, 329],
+            [667, 322, 345],
+            [679, 317, 362],
+            [668, 319, 349],
+        ]
+
+        for totalcount, s1count, s2count in cellcounts:
+
+            (
+                dead_neighbors,
+                color1_dead_neighbors,
+                color2_dead_neighbors,
+                alive_neighbors,
+                color1_neighbors,
+                color2_neighbors,
+            ) = binary.get_all_neighbor_counts(s1, s2)
+
+            binary.alive_to_dead(
+                alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            )
+
+            binary.dead_to_alive(
+                dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            )
+
+            # When we manually check s1, it has the correct number of cells
+            # But this number does not match ncellsongrid, which is off by 2
+
+            self.assertEqual(binary.ncellsongrid, totalcount)
+            self.assertEqual(s1.ncellsongrid, s1count)
+            self.assertEqual(s2.ncellsongrid, s2count)
+
