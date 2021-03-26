@@ -1,7 +1,7 @@
 import golly_python
 import unittest
 from golly_python.linkedlists import ListBase, SortedRowList, LifeList
-from .fixtures import two_spinners_fixture, multicolor_pi
+from .fixtures import two_spinners_fixture, multicolor_pi_fixture, two_acorn_fixture 
 
 
 class ListsTest(unittest.TestCase):
@@ -16,24 +16,28 @@ class ListsTest(unittest.TestCase):
         COLS = 120
 
         srl = SortedRowList(ROWS, COLS, 151, 10)
-        self.assertEqual(srl.sizeongrid, 0)
+        self.assertEqual(srl.cellsongrid, 0)
 
         srl.insert(155)
         srl.insert(154)
         srl.insert(152)
-        self.assertEqual(srl.sizeongrid, 0)
+        self.assertEqual(srl.length(), 5)
+        self.assertEqual(srl.size, 5)
+        self.assertEqual(srl.cellsongrid, 0)
 
         srl.insert(-17)
         srl.insert(-20)
         srl.insert(-4)
-        self.assertEqual(srl.sizeongrid, 0)
+        self.assertEqual(srl.length(), 8)
+        self.assertEqual(srl.size, 8)
+        self.assertEqual(srl.cellsongrid, 0)
 
         srl.insert(152)
         srl.insert(153)
         srl.insert(152)
         self.assertEqual(srl.length(), 9)
         self.assertEqual(srl.size, 9)
-        self.assertEqual(srl.sizeongrid, 0)
+        self.assertEqual(srl.cellsongrid, 0)
 
         self.assertEqual(srl.head(), 10)
         self.assertTrue(srl.contains(151))
@@ -59,12 +63,20 @@ class ListsTest(unittest.TestCase):
         ll.insert(156, 12)
         ll.insert(149, 12)
         ll.insert(155, 12)
-        self.assertEqual(ll.live_count(), 12)
+        # length/size are for number of rows (y values)
+
+        self.assertEqual(ll.length(), 4)
+        self.assertEqual(ll.size, 4)
+        self.assertEqual(ll.ncells, 12)
+        self.assertEqual(ll.ncellsongrid, 2)
 
         # Test that insert duplicates does not increment count
         ll.insert(1, 42)
         ll.insert(2, 42)
-        self.assertEqual(ll.live_count(), 12)
+        self.assertEqual(ll.length(), 4)
+        self.assertEqual(ll.size, 4)
+        self.assertEqual(ll.ncells, 12)
+        self.assertEqual(ll.ncellsongrid, 2)
 
         # Test contains() method
         self.assertTrue(ll.contains(155, 12))
@@ -76,22 +88,41 @@ class ListsTest(unittest.TestCase):
         self.assertFalse(ll.contains(150, 10))
         self.assertFalse(ll.contains(10, 150))
 
-        # Test removal
+        # Test removal of a cell in the list and outside the grid
         result = ll.remove(155, 12)
         self.assertTrue(result)
         self.assertFalse(ll.contains(155, 12))
-        self.assertEqual(ll.live_count(), 11)
 
+        self.assertEqual(ll.length(), 4)
+        self.assertEqual(ll.size, 4)
+        self.assertEqual(ll.ncells, 11)
+        self.assertEqual(ll.ncellsongrid, 2)
+
+        # Test removal of a cell not in the list
         result = ll.remove(150, 10)
         self.assertFalse(result)
         self.assertFalse(ll.contains(150, 10))
-        self.assertEqual(ll.live_count(), 11)
+
+        self.assertEqual(ll.length(), 4)
+        self.assertEqual(ll.size, 4)
+        self.assertEqual(ll.ncells, 11)
+        self.assertEqual(ll.ncellsongrid, 2)
+
+        # Test removal of two cells composing an entire row, and on the grid
+        result = ll.remove(1, 42)
+        result = ll.remove(2, 42)
+
+        self.assertEqual(ll.length(), 3)
+        self.assertEqual(ll.size, 3)
+        self.assertEqual(ll.ncells, 9)
+        self.assertEqual(ll.ncellsongrid, 0)
 
     def test_sorted_row_list_insert_many(self):
 
         ROWS = 100
         COLS = 120
         srl = SortedRowList(ROWS, COLS, 10)
+
         srl.insert(155)
         srl.insert(154)
         srl.insert(152)
@@ -100,6 +131,8 @@ class ListsTest(unittest.TestCase):
         srl.insert(-4)
 
         self.assertEqual(srl.length(), 7)
+        self.assertEqual(srl.size, 7)
+        self.assertEqual(srl.cellsongrid, 0)
 
         self.assertFalse(srl.contains(10))
         self.assertFalse(srl.contains(200))
@@ -111,6 +144,8 @@ class ListsTest(unittest.TestCase):
         srl.insert_many_sorted([88, 152, 181])
 
         self.assertEqual(srl.length(), 9)
+        self.assertEqual(srl.size, 9)
+        self.assertEqual(srl.cellsongrid, 1)
 
         self.assertTrue(srl.contains(-20))
         self.assertTrue(srl.contains(88))
@@ -121,6 +156,8 @@ class ListsTest(unittest.TestCase):
         srl.insert_many_sorted([152, 153, 154])
 
         self.assertEqual(srl.length(), 10)
+        self.assertEqual(srl.size, 10)
+        self.assertEqual(srl.cellsongrid, 1)
 
         self.assertTrue(srl.contains(-20))
         self.assertTrue(srl.contains(88))
@@ -465,9 +502,9 @@ class ListsTest(unittest.TestCase):
         self.assertTrue(s2.contains(10, 16))
         self.assertTrue(s2.contains(10, 17))
 
-    def test_pi_methuselah(self):
+    def test_pi_methuselah_twosteps(self):
 
-        binary, s1, s2 = multicolor_pi()
+        binary, s1, s2 = multicolor_pi_fixture()
 
         (
             dead_neighbors,
@@ -563,3 +600,57 @@ class ListsTest(unittest.TestCase):
         self.assertFalse(s1.contains(3, 4))
         self.assertTrue(s2.contains(3, 4))
 
+    def test_twoacorn_twosteps(self):
+
+        # https://golly.life/simulator/index.html?s1=[{%2230%22:[50,51,54,55,56]},{%2231%22:[53]},{%2232%22:[51]}]&s2=[{%2290%22:[25]},{%2291%22:[27]},{%2292%22:[24,25,28,29,30]}]
+
+        binary, s1, s2 = two_acorn_fixture()
+
+        self.assertEqual(binary.size, 6)
+        self.assertEqual(binary.ncells, 14)
+        self.assertEqual(binary.ncellsongrid, 14)
+
+        self.assertEqual(s1.ncells, 7)
+        self.assertEqual(s1.ncellsongrid, 7)
+
+        self.assertEqual(s2.ncells, 7)
+        self.assertEqual(s2.ncellsongrid, 7)
+
+        (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        ) = binary.get_all_neighbor_counts(s1, s2)
+    
+        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
+
+        self.assertEqual(binary.size, 2)
+        self.assertEqual(binary.ncells, 4)
+        self.assertEqual(binary.ncellsongrid, 4)
+
+        self.assertEqual(s1.size, 1)
+        self.assertEqual(s1.ncells, 2)
+        self.assertEqual(s1.ncellsongrid, 2)
+
+        self.assertEqual(s2.size, 1)
+        self.assertEqual(s2.ncells, 2)
+        self.assertEqual(s2.ncellsongrid, 2)
+    
+        binary.dead_to_alive(
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+        )
+
+        self.assertEqual(binary.size, 6)
+        self.assertEqual(binary.ncells, 16)
+        self.assertEqual(binary.ncellsongrid, 16)
+
+        self.assertEqual(s1.size, 3)
+        self.assertEqual(s1.ncells, 8)
+        self.assertEqual(s1.ncellsongrid, 8)
+
+        self.assertEqual(s2.size, 3)
+        self.assertEqual(s2.ncells, 8)
+        self.assertEqual(s2.ncellsongrid, 8)

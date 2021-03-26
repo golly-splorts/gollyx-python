@@ -6,18 +6,18 @@ class LifeState(object):
     def __init__(
         self, rows: int, columns: int, neighbor_color_legacy_mode: bool = False
     ):
-        self.statelist = LifeList()
         self.rows = rows
         self.columns = columns
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
+        self.statelist = LifeList(self.rows, self.columns)
 
     def is_alive(self, x, y):
         """Boolean: is the cell at (x, y) alive in this state?"""
         return self.statelist.contains(x, y)
 
     def count_live_cells(self):
-        """Return count of live cells"""
-        return self.statelist.live_count()
+        """Return count of live cells on the grid"""
+        return self.statelist.ncellsongrid
 
     def add_cell(self, x, y):
         """Insert cell at (x, y) into state list"""
@@ -29,13 +29,13 @@ class LifeState(object):
         """
         return self.statelist.remove(x, y)
 
-    def get_color_count(self, x, y):
-        self.get_neighbor_count(x, y)
+    # def get_color_count(self, x, y):
+    #    self.get_neighbor_count(x, y)
 
-    def get_neighbor_count(self, x, y):
-        """Return a count of the number of neighbors of cell (x,y)"""
-        neighbor_count = self.statelist.get_neighbor_count(x, y)
-        return neighbor_count
+    # def get_neighbor_count(self, x, y):
+    #    """Return a count of the number of neighbors of cell (x,y)"""
+    #    neighbor_count = self.statelist.get_neighbor_count(x, y)
+    #    return neighbor_count
 
 
 class BinaryLifeState(LifeState):
@@ -65,9 +65,7 @@ class BinaryLifeState(LifeState):
             raise Exception(err)
         self.neighbor_color_legacy_mode = state1.neighbor_color_legacy_mode
 
-        self.statelist = LifeList(
-            self.rows, self.columns, self.neighbor_color_legacy_mode
-        )
+        self.statelist = LifeList(self.rows, self.columns)
         self.statelist1 = state1.statelist
         self.statelist2 = state2.statelist
 
@@ -96,7 +94,9 @@ class BinaryLifeState(LifeState):
             alive_neighbors,
             color1_neighbors,
             color2_neighbors,
-        ) = self.statelist.get_all_neighbor_counts(self.statelist1, self.statelist2)
+        ) = self.statelist.get_all_neighbor_counts(
+            self.statelist1, self.statelist2, self.neighbor_color_legacy_mode
+        )
 
         # Process cells currently alive
         self.statelist.alive_to_dead(
@@ -105,6 +105,7 @@ class BinaryLifeState(LifeState):
             color2_neighbors,
             self.statelist1,
             self.statelist2,
+            self.neighbor_color_legacy_mode,
         )
 
         # Process cells being born

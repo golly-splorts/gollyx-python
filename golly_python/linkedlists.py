@@ -329,9 +329,6 @@ class LifeList(object):
     def length(self):
         return self.size
 
-    def live_count(self):
-        return self.ncells
-
     def soft_replace_with(self, other_life_list):
         """
         Replace contents of this lifelist with contents of other_life_list.
@@ -591,7 +588,7 @@ class LifeList(object):
                     if y >= 0 and y < self.rows:
                         if x >= 0 and x < self.columns:
                             self.ncellsongrid -= 1
-                    # check if last x coordinate, if so remove this list
+                    # check if last x coordinate, if so remove this front row and replace front node pointer
                     if row.emptyx():
                         self.front_node = self.front_node.next_node
                         self.size -= 1
@@ -608,16 +605,15 @@ class LifeList(object):
             remove_worked = rowlist.remove(x)
             if remove_worked:
                 self.ncells -= 1
+                if y >= 0 and y < self.rows:
+                    if x >= 0 and x < self.columns:
+                        self.ncellsongrid -= 1
                 if rowlist.emptyx():
                     # This was the last x value in the row, so remove this row from listlife
                     front = yii
                     back = yii.next_node.next_node
                     front.next_node = back
                     self.size -= 1
-                    self.ncells -= 1
-                    if y >= 0 and y < self.rows:
-                        if x >= 0 and x < self.columns:
-                            self.ncellsongrid -= 1
             return remove_worked
 
         else:
@@ -1039,8 +1035,11 @@ class LifeList(object):
                 if c != 2 and c != 3:
                     # Remove point from binary life and color life
                     self.remove(x, y)
+                    s1.remove(x, y)
+                    s2.remove(x, y)
 
                 else:
+                    # Cell is already in self, now we just need to add it to the correct color lifelist
                     # Check color neighbor counts
                     c1 = color1_neighbors.count(x, y)
                     c2 = color2_neighbors.count(x, y)

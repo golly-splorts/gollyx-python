@@ -31,6 +31,8 @@ class LifeStats(object):
         self.running_avg_last3 = MovingAvgList()
 
     def get_live_counts(self, state, state1, state2, generation):
+
+
         livecells = self.livecells = state.count_live_cells()
         livecells1 = self.livecells1 = state1.count_live_cells()
         livecells2 = self.livecells2 = state2.count_live_cells()

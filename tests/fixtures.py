@@ -27,7 +27,52 @@ def two_spinners_fixture():
     return binary, s1, s2
 
 
-def multicolor_pi():
+def two_acorn_fixture():
+
+    ROWS = 100
+    COLS = 120
+    binary = LifeList(ROWS, COLS)
+    s1 = LifeList(ROWS, COLS)
+    s2 = LifeList(ROWS, COLS)
+
+    # acorn number 1
+    binary.insert(50, 30)
+    binary.insert(51, 30)
+    binary.insert(54, 30)
+    binary.insert(55, 30)
+    binary.insert(56, 30)
+    binary.insert(53, 31)
+    binary.insert(51, 32)
+
+    s1.insert(50, 30)
+    s1.insert(51, 30)
+    s1.insert(54, 30)
+    s1.insert(55, 30)
+    s1.insert(56, 30)
+    s1.insert(53, 31)
+    s1.insert(51, 32)
+
+
+    # acorn number 2
+    binary.insert(24, 92)
+    binary.insert(25, 92)
+    binary.insert(28, 92)
+    binary.insert(29, 92)
+    binary.insert(30, 92)
+    binary.insert(27, 91)
+    binary.insert(25, 90)
+
+    s2.insert(24, 92)
+    s2.insert(25, 92)
+    s2.insert(28, 92)
+    s2.insert(29, 92)
+    s2.insert(30, 92)
+    s2.insert(27, 91)
+    s2.insert(25, 90)
+
+    return binary, s1, s2
+
+def multicolor_pi_fixture():
 
     ROWS = 100
     COLS = 120
