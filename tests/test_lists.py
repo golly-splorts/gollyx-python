@@ -430,19 +430,23 @@ class ListsTest(unittest.TestCase):
             color1_neighbors,
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
-    
+
         binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
     
+        # The bug is in dead to alive
         binary.dead_to_alive(
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
         )
 
-        #self.assertTrue(binary.contains(1, 1)) # missing
-        self.assertTrue(binary.contains(1, 2))
-        #self.assertTrue(binary.contains(1, 3)) # missing
+        # binary is not in sorted order,
+        # and is missing several cells that are in state1 or state2
 
-        #self.assertTrue(binary.contains(10, 15)) # there, but contains() returns false
-        #self.assertTrue(binary.contains(10, 16)) # missing
+        self.assertTrue(binary.contains(1, 1))
+        self.assertTrue(binary.contains(1, 2))
+        self.assertTrue(binary.contains(1, 3))
+
+        self.assertTrue(binary.contains(10, 15))
+        self.assertTrue(binary.contains(10, 16))
         self.assertTrue(binary.contains(10, 17))
 
         self.assertTrue(s1.contains(1, 1))
