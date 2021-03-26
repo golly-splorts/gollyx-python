@@ -12,18 +12,28 @@ class ListsTest(unittest.TestCase):
 
     def test_sorted_row_list(self):
 
-        srl = SortedRowList(151, 10)
+        ROWS = 100
+        COLS = 120
+
+        srl = SortedRowList(ROWS, COLS, 151, 10)
+        self.assertEqual(srl.sizeongrid, 0)
+
         srl.insert(155)
         srl.insert(154)
         srl.insert(152)
+        self.assertEqual(srl.sizeongrid, 0)
+
         srl.insert(-17)
         srl.insert(-20)
         srl.insert(-4)
+        self.assertEqual(srl.sizeongrid, 0)
+
         srl.insert(152)
         srl.insert(153)
         srl.insert(152)
-
         self.assertEqual(srl.length(), 9)
+        self.assertEqual(srl.size, 9)
+        self.assertEqual(srl.sizeongrid, 0)
 
         self.assertEqual(srl.head(), 10)
         self.assertTrue(srl.contains(151))
@@ -34,7 +44,9 @@ class ListsTest(unittest.TestCase):
 
     def test_life_list(self):
 
-        ll = LifeList()
+        ROWS = 100
+        COLS = 120
+        ll = LifeList(ROWS, COLS)
         ll.insert(151, 10)
         ll.insert(155, 10)
         ll.insert(154, 10)
@@ -77,7 +89,9 @@ class ListsTest(unittest.TestCase):
 
     def test_sorted_row_list_insert_many(self):
 
-        srl = SortedRowList(10)
+        ROWS = 100
+        COLS = 120
+        srl = SortedRowList(ROWS, COLS, 10)
         srl.insert(155)
         srl.insert(154)
         srl.insert(152)
@@ -117,7 +131,9 @@ class ListsTest(unittest.TestCase):
 
     def test_copy_life_list(self):
 
-        l1a = LifeList()
+        ROWS = 100
+        COLS = 120
+        l1a = LifeList(ROWS, COLS)
         for i in range(10):
             l1a.insert(90, 100 + i)
             l1a.insert(91, 100 + i)
@@ -132,7 +148,7 @@ class ListsTest(unittest.TestCase):
         self.assertTrue(l1a.contains(93, 101))
         self.assertTrue(l1a.contains(93, 102))
 
-        l1b = LifeList()
+        l1b = LifeList(ROWS, COLS)
         for i in range(10):
             l1b.insert(90, 180 + i)
             l1b.insert(91, 180 + i)
@@ -147,7 +163,7 @@ class ListsTest(unittest.TestCase):
         self.assertTrue(l1b.contains(93, 181))
         self.assertTrue(l1b.contains(93, 182))
 
-        l1c = LifeList()
+        l1c = LifeList(ROWS, COLS)
         for i in range(10):
             l1c.insert(88 + i, 170)
 
@@ -155,7 +171,7 @@ class ListsTest(unittest.TestCase):
         self.assertTrue(l1c.contains(89, 170))
         self.assertTrue(l1c.contains(90, 170))
 
-        l2 = LifeList()
+        l2 = LifeList(ROWS, COLS)
         l2.insert(90, 170)
         l2.insert(91, 171)
 
@@ -468,29 +484,82 @@ class ListsTest(unittest.TestCase):
             dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
         )
 
-        # check combined life state
         self.assertTrue(binary.contains(2, 0))
+        self.assertTrue(s1.contains(2, 0))
+        self.assertFalse(s2.contains(2, 0))
 
         self.assertTrue(binary.contains(2, 1))
+        self.assertTrue(s1.contains(2, 1))
+        self.assertFalse(s2.contains(2, 1))
+
         self.assertTrue(binary.contains(3, 1))
+        self.assertTrue(s1.contains(3, 1))
+        self.assertFalse(s2.contains(3, 1))
 
         self.assertTrue(binary.contains(4, 2))
+        self.assertTrue(s1.contains(4, 2))
+        self.assertFalse(s2.contains(4, 2))
 
         self.assertTrue(binary.contains(2, 3))
+        self.assertFalse(s1.contains(2, 3))
+        self.assertTrue(s2.contains(2, 3))
+
         self.assertTrue(binary.contains(3, 3))
+        self.assertTrue(s1.contains(3, 3))
+        self.assertFalse(s2.contains(3, 3))
 
         self.assertTrue(binary.contains(2, 4))
-
-        # check color 1 and color 2 state
-
-        self.assertTrue(s1.contains(2, 0))
-
-        self.assertTrue(s1.contains(2, 1))
-        self.assertTrue(s1.contains(3, 1))
-
-        self.assertTrue(s1.contains(4, 2))
-
-        self.assertTrue(s2.contains(2, 3))
-        self.assertTrue(s1.contains(3, 3))
-
+        self.assertFalse(s1.contains(2, 4))
         self.assertTrue(s2.contains(2, 4))
+
+        (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        ) = binary.get_all_neighbor_counts(s1, s2)
+    
+        binary.alive_to_dead(alive_neighbors, color1_neighbors, color2_neighbors, s1, s2)
+    
+        binary.dead_to_alive(
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+        )
+
+        self.assertTrue(binary.contains(2, 0))
+        self.assertTrue(s1.contains(2, 0))
+        self.assertFalse(s2.contains(2, 0))
+
+        self.assertTrue(binary.contains(3, 0))
+        self.assertTrue(s1.contains(3, 0))
+        self.assertFalse(s2.contains(3, 0))
+
+        self.assertTrue(binary.contains(2, 1))
+        self.assertTrue(s1.contains(2, 1))
+        self.assertFalse(s2.contains(2, 1))
+
+        self.assertTrue(binary.contains(3, 1))
+        self.assertTrue(s1.contains(3, 1))
+        self.assertFalse(s2.contains(3, 1))
+
+        self.assertTrue(binary.contains(4, 2))
+        self.assertTrue(s1.contains(4, 2))
+        self.assertFalse(s2.contains(4, 2))
+
+        self.assertTrue(binary.contains(2, 3))
+        self.assertFalse(s1.contains(2, 3))
+        self.assertTrue(s2.contains(2, 3))
+
+        self.assertTrue(binary.contains(3, 3))
+        self.assertFalse(s1.contains(3, 3))
+        self.assertTrue(s2.contains(3, 3))
+
+        self.assertTrue(binary.contains(2, 4))
+        self.assertTrue(s1.contains(2, 4))
+        self.assertFalse(s2.contains(2, 4))
+
+        self.assertTrue(binary.contains(3, 4))
+        self.assertFalse(s1.contains(3, 4))
+        self.assertTrue(s2.contains(3, 4))
+

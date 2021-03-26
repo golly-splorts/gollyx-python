@@ -78,7 +78,7 @@ class SortedRowList(ListBase):
     represents the three cells (15,100) (16,100) (19,100)
     """
 
-    size: int = 0
+    cellsongrid: int = 0
     front_node: LocationNode = None
     back_node: LocationNode = None
 
@@ -89,7 +89,10 @@ class SortedRowList(ListBase):
     # TODO:
     # contains() would be faster if we had a hash table of points
 
-    def __init__(self, x, y=None):
+    def __init__(self, rows, columns, x, y=None):
+        self.rows = rows
+        self.columns = columns
+
         if y is not None:
             self.insert(y)
             self.insert(x)
@@ -161,7 +164,10 @@ class SortedRowList(ListBase):
             return True
 
     def insert(self, x):
-        """Insert the given x location into the sorted list"""
+        """
+        Insert the given x location into the sorted list.
+        Returns true if the insert succeeded.
+        """
 
         if self.size == 0:
             # Handle empty list case first:
@@ -172,6 +178,7 @@ class SortedRowList(ListBase):
             self.front_node = ynode
             self.back_node = ynode
             self.size += 1
+            # Do not increment cellsongrid, this is not an (x,y) point yet
             return True
 
         else:
@@ -192,21 +199,26 @@ class SortedRowList(ListBase):
                 # Appending to end of list, update back pointer as well
                 front.next_node = middle
                 self.back_node = middle
-                self.size += 1
-                return True
             else:
                 front.next_node = middle
                 middle.next_node = back
-                self.size += 1
-                return True
+
+            self.size += 1
+            if self.head() >= 0 and self.head() < self.rows:
+                if x >= 0 and x < self.columns:
+                    self.cellsongrid += 1
+
+            return True
 
     def insert_many_sorted(self, many_x):
         """
         Insert multiple values of x. The values MUST be in ascending sorted order!
+        Returns number of inserts, and number of inserts on the grid.
         """
         assert self.size > 0
         runner = self.front_node
         ninserts = 0
+        ninsertsongrid = 0
         for x in many_x:
             # Advance runner
             while runner.next_node is not None and (
@@ -224,8 +236,12 @@ class SortedRowList(ListBase):
                 front.next_node = middle
                 middle.next_node = back
                 ninserts += 1
+                if self.head() >= 0 and self.head() < self.rows:
+                    if x >= 0 and x < self.columns:
+                        ninsertsongrid += 1
         self.size += ninserts
-        return ninserts
+        self.cellsongrid += ninsertsongrid
+        return ninserts, ninsertsongrid
 
     def remove(self, x):
         """
@@ -244,6 +260,9 @@ class SortedRowList(ListBase):
                 self.back_node = front
             front.next_node = back
             self.size -= 1
+            if self.head() >= 0 and self.head() < self.rows:
+                if x >= 0 and x < self.columns:
+                    self.cellsongrid -= 1
             return True
         else:
             # x is not in the list
@@ -276,6 +295,7 @@ class LifeList(object):
 
     size: int = 0
     ncells: int = 0
+    ncellsongrid: int = 0
     front_node: RowNode = None
 
     # TODO:
@@ -290,6 +310,10 @@ class LifeList(object):
     # reference(x, y) returns a reference to the Node containing point x in row y
     # insertion_index(x, y) returns what is actually stored - the insertion index (the node preceding that node)
     # both could be O(1) operations
+
+    def __init__(self, rows, columns):
+        self.rows = rows
+        self.columns = columns
 
     def __repr__(self):
         agg = "[\n"
@@ -316,6 +340,8 @@ class LifeList(object):
         self.front_node = other_life_list.front_node
         self.size = other_life_list.size
         self.ncells = other_life_list.ncells
+        self.rows = other_life_list.rows
+        self.columns = other_life_list.columns
 
     def copy_points(self, other_lifelist):
         """
@@ -347,6 +373,7 @@ class LifeList(object):
             ### #    insert xvalues into existing row
 
             ninserts = 0
+            ninsertsongrid = 0
             other_yrunner = other_lifelist.front_node
             while other_yrunner != None:
                 row = other_yrunner.data
@@ -354,10 +381,12 @@ class LifeList(object):
                 other_xrunner = row.front_node.next_node
                 while other_xrunner != None:
                     x = other_xrunner.data
+                    # Note: ncells is take care of by insert()
                     if self.insert(x, y):
                         ninserts += 1
                     other_xrunner = other_xrunner.next_node
                 other_yrunner = other_yrunner.next_node
+
             return ninserts > 0
 
     def insertion_index(self, y):
@@ -442,10 +471,13 @@ class LifeList(object):
         if self.size == 0:
             # Handle empty list case first:
             # Create new Node and set it as the front
-            row = SortedRowList(x, y)
+            row = SortedRowList(self.rows, self.columns, x, y)
             self.front_node = RowNode(row)
             self.size += 1
             self.ncells += 1
+            if y >= 0 and y < self.rows:
+                if x >= 0 and x < self.columns:
+                    self.ncellsongrid += 1
             return True
 
         elif (self.size >= 1) and (self.front_node.data.head() == y):
@@ -455,6 +487,9 @@ class LifeList(object):
             # y already has a row, insert x into it
             if this_row.data.insert(x):
                 self.ncells += 1
+                if y >= 0 and y < self.rows:
+                    if x >= 0 and x < self.columns:
+                        self.ncellsongrid += 1
                 return True
             else:
                 return False
@@ -466,19 +501,25 @@ class LifeList(object):
             if ii is None:
                 # y does not have a row yet
                 # if insertion index is none, the new row goes at the beginning
-                row = SortedRowList(x, y)
+                row = SortedRowList(self.rows, self.columns, x, y)
                 newfront = RowNode(row)
                 oldfront = self.front_node
                 newfront.next_node = oldfront
                 self.front_node = newfront
                 self.size += 1
                 self.ncells += 1
+                if y >= 0 and y < self.rows:
+                    if x >= 0 and x < self.columns:
+                        self.ncellsongrid += 1
 
             elif (ii.next_node is not None) and (ii.next_node.data.head() == y):
                 this_row = ii.next_node
                 # y already has a row in this list, insert x into it
                 if this_row.data.insert(x):
                     self.ncells += 1
+                    if y >= 0 and y < self.rows:
+                        if x >= 0 and x < self.columns:
+                            self.ncellsongrid += 1
                     return True
                 else:
                     return False
@@ -488,35 +529,45 @@ class LifeList(object):
                 # insert y into the list after the insertion index node
                 front = ii
                 back = ii.next_node
-                row = SortedRowList(x, y)
+                row = SortedRowList(self.rows, self.columns, x, y)
                 middle = RowNode(row)
                 front.next_node = middle
                 middle.next_node = back
                 self.size += 1
                 self.ncells += 1
+                if y >= 0 and y < self.rows:
+                    if x >= 0 and x < self.columns:
+                        self.ncellsongrid += 1
                 return True
 
     def insert_many_sorted(self, y, many_x):
+        """
+        Insert multiple sorted x values into the rowlist corresponding to y
+        (or insert a new rowlist if one does not exist)
+        """
         yii = self.insertion_index(y)
         if yii is None and self.front_node.data.head() == y:
-            ninserts = self.front_node.data.insert_many_sorted(many_x)
+            ninserts, ninsertsongrid = self.front_node.data.insert_many_sorted(many_x)
             self.ncells += ninserts
+            self.ncellsongrid += ninsertsongrid
         elif (yii.next_node is not None) and (yii.next_node.data.head() == y):
             # We found y in the list
             # Call insert_many on the existing list
-            ninserts = yii.next_node.data.insert_many_sorted(many_x)
+            ninserts, ninsertsongrid = yii.next_node.data.insert_many_sorted(many_x)
             self.ncells += ninserts
+            self.ncellsongrid += ninsertsongrid
         else:
             # We did not find y in the list
             # Create a new row list, insert x values, and insert into list
-            row = SortedRowList(y)
-            ninserts = row.insert_many_sorted(many_x)
+            row = SortedRowList(self.rows, self.columns, y)
+            ninserts, ninsertsongrid = row.insert_many_sorted(many_x)
             front = yii
             middle = RowNode(row)
             back = yii.next_node
             front.next_node = middle
             middle.next_node = back
             self.ncells += ninserts
+            self.ncellsongrid += ninsertsongrid
             self.size += 1
 
     def remove(self, x, y):
@@ -537,6 +588,9 @@ class LifeList(object):
                 remove_worked = row.remove(x)
                 if remove_worked:
                     self.ncells -= 1
+                    if y >= 0 and y < self.rows:
+                        if x >= 0 and x < self.columns:
+                            self.ncellsongrid -= 1
                     # check if last x coordinate, if so remove this list
                     if row.emptyx():
                         self.front_node = self.front_node.next_node
@@ -560,6 +614,10 @@ class LifeList(object):
                     back = yii.next_node.next_node
                     front.next_node = back
                     self.size -= 1
+                    self.ncells -= 1
+                    if y >= 0 and y < self.rows:
+                        if x >= 0 and x < self.columns:
+                            self.ncellsongrid -= 1
             return remove_worked
 
         else:
@@ -918,9 +976,8 @@ class LifeList(object):
                     elif color2_lifelist.contains(x + 1, y):
                         xp1ycolor = 2
                     else:
-                        import pdb; pdb.set_trace()
                         raise Exception(f"    Error: color at (x+1, y) = {x+1}, {y} is unknown")
-                    if xp1ycolor == 1:        
+                    if xp1ycolor == 1:
                         color1_neighbors.accumulate(x, y)
                     elif xp1ycolor == 2:
                         color2_neighbors.accumulate(x, y)
@@ -968,8 +1025,8 @@ class LifeList(object):
 
         # If cells are dead we remove them from self
         # If cells are still alive we add them to new state 1 or 2
-        new_s1 = LifeList()
-        new_s2 = LifeList()
+        new_s1 = LifeList(self.rows, self.columns)
+        new_s2 = LifeList(self.rows, self.columns)
 
         yrunner = self.front_node
         while yrunner is not None:
@@ -1049,31 +1106,34 @@ class LifeList(object):
                     # y value already has a row: the first one
                     # Insert each x into the cell
                     # (insert into color1/color2 state list happens below)
-                    ninserts = row.insert_many_sorted(xvalues)
+                    ninserts, ninsertsongrid = row.insert_many_sorted(xvalues)
                     self.ncells += ninserts
+                    self.ncellsongrid += ninsertsongrid
 
                 else:
                     # y value needs a new row
-                    newrow = SortedRowList(y)
-                    ninserts = newrow.insert_many_sorted(xvalues)
+                    newrow = SortedRowList(self.rows, self.columns, y)
+                    ninserts, ninsertsongrid = newrow.insert_many_sorted(xvalues)
                     # insert in front of list
                     newfront = RowNode(newrow)
                     oldfront = self.front_node
                     newfront.next_node = oldfront
                     self.front_node = newfront
                     self.ncells += ninserts
+                    self.ncellsongrid += ninsertsongrid
                     self.size += 1
 
             elif yii.next_node is None:
 
                 # y goes at end of list
                 front = yii
-                newrow = SortedRowList(y)
-                ninserts = newrow.insert_many_sorted(xvalues)
+                newrow = SortedRowList(self.rows, self.columns, y)
+                ninserts, ninsertsongrid = newrow.insert_many_sorted(xvalues)
                 # insert after insertion index
                 back = RowNode(newrow)
                 front.next_node = back
                 self.ncells += ninserts
+                self.ncellsongrid += ninsertsongrid
                 self.size += 1
 
             else:
@@ -1081,18 +1141,20 @@ class LifeList(object):
                 row = front.next_node.data
                 if row.head() == y:
                     # y value already has a row
-                    ninserts = row.insert_many_sorted(xvalues)
+                    ninserts, ninsertsongrid = row.insert_many_sorted(xvalues)
                     self.ncells += ninserts
+                    self.ncellsongrid += ninsertsongrid
                 else:
                     # y value needs a new row
-                    newrow = SortedRowList(y)
-                    ninserts = newrow.insert_many_sorted(xvalues)
+                    newrow = SortedRowList(self.rows, self.columns, y)
+                    ninserts, ninsertsongrid = newrow.insert_many_sorted(xvalues)
                     # insert between insertion index and insertion index next
                     middle = RowNode(newrow)
                     back = front.next_node
                     front.next_node = middle
                     middle.next_node = back
                     self.ncells += ninserts
+                    self.ncellsongrid += ninsertsongrid
                     self.size += 1
 
             # For each new cell being born, determine its color
