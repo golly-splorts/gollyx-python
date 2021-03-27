@@ -62,7 +62,7 @@ class LocationNode(NodeBase):
     head: bool = False
 
 
-class SortedRowList(ListBase):
+class OldSortedRowList(ListBase):
     """
     Linked List storing one row in a game of life.
 
@@ -277,6 +277,182 @@ class SortedRowList(ListBase):
         return self.size == 0 or self.size == 1
 
 
+class SortedRowList(OldSortedRowList):
+
+    def __init__(self, *args, **kwargs):
+        self.points_map = dict()
+        super().__init__(*args, **kwargs)
+
+    #def insertion_index(self, x):
+    #    """
+    #    Given an element x, return a pointer to the insertion index
+    #    (the Node preceding the spot where the new Node would go).
+    #    If x is in the list, this returns the Node preceding it.
+    #    The first element is always y, so elements never go at the front of the list.
+    #    """
+    #    if self.size == 0:
+    #        return None
+
+    #    elif self.size == 1:
+    #        return self.front_node
+
+    #    else:
+    #        if x in self.points_map:
+    #            return self.points_map[x]
+    #        else:
+    #            leader = self.front_node.next_node
+    #            lagger = self.front_node
+    #            while leader != None and x > leader.data:
+    #                lagger = leader
+    #                leader = leader.next_node
+    #            return lagger
+
+    def insert(self, x):
+        if self.size == 0:
+            # Handle empty list case first:
+            # Create new Node and set it as the front and the back
+            # (note x is actually y in this case)
+            ynode = LocationNode(x)
+            ynode.head = True
+            self.front_node = ynode
+            self.back_node = ynode
+            self.size += 1
+            # Do not increment cellsongrid, this is not an (x,y) point yet
+            # Do not add this to points_map, this is a y value not an x value
+            return True
+
+        else:
+            # There is already at least 1 element in the list.
+            # First element is always y. Maintain values following in sorted order.
+            ii = self.insertion_index(x)
+
+            if ii.next_node is not None:
+                if ii.next_node.data == x:
+                    # Already in list
+                    return False
+
+            # insert x into the list after the insertion index node
+            front = ii
+            back = ii.next_node
+            middle = LocationNode(x)
+            if back is None:
+                # Appending to end of list, update back pointer as well
+                front.next_node = middle
+                self.back_node = middle
+            else:
+                front.next_node = middle
+                middle.next_node = back
+                self.points_map[back.data] = middle
+
+            self.size += 1
+            if self.head() >= 0 and self.head() < self.rows:
+                if x >= 0 and x < self.columns:
+                    self.cellsongrid += 1
+
+            self.points_map[x] = ii
+            return True
+
+    def find(self, x):
+        """
+        Given an element x, return a pointer to the Node for that element,
+        or return None if the item is not in the list.
+        (To get preceding node, use insertion_index)
+        """
+        if self.size == 0 or self.size == 1:
+            return None
+
+        if x in self.points_map:
+            ii = self.points_map[x]
+            if ii is None:
+                # This should never happen
+                raise Exception()
+            elif ii.next_node is None:
+                # This should never happen
+                raise Exception()
+            else:
+                return ii.next_node
+        else:
+            return None
+
+    #def contains(self, x):
+    #    return x in self.points_map
+
+    def insert_many_sorted(self, many_x):
+        """
+        Insert multiple values of x. The values MUST be in ascending sorted order!
+        Returns number of inserts, and number of inserts on the grid.
+        """
+        assert self.size > 0
+        runner = self.front_node
+        ninserts = 0
+        ninsertsongrid = 0
+        for x in many_x:
+            # Advance runner
+            while runner.next_node is not None and (
+                x > runner.next_node.data and runner.next_node.head is False
+            ):
+                runner = runner.next_node
+            # Check this x value is not in the list already
+            if (runner.next_node is None) or not (
+                runner.next_node.data == x and runner.next_node.head is False
+            ):
+                # Insert node
+                front = runner
+                middle = LocationNode(x)
+                back = runner.next_node
+                front.next_node = middle
+                middle.next_node = back
+                if back is not None:
+                    back_x = back.data
+                    self.points_map[back_x] = middle
+                ninserts += 1
+                if self.head() >= 0 and self.head() < self.rows:
+                    if x >= 0 and x < self.columns:
+                        ninsertsongrid += 1
+                self.points_map[x] = runner
+        self.size += ninserts
+        self.cellsongrid += ninsertsongrid
+        return ninserts, ninsertsongrid
+
+    def remove(self, x):
+        """
+        Remove the given x location into the sorted list.
+        """
+        if self.size == 0 or self.size == 1:
+            return False
+
+        if not self.contains(x):
+            return False
+
+        # When we remove, we need to update the entry for the node
+        # following the node being removed
+        ii = self.points_map[x]
+        if (ii.next_node is not None) and (ii.next_node.data == x):
+            # Found it
+            front = ii
+            back = ii.next_node.next_node
+            if back is None:
+                # The noded we are removing is the back of the list, update back pointer
+                self.back_node = front
+                back_x = None
+            else:
+                # Need to update back x insertion index in self.points_map
+                back_x = back.data
+            front.next_node = back
+            self.size -= 1
+            if self.head() >= 0 and self.head() < self.rows:
+                if x >= 0 and x < self.columns:
+                    self.cellsongrid -= 1
+            del self.points_map[x]
+            if back_x is not None:
+                self.points_map[back_x] = front
+            return True
+        else:
+            # x is in points_map but is not in the list
+            import pdb; pdb.set_trace()
+            raise Exception()
+
+
 class RowNode(NodeBase):
     data: SortedRowList = 0
 
@@ -327,23 +503,25 @@ class LifeList(object):
         return agg
 
     def serialize(self):
-        d = {}
+        s = "["
         yrunner = self.front_node
         while yrunner != None:
             row = yrunner.data
             y = row.head()
+            s += "{\"" + str(y) + ":["
             xrunner = row.front_node.next_node
             xlist = []
             while xrunner != None:
                 x = xrunner.data
-                xlist.append(x)
+                s += str(x)
+                if xrunner.next_node != None:
+                    s += ","
                 xrunner = xrunner.next_node
-            d[y] = xlist
+            s += "]}"
+            if yrunner.next_node != None:
+                s += ","
             yrunner = yrunner.next_node
-        import json
-        import re
-        s = json.dumps([d])
-        s = re.sub(' ', '', s)
+        s += "]"
         return s
     
     def length(self):
