@@ -4,6 +4,7 @@ class XCounterStore(object):
     to store counters for a set of x values.
     Wraps a hash map of x values to integer counts.
     """
+    __slots__ = ['mapp']
 
     def __init__(self):
         self.mapp = dict()
@@ -41,6 +42,7 @@ class XYCounterStore(object):
     Small utility class storing counters for (x,y) values.
     Wraps a hash map of y values to x counter stores.
     """
+    __slots__ = ['mapp']
 
     def __init__(self):
         self.mapp = dict()

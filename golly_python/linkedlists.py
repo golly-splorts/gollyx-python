@@ -11,11 +11,11 @@ class NodeBase(object):
     Data-agnostic base class for linked list nodes
     """
 
-    data = None
-    next_node = None
+    __slots__ = ["data", "next_node"]
 
     def __init__(self, data):
         self.data = data
+        self.next_node = None
 
 
 class ListBase(object):
@@ -23,11 +23,11 @@ class ListBase(object):
     Data-agnostic base class for linked lists
     """
 
-    size: int = 0
-    front_node: NodeBase = None
+    __slots__ = ["size", "front_node"]
 
     def __init__(self):
-        pass
+        self.size = 0
+        self.front_node = None
 
     def __iter__(self):
         lbi = ListBaseIterator(self)
@@ -41,6 +41,8 @@ class ListBaseIterator(object):
     """
     Iterator object returned when iterating over a linked list
     """
+
+    __slots__ = ["obj"]
 
     def __init__(self, obj):
         self.obj = obj
@@ -58,8 +60,12 @@ class LocationNode(NodeBase):
     Linked List Node for cell location (integer) data
     """
 
-    data: int = 0
-    head: bool = False
+    __slots__ = ["data", "head", "next_node"]
+
+    def __init__(self, data):
+        self.data = data
+        self.head = False
+        self.next_node = None
 
 
 class OldSortedRowList(ListBase):
@@ -78,20 +84,17 @@ class OldSortedRowList(ListBase):
     represents the three cells (15,100) (16,100) (19,100)
     """
 
-    cellsongrid: int = 0
-    front_node: LocationNode = None
-    back_node: LocationNode = None
-
-    # TODO:
-    # Optimally, some of these insert methods would return the node,
-    # so that inserts don't always have to start at the beginning.
-
-    # TODO:
-    # contains() would be faster if we had a hash table of points
+    __slots__ = ["rows", "columns", "size", "cellsongrid", "front_node"] ###, "back_node"]
 
     def __init__(self, rows, columns, x, y=None):
         self.rows = rows
         self.columns = columns
+
+        self.size = 0
+        self.cellsongrid = 0
+
+        self.front_node = None
+        ###self.back_node = None
 
         if y is not None:
             self.insert(y)
@@ -176,7 +179,7 @@ class OldSortedRowList(ListBase):
             ynode = LocationNode(x)
             ynode.head = True
             self.front_node = ynode
-            self.back_node = ynode
+            ###self.back_node = ynode
             self.size += 1
             # Do not increment cellsongrid, this is not an (x,y) point yet
             return True
@@ -198,7 +201,7 @@ class OldSortedRowList(ListBase):
             if back is None:
                 # Appending to end of list, update back pointer as well
                 front.next_node = middle
-                self.back_node = middle
+                ###self.back_node = middle
             else:
                 front.next_node = middle
                 middle.next_node = back
@@ -255,9 +258,9 @@ class OldSortedRowList(ListBase):
             # Found it
             front = ii
             back = ii.next_node.next_node
-            if back is None:
-                # The noded we are removing is the back of the list, update back pointer
-                self.back_node = front
+            ### if back is None:
+            ###     # The noded we are removing is the back of the list, update back pointer
+            ###     self.back_node = front
             front.next_node = back
             self.size -= 1
             if self.head() >= 0 and self.head() < self.rows:
@@ -278,34 +281,51 @@ class OldSortedRowList(ListBase):
 
 
 class SortedRowList(OldSortedRowList):
+    __slots__ = [
+        "rows",
+        "columns",
+        "size",
+        "cellsongrid",
+        "front_node",
+        ###"back_node",
+        "points_map",
+    ]
 
     def __init__(self, *args, **kwargs):
         self.points_map = dict()
         super().__init__(*args, **kwargs)
 
-    #def insertion_index(self, x):
-    #    """
-    #    Given an element x, return a pointer to the insertion index
-    #    (the Node preceding the spot where the new Node would go).
-    #    If x is in the list, this returns the Node preceding it.
-    #    The first element is always y, so elements never go at the front of the list.
-    #    """
-    #    if self.size == 0:
-    #        return None
+    def insertion_index(self, x):
+        """
+        Given an element x, return a pointer to the insertion index
+        (the Node preceding the spot where the new Node would go).
+        If x is in the list, this returns the Node preceding it.
+        This should only return None if the list is empty.
+        The first element of the SortedRowList is y, so preceding Node
+        should never be None.
+        """
+        if self.size == 0:
+            return None
 
-    #    elif self.size == 1:
-    #        return self.front_node
+        elif self.size == 1:
+            return self.front_node
 
-    #    else:
-    #        if x in self.points_map:
-    #            return self.points_map[x]
-    #        else:
-    #            leader = self.front_node.next_node
-    #            lagger = self.front_node
-    #            while leader != None and x > leader.data:
-    #                lagger = leader
-    #                leader = leader.next_node
-    #            return lagger
+        else:
+
+            if x in self.points_map:
+                ii = self.points_map[x]
+                if ii is None:
+                    # This should never happen
+                    raise Exception(f"Error: could not find insertion index for {x}")
+                else:
+                    return ii
+            else:
+                leader = self.front_node.next_node
+                lagger = self.front_node
+                while leader != None and x > leader.data:
+                    lagger = leader
+                    leader = leader.next_node
+                return lagger
 
     def insert(self, x):
         if self.size == 0:
@@ -315,7 +335,7 @@ class SortedRowList(OldSortedRowList):
             ynode = LocationNode(x)
             ynode.head = True
             self.front_node = ynode
-            self.back_node = ynode
+            ###self.back_node = ynode
             self.size += 1
             # Do not increment cellsongrid, this is not an (x,y) point yet
             # Do not add this to points_map, this is a y value not an x value
@@ -338,7 +358,7 @@ class SortedRowList(OldSortedRowList):
             if back is None:
                 # Appending to end of list, update back pointer as well
                 front.next_node = middle
-                self.back_node = middle
+                ###self.back_node = middle
             else:
                 front.next_node = middle
                 middle.next_node = back
@@ -365,17 +385,11 @@ class SortedRowList(OldSortedRowList):
             ii = self.points_map[x]
             if ii is None:
                 # This should never happen
-                raise Exception()
-            elif ii.next_node is None:
-                # This should never happen
-                raise Exception()
+                raise Exception(f"Error: could not find insertion index for {x}")
             else:
                 return ii.next_node
         else:
             return None
-
-    #def contains(self, x):
-    #    return x in self.points_map
 
     def insert_many_sorted(self, many_x):
         """
@@ -433,7 +447,7 @@ class SortedRowList(OldSortedRowList):
             back = ii.next_node.next_node
             if back is None:
                 # The noded we are removing is the back of the list, update back pointer
-                self.back_node = front
+                ###self.back_node = front
                 back_x = None
             else:
                 # Need to update back x insertion index in self.points_map
@@ -449,11 +463,16 @@ class SortedRowList(OldSortedRowList):
             return True
         else:
             # x is in points_map but is not in the list
+            import pdb; pdb.set_trace()
             raise Exception()
 
 
 class RowNode(NodeBase):
-    data: SortedRowList = 0
+    __slots__ = ["data", "next_node"]
+
+    def __init__(self, data):
+        self.data = data
+        self.next_node = None
 
 
 class LifeList(object):
@@ -468,13 +487,16 @@ class LifeList(object):
     ]
     """
 
-    size: int = 0
-    ncells: int = 0
-    ncellsongrid: int = 0
-    front_node: RowNode = None
-
-    # TODO:
-    # This class will be a lot faster if it keeps a hash table of points it contains
+    __slots__ = [
+        "rows",
+        "columns",
+        "size",
+        "ncells",
+        "ncellsongrid",
+        "front_node",
+        ###"back_node",
+        "points_map",
+    ]
 
     # TODO:
     # We could make getting the node associated with (x, y) an O(1) operation
@@ -487,8 +509,17 @@ class LifeList(object):
     # both could be O(1) operations
 
     def __init__(self, rows, columns):
+        self.points_map = dict()
+
         self.rows = rows
         self.columns = columns
+
+        self.size = 0
+        self.ncells = 0
+        self.ncellsongrid = 0
+
+        self.front_node = None
+        ###self.back_node = None
 
     def __repr__(self):
         agg = "[\n"
@@ -507,7 +538,7 @@ class LifeList(object):
         while yrunner != None:
             row = yrunner.data
             y = row.head()
-            s += "{\"" + str(y) + ":["
+            s += '{"' + str(y) + ":["
             xrunner = row.front_node.next_node
             xlist = []
             while xrunner != None:
@@ -522,7 +553,7 @@ class LifeList(object):
             yrunner = yrunner.next_node
         s += "]"
         return s
-    
+
     def length(self):
         return self.size
 
@@ -532,8 +563,10 @@ class LifeList(object):
         This is a soft replacement, meaning we're just shifting links around.
         """
         self.front_node = other_life_list.front_node
-        self.size = other_life_list.size
+        ###self.back_node = other_life_list.back_node
+        self.points_map = other_life_list.points_map
 
+        self.size = other_life_list.size
         self.ncells = other_life_list.ncells
         self.ncellsongrid = other_life_list.ncellsongrid
 
@@ -551,23 +584,6 @@ class LifeList(object):
 
         else:
             # There is already at least 1 element in the list.
-
-            ### # TODO:
-            ### # Use two yrunners, handling cases where they are empty
-            ### # if this is empty, insert at back
-            ### # if other is empty, well, then you're done
-            ### this_yrunner = self.front_node
-            ### other_yrunner = other_lifelist.front_node
-
-            ### while other_yrunner is not None:
-            ###     this_y = this_yrunner.data.head()
-            ###     other_y = other_yrunner.data.head()
-            ###     while other_y > this_y and this_yrunner is not None:
-            ###         this_yrunner = this_yrunner.next_node
-            ### # if yrunner next is none or head y is not equal to other y,
-            ### #    insert a new row for y
-            ### # else
-            ### #    insert xvalues into existing row
 
             ninserts = 0
             ninsertsongrid = 0
@@ -824,7 +840,7 @@ class LifeList(object):
         self,
         color1_lifelist,
         color2_lifelist,
-        neighbor_color_legacy_mode = False,
+        neighbor_color_legacy_mode=False,
     ):
         """
         Iterate over the entire grid and accumulate the following info:
@@ -911,7 +927,9 @@ class LifeList(object):
                         elif color2_lifelist.contains(x - 1, y + 1):
                             xm1yp1color = 2
                         else:
-                            raise Exception(f"Error: color at (x-1, y+1) = {x-1}, {y+1} is unknown")
+                            raise Exception(
+                                f"Error: color at (x-1, y+1) = {x-1}, {y+1} is unknown"
+                            )
                         if xm1yp1color == 1:
                             color1_neighbors.accumulate(x, y)
                         elif xm1yp1color == 2:
@@ -945,7 +963,9 @@ class LifeList(object):
                             elif color2_lifelist.contains(x, y + 1):
                                 xyp1color = 2
                             else:
-                                raise Exception(f"Error: color at (x, y+1) = {x}, {y+1} is unknown")
+                                raise Exception(
+                                    f"Error: color at (x, y+1) = {x}, {y+1} is unknown"
+                                )
                             if xyp1color == 1:
                                 color1_neighbors.accumulate(x, y)
                             elif xyp1color == 2:
@@ -981,7 +1001,9 @@ class LifeList(object):
                                 elif color2_lifelist.contains(x + 1, y + 1):
                                     xp1yp1color = 2
                                 else:
-                                    raise Exception(f"Error: color at (x+1, y+1) = {x+1}, {y+1} is unknown")
+                                    raise Exception(
+                                        f"Error: color at (x+1, y+1) = {x+1}, {y+1} is unknown"
+                                    )
                                 if xp1yp1color == 1:
                                     color1_neighbors.accumulate(x, y)
                                 elif xp1yp1color == 2:
@@ -1055,7 +1077,9 @@ class LifeList(object):
                         elif color2_lifelist.contains(x - 1, y - 1):
                             xm1ym1color = 2
                         else:
-                            raise Exception(f"Error: color at (x-1, y-1) = {x-1}, {y-1} is unknown")
+                            raise Exception(
+                                f"Error: color at (x-1, y-1) = {x-1}, {y-1} is unknown"
+                            )
                         if xm1ym1color == 1:
                             color1_neighbors.accumulate(x, y)
                         elif xm1ym1color == 2:
@@ -1088,7 +1112,9 @@ class LifeList(object):
                             elif color2_lifelist.contains(x, y - 1):
                                 xym1color = 2
                             else:
-                                raise Exception(f"Error: color at (x, y-1) = {x}, {y-1} is unknown")
+                                raise Exception(
+                                    f"Error: color at (x, y-1) = {x}, {y-1} is unknown"
+                                )
                             if xym1color == 1:
                                 color1_neighbors.accumulate(x, y)
                             elif xym1color == 2:
@@ -1122,7 +1148,9 @@ class LifeList(object):
                                 elif color2_lifelist.contains(x + 1, y - 1):
                                     xp1ym1color = 2
                                 else:
-                                    raise Exception(f"Error: color at (x+1, y-1) = {x+1}, {y-1} is unknown")
+                                    raise Exception(
+                                        f"Error: color at (x+1, y-1) = {x+1}, {y-1} is unknown"
+                                    )
                                 if xp1ym1color == 1:
                                     color1_neighbors.accumulate(x, y)
                                 elif xp1ym1color == 2:
@@ -1177,7 +1205,9 @@ class LifeList(object):
                     elif color2_lifelist.contains(x - 1, y):
                         xm1ycolor = 2
                     else:
-                        raise Exception(f"Error: color at (x+1, y) = {x+1}, {y} is unknown")
+                        raise Exception(
+                            f"Error: color at (x+1, y) = {x+1}, {y} is unknown"
+                        )
                     if xm1ycolor == 1:
                         color1_neighbors.accumulate(x, y)
                     elif xm1ycolor == 2:
@@ -1212,7 +1242,9 @@ class LifeList(object):
                     elif color2_lifelist.contains(x + 1, y):
                         xp1ycolor = 2
                     else:
-                        raise Exception(f"    Error: color at (x+1, y) = {x+1}, {y} is unknown")
+                        raise Exception(
+                            f"    Error: color at (x+1, y) = {x+1}, {y} is unknown"
+                        )
                     if xp1ycolor == 1:
                         color1_neighbors.accumulate(x, y)
                     elif xp1ycolor == 2:
@@ -1249,7 +1281,7 @@ class LifeList(object):
         color2_neighbors,
         s1,
         s2,
-        neighbor_color_legacy_mode = False,
+        neighbor_color_legacy_mode=False,
     ):
         """
         Iterate over every living cell, and kill cells with too many/too few neighbors.
@@ -1315,7 +1347,7 @@ class LifeList(object):
         color2_dead_neighbors,
         s1,
         s2,
-        neighbor_color_legacy_mode = False,
+        neighbor_color_legacy_mode=False,
     ):
         """
         Use dead neighbor cell count to make dead cells alive
