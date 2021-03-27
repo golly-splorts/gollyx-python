@@ -449,7 +449,6 @@ class SortedRowList(OldSortedRowList):
             return True
         else:
             # x is in points_map but is not in the list
-            import pdb; pdb.set_trace()
             raise Exception()
 
 
