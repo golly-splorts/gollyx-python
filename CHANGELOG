@@ -1,3 +1,15 @@
+gollyx-python:
+
+
+Version 17.1:
+
+* Rename components from golly to gollyx
+
+----------------------
+
+golly-python:
+
+
 Version 17.0:
 
 * Switch to linked list data structure (faster)
