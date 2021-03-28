@@ -1,13 +1,21 @@
 from operator import indexOf
+from .utils import lists_equal
 from .linkedlists import LifeList
 
 
 class LifeState(object):
     def __init__(
-        self, rows: int, columns: int, neighbor_color_legacy_mode: bool = False
+        self,
+        rows: int,
+        columns: int,
+        rule_b: list,
+        rule_s: list,
+        neighbor_color_legacy_mode: bool = False,
     ):
         self.rows = rows
         self.columns = columns
+        self.rule_b = rule_b
+        self.rule_s = rule_s
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
         self.statelist = LifeList(self.rows, self.columns)
 
@@ -60,6 +68,22 @@ class BinaryLifeState(LifeState):
             raise Exception(err)
         self.columns = state1.columns
 
+        if not lists_equal(state1.rule_b, state2.rule_b):
+            err = "Error: CompositeLifeState received states with different birth rules:\n"
+            err += (
+                f"state 1 rule b {state1.rule_b} != state 2 rule b {state2.rule_b}"
+            )
+            raise Exception(err)
+        self.rule_b = state1.rule_b
+
+        if not lists_equal(state1.rule_s, state2.rule_s):
+            err = "Error: CompositeLifeState received states with different survival rules:\n"
+            err += (
+                f"state 1 rule b {state1.rule_s} != state 2 rule b {state2.rule_s}"
+            )
+            raise Exception(err)
+        self.rule_s = state1.rule_s
+
         if state1.neighbor_color_legacy_mode != state2.neighbor_color_legacy_mode:
             err = "Error: CompositeLifeState received states with different neighbor_color_legacy_mode settings"
             raise Exception(err)
@@ -105,6 +129,8 @@ class BinaryLifeState(LifeState):
             color2_neighbors,
             self.statelist1,
             self.statelist2,
+            self.rule_b,
+            self.rule_s,
             self.neighbor_color_legacy_mode,
         )
 
@@ -115,5 +141,7 @@ class BinaryLifeState(LifeState):
             color2_dead_neighbors,
             self.statelist1,
             self.statelist2,
+            self.rule_b,
+            self.rule_s,
             self.neighbor_color_legacy_mode,
         )

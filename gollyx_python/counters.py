@@ -22,9 +22,14 @@ class XCounterStore(object):
         else:
             self.mapp[x] += 1
 
-    def filter(self, lo, hi):
+    def filter_lohi(self, lo, hi):
         for x in list(self.mapp.keys()):
             if not (self.mapp[x] >= lo and self.mapp[x] <= hi):
+                del self.mapp[x]
+
+    def filter_values(self, bag):
+        for x in list(self.mapp.keys()):
+            if not (self.mapp[x] in bag):
                 del self.mapp[x]
 
     def count(self, x):
@@ -77,10 +82,18 @@ class XYCounterStore(object):
         xstore = self.mapp[y]
         return xstore.sorted_values()
 
-    def filter(self, lo, hi):
+    def filter_lohi(self, lo, hi):
         """Filter all counts in this XYCounterStore to values that are between lo and hi"""
         for y in list(self.mapp.keys()):
-            self.mapp[y].filter(lo, hi)
+            self.mapp[y].filter_lohi(lo, hi)
+            x_values = self.mapp[y].mapp
+            if len(x_values) == 0:
+                del self.mapp[y]
+
+    def filter_values(self, bag):
+        """Filter all counts in this XYCounterStore to values that are between lo and hi"""
+        for y in list(self.mapp.keys()):
+            self.mapp[y].filter_values(bag)
             x_values = self.mapp[y].mapp
             if len(x_values) == 0:
                 del self.mapp[y]

@@ -16,6 +16,9 @@ class BinaryLife(object):
     columns = 0
     rows = 0
 
+    row_b: list = []
+    row_s: list = []
+
     found_victor: bool = False
     running: bool = False
     neighbor_color_legacy_mode: bool = False
@@ -26,13 +29,19 @@ class BinaryLife(object):
         ic2: dict,
         rows: int,
         columns: int,
+        rule_b: list,
+        rule_s: list,
         halt: bool = True,
         neighbor_color_legacy_mode: bool = False,
     ):
         self.ic1 = ic1
         self.ic2 = ic2
+
         self.rows = rows
         self.columns = columns
+
+        self.rule_b = rule_b
+        self.rule_s = rule_s
 
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
@@ -44,8 +53,8 @@ class BinaryLife(object):
         self.generation = 0
         self.stats = LifeStats(self)
 
-        self.actual_state1 = LifeState(rows, columns, neighbor_color_legacy_mode)
-        self.actual_state2 = LifeState(rows, columns, neighbor_color_legacy_mode)
+        self.actual_state1 = LifeState(rows, columns, self.rule_b, self.rule_s, neighbor_color_legacy_mode)
+        self.actual_state2 = LifeState(rows, columns, self.rule_b, self.rule_s, neighbor_color_legacy_mode)
         self.actual_state = BinaryLifeState(self.actual_state1, self.actual_state2)
 
         self.prepare()
@@ -70,28 +79,6 @@ class BinaryLife(object):
 
         self.get_stats()
         self.stats.update_moving_avg()
-
-    def get_color_from_alive(self, x, y):
-        """
-        This function seems redundant, but is slightly different.
-        The above function is for dead cells that become alive.
-        This function is for dead cells that come alive because of THOSE cells.
-        """
-        color1 = self.actual_state1.get_color_count(x, y)
-        color2 = self.actual_state2.get_color_count(x, y)
-
-        if color1 > color2:
-            return 1
-        elif color1 < color2:
-            return 2
-        else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-            return color
 
     def next_step(self):
         """Advance the state of the simulator forward by one time step"""

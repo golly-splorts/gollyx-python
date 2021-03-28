@@ -1281,6 +1281,8 @@ class LifeList(object):
         color2_neighbors,
         s1,
         s2,
+        rule_b,
+        rule_s,
         neighbor_color_legacy_mode=False,
     ):
         """
@@ -1291,7 +1293,7 @@ class LifeList(object):
             return
 
         # Alive neighbors only stay alive if they have 2 or 3 alive neighbors
-        alive_neighbors.filter(2, 3)
+        alive_neighbors.filter_values(rule_s)
 
         # If cells are dead we remove them from self
         # If cells are still alive we add them to new state 1 or 2
@@ -1306,7 +1308,7 @@ class LifeList(object):
             while xrunner is not None:
                 x = xrunner.data
                 c = alive_neighbors.count(x, y)
-                if c != 2 and c != 3:
+                if c not in rule_s:
                     # Remove point from binary life and color life
                     self.remove(x, y)
                     s1.remove(x, y)
@@ -1347,6 +1349,8 @@ class LifeList(object):
         color2_dead_neighbors,
         s1,
         s2,
+        rule_b,
+        rule_s,
         neighbor_color_legacy_mode=False,
     ):
         """
@@ -1356,7 +1360,7 @@ class LifeList(object):
             return
 
         # Dead neighbors only come alive if they have exactly 3 alive neighbors
-        dead_neighbors.filter(3, 3)
+        dead_neighbors.filter_values(rule_b)
 
         # Then, iterate over dead neighbor counts
         # Insert new cells into binary state

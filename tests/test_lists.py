@@ -362,7 +362,7 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(color2_neighbors.count(1, 2), 0)
         self.assertEqual(color2_neighbors.count(1, 3), 1)
 
-    def test_dead_neighbors_filter(self):
+    def test_dead_neighbors_filter_lohi(self):
 
         binary, s1, s2 = two_spinners_fixture()
 
@@ -375,7 +375,44 @@ class ListsTest(unittest.TestCase):
             color2_neighbors,
         ) = binary.get_all_neighbor_counts(s1, s2)
 
-        dead_neighbors.filter(3, 3)
+        dead_neighbors.filter_lohi(3, 3)
+
+        self.assertEqual(dead_neighbors.count(0, 0), 0)
+        self.assertEqual(dead_neighbors.count(1, 0), 0)
+        self.assertEqual(dead_neighbors.count(2, 0), 0)
+
+        self.assertEqual(dead_neighbors.count(0, 1), 0)
+        self.assertEqual(dead_neighbors.count(1, 1), 0)
+        self.assertEqual(dead_neighbors.count(2, 1), 0)
+
+        self.assertEqual(dead_neighbors.count(0, 2), 3)
+        self.assertEqual(dead_neighbors.count(2, 2), 3)
+
+        self.assertEqual(dead_neighbors.count(0, 3), 0)
+        self.assertEqual(dead_neighbors.count(1, 3), 0)
+        self.assertEqual(dead_neighbors.count(2, 3), 0)
+
+        self.assertEqual(dead_neighbors.count(0, 4), 0)
+        self.assertEqual(dead_neighbors.count(1, 4), 0)
+        self.assertEqual(dead_neighbors.count(2, 4), 0)
+
+        self.assertEqual(dead_neighbors.count(9, 16), 3)
+        self.assertEqual(dead_neighbors.count(11, 16), 3)
+
+    def test_dead_neighbors_filter_values(self):
+
+        binary, s1, s2 = two_spinners_fixture()
+
+        (
+            dead_neighbors,
+            color1_dead_neighbors,
+            color2_dead_neighbors,
+            alive_neighbors,
+            color1_neighbors,
+            color2_neighbors,
+        ) = binary.get_all_neighbor_counts(s1, s2)
+
+        dead_neighbors.filter_values([3])
 
         self.assertEqual(dead_neighbors.count(0, 0), 0)
         self.assertEqual(dead_neighbors.count(1, 0), 0)
@@ -400,6 +437,9 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(dead_neighbors.count(11, 16), 3)
 
     def test_twostep(self):
+
+        rule_b = [3]
+        rule_s = [2, 3]
 
         binary, s1, s2 = two_spinners_fixture()
 
@@ -429,11 +469,11 @@ class ListsTest(unittest.TestCase):
         ) = binary.get_all_neighbor_counts(s1, s2)
 
         binary.alive_to_dead(
-            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
         )
 
         binary.dead_to_alive(
-            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
         )
 
         self.assertTrue(binary.contains(0, 2))
@@ -476,12 +516,12 @@ class ListsTest(unittest.TestCase):
         ) = binary.get_all_neighbor_counts(s1, s2)
 
         binary.alive_to_dead(
-            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
         )
 
         # The bug is in dead to alive
         binary.dead_to_alive(
-            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
         )
 
         # binary is not in sorted order,
@@ -513,6 +553,9 @@ class ListsTest(unittest.TestCase):
 
     def test_pi_methuselah_twosteps(self):
 
+        rule_b = [3]
+        rule_s = [2, 3]
+
         binary, s1, s2 = multicolor_pi_fixture()
 
         self.assertEqual(binary.ncells, 7)
@@ -534,7 +577,7 @@ class ListsTest(unittest.TestCase):
         ) = binary.get_all_neighbor_counts(s1, s2)
 
         binary.alive_to_dead(
-            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
         )
 
         self.assertEqual(binary.ncells, 4)
@@ -547,7 +590,7 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(s2.ncellsongrid, 1)
 
         binary.dead_to_alive(
-            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
         )
 
         self.assertEqual(binary.ncells, 7)
@@ -597,11 +640,11 @@ class ListsTest(unittest.TestCase):
         ) = binary.get_all_neighbor_counts(s1, s2)
 
         binary.alive_to_dead(
-            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
         )
 
         binary.dead_to_alive(
-            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
         )
 
         self.assertTrue(binary.contains(2, 0))
@@ -644,6 +687,9 @@ class ListsTest(unittest.TestCase):
 
         # https://golly.life/simulator/index.html?s1=[{%2230%22:[50,51,54,55,56]},{%2231%22:[53]},{%2232%22:[51]}]&s2=[{%2290%22:[25]},{%2291%22:[27]},{%2292%22:[24,25,28,29,30]}]
 
+        rule_b = [3]
+        rule_s = [2, 3]
+
         binary, s1, s2 = two_acorn_fixture()
 
         self.assertEqual(binary.size, 6)
@@ -666,7 +712,7 @@ class ListsTest(unittest.TestCase):
         ) = binary.get_all_neighbor_counts(s1, s2)
 
         binary.alive_to_dead(
-            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+            alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
         )
 
         self.assertEqual(binary.size, 2)
@@ -682,7 +728,7 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(s2.ncellsongrid, 2)
 
         binary.dead_to_alive(
-            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+            dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
         )
 
         self.assertEqual(binary.size, 6)
@@ -698,6 +744,9 @@ class ListsTest(unittest.TestCase):
         self.assertEqual(s2.ncellsongrid, 8)
 
     def test_multicolor_crux(self):
+
+        rule_b = [3]
+        rule_s = [2, 3]
 
         binary, s1, s2 = multicolor_crux_fixture()
 
@@ -737,11 +786,11 @@ class ListsTest(unittest.TestCase):
             ) = binary.get_all_neighbor_counts(s1, s2)
 
             binary.alive_to_dead(
-                alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+                alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
             )
 
             binary.dead_to_alive(
-                dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+                dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
             )
 
             self.assertEqual(binary.ncells, totalcount)
@@ -754,6 +803,9 @@ class ListsTest(unittest.TestCase):
             self.assertEqual(s2.ncellsongrid, s2count)
 
     def test_bigass_random(self):
+
+        rule_b = [3]
+        rule_s = [2, 3]
 
         binary, s1, s2 = bigass_random_fixture()
 
@@ -790,11 +842,11 @@ class ListsTest(unittest.TestCase):
             ) = binary.get_all_neighbor_counts(s1, s2)
 
             binary.alive_to_dead(
-                alive_neighbors, color1_neighbors, color2_neighbors, s1, s2
+                alive_neighbors, color1_neighbors, color2_neighbors, s1, s2, rule_b, rule_s
             )
 
             binary.dead_to_alive(
-                dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2
+                dead_neighbors, color1_dead_neighbors, color2_dead_neighbors, s1, s2, rule_b, rule_s
             )
 
             # When we manually check s1, it has the correct number of cells

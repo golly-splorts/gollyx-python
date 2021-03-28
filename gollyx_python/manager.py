@@ -6,6 +6,8 @@ class GOL(object):
     team_names: list = []
     columns = 0
     rows = 0
+    rule_b: list = []
+    rule_s: list = []
 
     def __init__(self, **kwargs):
         self.load_config(**kwargs)
@@ -62,6 +64,15 @@ class GOL(object):
                 "ERROR: rows and columns parameters must be provided to GOL constructor"
             )
 
+        if "rule_b" in kwargs:
+            self.rule_b = [int(j) for j in kwargs['rule_b']]
+        else:
+            self.rule_b = [3]
+        if "rule_s" in kwargs:
+            self.rule_s = [int(j) for j in kwargs['rule_s']]
+        else:
+            self.rule_s = [2, 3]
+
         if "team1" in kwargs and "team2" in kwargs:
             self.team_names = [kwargs["team1"], kwargs["team2"]]
         else:
@@ -82,24 +93,26 @@ class GOL(object):
 
     def create_life(self):
         try:
-            s1 = json.loads(self.ic1)
+            ic1 = json.loads(self.ic1)
         except json.decoder.JSONDecodeError:
             err = "Error: Could not load data as json:\n"
             err += self.ic1
             raise Exception(err)
 
         try:
-            s2 = json.loads(self.ic2)
+            ic2 = json.loads(self.ic2)
         except json.decoder.JSONDecodeError:
             err = "Error: Could not load data as json:\n"
             err += self.ic1
             raise Exception(err)
 
         self.life = BinaryLife(
-            s1,
-            s2,
+            ic1,
+            ic2,
             self.rows,
             self.columns,
+            self.rule_b,
+            self.rule_s,
             self.neighbor_color_legacy_mode
         )
 
