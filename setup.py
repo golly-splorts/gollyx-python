@@ -14,7 +14,7 @@ with open(os.path.join(this_directory, 'Readme.md'), encoding='utf-8') as f:
 
 # Note: the _program variable is set in __init__.py.
 # it determines the name of the command line tool.
-from golly_python import __version__
+from gollyx_python import __version__
 
 setup(
     name='gollyx-python',
