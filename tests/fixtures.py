@@ -1,5 +1,5 @@
 import json
-from golly_python.linkedlists import LifeList
+from gollyx_python.linkedlists import LifeList
 
 
 def two_spinners_fixture():

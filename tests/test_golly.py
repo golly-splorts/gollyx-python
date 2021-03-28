@@ -1,4 +1,4 @@
-import golly_python
+import gollyx_python
 import unittest
 from .fixtures import (
     twoacorn_100_120_finegrained_gold,
@@ -13,7 +13,7 @@ class GollyPythonTest(unittest.TestCase):
     COLS = 100
 
     def test_constructor(self):
-        golly_python.GOL(
+        gollyx_python.GOL(
             s1 = self.STATE1,
             s2 = self.STATE2,
             rows = self.ROWS,
@@ -24,7 +24,7 @@ class GollyPythonTest(unittest.TestCase):
         """
         Check that we can step through the algorithm several times without errors
         """
-        gol = golly_python.GOL(
+        gol = gollyx_python.GOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -37,7 +37,7 @@ class GollyPythonTest(unittest.TestCase):
         """
         Check the actual results of the calculations against known good results
         """
-        gol = golly_python.GOL(
+        gol = gollyx_python.GOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -64,7 +64,7 @@ class GollyPythonTest(unittest.TestCase):
         if True:
             return True
 
-        gol = golly_python.GOL(
+        gol = gollyx_python.GOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -114,7 +114,7 @@ class GollyPythonTest(unittest.TestCase):
 
     def test_life_200_240_finegrained(self):
 
-        gol = golly_python.GOL(
+        gol = gollyx_python.GOL(
             s1 = '[{"49":[176,177,180,181,182]},{"50":[179]},{"51":[177]}]',
             s2 = '[{"149":[114]},{"150":[116]},{"151":[113,114,117,118,119]}]',
             rows=200,
@@ -135,7 +135,7 @@ class GollyPythonTest(unittest.TestCase):
         if True:
             return True
 
-        gol = golly_python.GOL(
+        gol = gollyx_python.GOL(
             s1 = '[{"49":[176,177,180,181,182]},{"50":[179]},{"51":[177]}]',
             s2 = '[{"149":[114]},{"150":[116]},{"151":[113,114,117,118,119]}]',
             rows=200,

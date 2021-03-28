@@ -1,4 +1,4 @@
-from golly_python.pylife import GOL
+from gollyx_python.pylife import GOL
 
 def main():
     gol = GOL(

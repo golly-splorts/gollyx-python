@@ -1,6 +1,6 @@
-import golly_python
+import gollyx_python
 import unittest
-from golly_python.linkedlists import ListBase, SortedRowList, LifeList
+from gollyx_python.linkedlists import ListBase, SortedRowList, LifeList
 from .fixtures import (
     two_spinners_fixture,
     multicolor_pi_fixture,

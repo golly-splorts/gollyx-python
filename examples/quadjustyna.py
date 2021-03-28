@@ -1,7 +1,7 @@
 import time
 from pprint import pprint
-#from golly_python.pylife import GOL
-from golly_python.manager import GOL
+#from gollyx_python.pylife import GOL
+from gollyx_python.manager import GOL
 
 
 #s1 = '[{"18":[50]},{"19":[49,50]},{"29":[39]},{"30":[39]},{"31":[39]},{"34":[54]},{"35":[52,53,55]},{"36":[48,49,50,53]},{"37":[40,53,54]},{"38":[40,52]},{"39":[40]},{"60":[64]},{"61":[63,64]},{"71":[53]},{"72":[53]},{"73":[53]},{"76":[68]},{"77":[66,67,69]},{"78":[62,63,64,67]},{"79":[54,67,68]},{"80":[54,66]},{"81":[54]}]'

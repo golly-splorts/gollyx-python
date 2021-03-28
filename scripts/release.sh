@@ -3,7 +3,7 @@
 set -euo pipefail
 set -x
 
-REMOTE="gh"
+REMOTE="ghx"
 
 if [ -z "${GOLLY_PYTHON_HOME}" ]; then
 	echo 'You must set the $GOLLY_PYTHON_HOME environment variable to proceed.'
