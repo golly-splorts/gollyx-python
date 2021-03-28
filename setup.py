@@ -8,9 +8,8 @@ with open('requirements-dev.txt') as f:
     required_dev = [x for x in f.read().splitlines() if not x.startswith("#")]
 
 # read the contents of your README file
-from os import path
-this_directory = path.abspath(path.dirname(__file__))
-with open(path.join(this_directory, 'Readme.md'), encoding='utf-8') as f:
+this_directory = os.path.abspath(os.path.dirname(__file__))
+with open(os.path.join(this_directory, 'Readme.md'), encoding='utf-8') as f:
     long_description = f.read()
 
 # Note: the _program variable is set in __init__.py.
@@ -18,10 +17,10 @@ with open(path.join(this_directory, 'Readme.md'), encoding='utf-8') as f:
 from golly_python import __version__
 
 setup(
-    name='golly-python',
+    name='gollyx-python',
     version=__version__,
-    packages=['golly_python'],
-    description='golly-python is a package for running Game of Life simulations for Golly',
+    packages=['gollyx_python'],
+    description='gollyx-python is a package for running experimental cellular autonoma simulations for GollyX',
     url='https://golly.life',
     author='Ch4zm of Hellmouth',
     author_email='ch4zm.of.hellmouth@gmail.com',
