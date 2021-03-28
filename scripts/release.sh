@@ -5,8 +5,8 @@ set -x
 
 REMOTE="gh"
 
-if [ -z "${GOLLY_PYTHON_HOME}" ]; then
-	echo 'You must set the $GOLLY_PYTHON_HOME environment variable to proceed.'
+if [ -z "${GOLLYX_PYTHON_HOME}" ]; then
+	echo 'You must set the $GOLLYX_PYTHON_HOME environment variable to proceed.'
 	exit 1
 fi
 
