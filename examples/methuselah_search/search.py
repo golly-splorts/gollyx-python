@@ -30,8 +30,16 @@ def all_elements_equal(a):
 
 
 class Search(object):
-    def __init__(self):
-        self.results_file = os.path.join(HERE, "results.json")
+    def __init__(self, n_alive_cells, w, h, xoffset, yoffset):
+        self.n_alive_cells = n_alive_cells
+        self.w = w
+        self.h = h
+        self.xoff = xoffset
+        self.yoff = yoffset
+
+        self.results_file = os.path.join(
+            HERE, "results_n%d_w%d_h%d.json" % (n_alive_cells, w, h)
+        )
         self.results = {}
 
     def coordinates_to_json(self, coordinates, xoffset=0, yoffset=0):
@@ -150,26 +158,6 @@ class Search(object):
                 irow = ix_1d // w
                 icol = ix_1d % w
                 points_list.append((irow, icol))
-
-            # [{"0":[0,1],"1":[0],"2":[0],"3":[0]}]
-            # [{"0":[0],"1":[0],"2":[0],"3":[0,1]}]
-            # z1 = [
-            #    (0, 0),
-            #    (1, 0),
-            #    (0, 1),
-            #    (0, 2),
-            #    (0, 3)
-            # ]
-            # z2 = [
-            #    (0, 0),
-            #    (0, 1),
-            #    (0, 2),
-            #    (0, 3),
-            #    (1, 3)
-            # ]
-            # if lists_equal(points_list, z2):
-            #    import pdb; pdb.set_trace()
-            #    a = 0
             if not self.is_invariant_rotation(points_list, xoffset, yoffset):
                 result = self.coordinates_to_json(points_list, xoffset, yoffset)
                 yield result
@@ -218,16 +206,18 @@ class Search(object):
             return True
 
     def main(self):
-        n_alive_cells = 5
-        w = 5
-        h = 5
+        n_alive_cells = self.n_alive_cells
+        w = self.w
+        h = self.h
+        xoff = self.xoff
+        yoff = self.yoff
 
         if os.path.exists(self.results_file):
             with open(self.results_file, "r") as f:
                 self.results = json.load(f)
 
         coordinate_generator = self.generate_methuselah_candidates(
-            n_alive_cells, w, h, xoffset=0, yoffset=0
+            n_alive_cells, w, h, xoffset=xoff, yoffset=yoff
         )
         for coordinates_json in coordinate_generator:
             outcome = self.check_for_methuselah(coordinates_json, n_alive_cells)
@@ -242,5 +232,5 @@ class Search(object):
 
 
 if __name__ == "__main__":
-    s = Search()
+    s = Search(5, 6, 6, 30, 30)
     s.main()
