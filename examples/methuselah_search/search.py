@@ -181,8 +181,18 @@ class Search(object):
         window = [
             0,
         ] * static_gens
-        for istep in range(40):
+        stop_early = False
+        for istep in range(50):
             livecounts = gol.next_step()
+
+            # Get state 1 as json
+            blife = gol.life
+            s1 = blife.actual_state1
+            s1json = s1.statelist.serialize()
+            if s1json in self.results.keys():
+                stop_early = True
+                break
+
             if livecounts["liveCells1"] == 0:
                 # died too early
                 return False
@@ -190,18 +200,31 @@ class Search(object):
                 # keep going
                 window[istep] = livecounts["liveCells1"]
             else:
-                # check that pattern is not static for N generations
+                # update the sliding window of live cell counts
                 window = window[1:static_gens] + [livecounts["liveCells1"]]
+
+                # check if number of cells has been the same for N generations
                 if all_elements_equal(window):
-                    if livecounts["liveCells1"] <= n_alive_cells + 8:
+
+                    # if we reached steady state, ensure it takes at least 20 generations
+                    if istep < 25:
                         return False
 
-        # We made it through 40 iterations without stopping
-        # If we have enough cells in the end, this could be a methuselah
-        if livecounts["liveCells1"] < n_alive_cells + 1:
-            # Not enough cells
+                    # if we reached steady state, ensure have at least K times the original cells
+                    K = 3
+                    if livecounts["liveCells1"] <= K*n_alive_cells:
+                        return False
+
+
+        if stop_early:
+            # We already reached a state we have seen before
+            return False
+        elif livecounts["liveCells1"] < n_alive_cells + 1:
+            # We made it through 40 iterations without stopping
+            # but not enough cells
             return False
         else:
+            # We made it through 40 iterations without stopping
             # Yup, hello methuselah
             return True
 
@@ -227,10 +250,27 @@ class Search(object):
                     "http://192.168.30.20:8888/simulator/index.html?s1="
                     + coordinates_json
                 )
+                # Only write to file every once and a while
                 with open(self.results_file, "w") as f:
                     json.dump(self.results, f, indent=4)
 
-
 if __name__ == "__main__":
-    s = Search(5, 6, 6, 30, 30)
+
+    print("")
+    print("=============================================")
+    print("=========  working on 5-cell methuselahs ====")
+    print("=============================================")
+
+    s = Search(5, 5, 5, 30, 30)
     s.main()
+
+    print("")
+    print("=============================================")
+    print("=========  working on 6-cell methuselahs ====")
+    print("=============================================")
+
+    s = Search(6, 5, 5, 30, 30)
+    s.main()
+
+    #s = Search(7, 5, 5, 30, 30)
+    #s.main()
