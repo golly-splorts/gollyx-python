@@ -464,8 +464,8 @@ class SortedRowList(OldSortedRowList):
         else:
             # x is in points_map but is not in the list
             import pdb; pdb.set_trace()
-            raise Exception()
 
+            raise Exception()
 
 class RowNode(NodeBase):
     __slots__ = ["data", "next_node"]
