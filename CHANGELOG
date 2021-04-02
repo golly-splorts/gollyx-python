@@ -1,3 +1,7 @@
+Version 18.0:
+
+* Fix halt condition
+
 Version 17.0:
 
 * Switch to linked list data structure (faster)
