@@ -122,6 +122,9 @@ class GOL(object):
     def count(self):
         return self.life.get_stats()
 
+    def check_for_victor(self):
+        return self.life.check_for_victor()
+
     @property
     def running(self):
         return self.life.running
