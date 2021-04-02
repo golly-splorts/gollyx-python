@@ -95,7 +95,7 @@ class BinaryLife(object):
         """Advance the state of the simulator forward by one time step"""
         if self.running is False:
             return self.get_stats()
-        elif self.halt and self.found_victor:
+        elif self.halt and self.check_for_victor():
             self.running = False
             return self.get_stats()
         else:
