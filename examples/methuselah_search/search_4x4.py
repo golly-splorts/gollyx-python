@@ -30,16 +30,25 @@ def all_elements_equal(a):
 
 
 class Search(object):
-    def __init__(self, n_alive_cells, w, h, xoffset, yoffset):
+    def __init__(self, n_alive_cells, w, h, xoffset, yoffset, ngens):
         self.n_alive_cells = n_alive_cells
         self.w = w
         self.h = h
         self.xoff = xoffset
         self.yoff = yoffset
+        self.ngens = ngens
 
         self.results_file = os.path.join(
             HERE, "results_n%d_w%d_h%d.json" % (n_alive_cells, w, h)
         )
+        self.resultsm1_file = os.path.join(
+            HERE, "results_n%d_w%d_h%d.json" % (n_alive_cells - 1, w, h)
+        )
+        if os.path.exists(self.resultsm1_file):
+            with open(self.resultsm1_file, "r") as f:
+                self.resultsm1 = json.load(f)
+        else:
+            self.resultsm1 = {}
         self.results = {}
 
     def coordinates_to_json(self, coordinates, xoffset=0, yoffset=0):
@@ -162,7 +171,7 @@ class Search(object):
                 result = self.coordinates_to_json(points_list, xoffset, yoffset)
                 yield result
 
-    def check_for_methuselah(self, s1_json, n_alive_cells):
+    def check_for_methuselah(self, s1_json, n_alive_cells, ngens):
         rule_b = [3, 5, 7]
         rule_s = [2, 3, 8]
 
@@ -185,17 +194,21 @@ class Search(object):
         for istep in range(50):
             livecounts = gol.next_step()
 
+            if livecounts["liveCells1"] == 0:
+                # died too early
+                return False
+
             # Get state 1 as json
             blife = gol.life
             s1 = blife.actual_state1
             s1json = s1.statelist.serialize()
-            if s1json in self.results.keys():
-                stop_early = True
+
+            if (livecounts["liveCells1"] == self.n_alive_cells - 1) and (
+                s1json in self.resultsm1
+            ):
+                # We already dealt with this state
                 break
 
-            if livecounts["liveCells1"] == 0:
-                # died too early
-                return False
             if istep < static_gens:
                 # keep going
                 window[istep] = livecounts["liveCells1"]
@@ -206,15 +219,14 @@ class Search(object):
                 # check if number of cells has been the same for N generations
                 if all_elements_equal(window):
 
-                    # if we reached steady state, ensure it takes at least 20 generations
-                    if istep < 25:
+                    # if we reached steady state, ensure it takes a while
+                    if istep < ngens//10:
                         return False
 
                     # if we reached steady state, ensure have at least K times the original cells
                     K = 3
-                    if livecounts["liveCells1"] <= K*n_alive_cells:
+                    if livecounts["liveCells1"] <= K * n_alive_cells:
                         return False
-
 
         if stop_early:
             # We already reached a state we have seen before
@@ -234,6 +246,7 @@ class Search(object):
         h = self.h
         xoff = self.xoff
         yoff = self.yoff
+        ngens = self.ngens
 
         if os.path.exists(self.results_file):
             with open(self.results_file, "r") as f:
@@ -243,7 +256,7 @@ class Search(object):
             n_alive_cells, w, h, xoffset=xoff, yoffset=yoff
         )
         for coordinates_json in coordinate_generator:
-            outcome = self.check_for_methuselah(coordinates_json, n_alive_cells)
+            outcome = self.check_for_methuselah(coordinates_json, n_alive_cells, ngens)
             self.results[coordinates_json] = outcome
             if outcome:
                 print(
@@ -254,6 +267,7 @@ class Search(object):
                 with open(self.results_file, "w") as f:
                     json.dump(self.results, f, indent=4)
 
+
 if __name__ == "__main__":
 
     print("")
@@ -261,7 +275,14 @@ if __name__ == "__main__":
     print("=========  working on 5-cell methuselahs ====")
     print("=============================================")
 
-    s = Search(5, 5, 5, 30, 30)
+    s = Search(
+        n_alive_cells=5,
+        w=4,
+        h=4,
+        xoffset=30,
+        yoffset=30,
+        ngens=100
+    )
     s.main()
 
     print("")
@@ -269,8 +290,57 @@ if __name__ == "__main__":
     print("=========  working on 6-cell methuselahs ====")
     print("=============================================")
 
-    s = Search(6, 5, 5, 30, 30)
+    s = Search(
+        n_alive_cells=6,
+        w=4,
+        h=4,
+        xoffset=30,
+        yoffset=30,
+        ngens=200
+    )
     s.main()
 
-    #s = Search(7, 5, 5, 30, 30)
-    #s.main()
+    print("")
+    print("=============================================")
+    print("=========  working on 7-cell methuselahs ====")
+    print("=============================================")
+
+    s = Search(
+        n_alive_cells=7,
+        w=4,
+        h=4,
+        xoffset=30,
+        yoffset=30,
+        ngens=300
+    )
+    s.main()
+
+    print("")
+    print("=============================================")
+    print("=========  working on 8-cell methuselahs ====")
+    print("=============================================")
+
+    s = Search(
+        n_alive_cells=8,
+        w=4,
+        h=4,
+        xoffset=30,
+        yoffset=30,
+        ngens=300
+    )
+    s.main()
+
+    print("")
+    print("=============================================")
+    print("=========  working on 9-cell methuselahs ====")
+    print("=============================================")
+
+    s = Search(
+        n_alive_cells=9,
+        w=4,
+        h=4,
+        xoffset=30,
+        yoffset=30,
+        ngens=400
+    )
+    s.main()
