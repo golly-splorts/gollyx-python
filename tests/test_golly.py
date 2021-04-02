@@ -7,7 +7,7 @@ from .fixtures import (
 )
 
 
-class GollyPythonTest(unittest.TestCase):
+class GollyXPythonTest(unittest.TestCase):
     STATE1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]'
     STATE2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]'
     ROWS = 120
@@ -206,7 +206,7 @@ class GollyPythonTest(unittest.TestCase):
         # Justyna methuselah
         s1, s2 = get_justyna_fixture()
 
-        gol = golly_python.GOL(
+        gol = gollyx_python.GOL(
             s1 = s1,
             s2 = s2,
             rows = 100,
