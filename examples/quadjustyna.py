@@ -20,12 +20,15 @@ def main():
         neighbor_color_legacy_mode = False
     )
 
-    print("NOTE: This simulations should stop at generation 757.")
+    print("NOTE: This simulations should stop at generation 1305.")
     while gol.running:
         live_counts = gol.next_step()
         if gol.generation % 100 == 0:
             print(f"Generation {gol.generation}")
             pprint(gol.count())
+
+    print("Should be 1305:")
+    print(gol.generation)
 
 
 if __name__=="__main__":
