@@ -1,6 +1,7 @@
 import golly_python
 import unittest
 from .fixtures import (
+    get_justyna_fixture,
     twoacorn_100_120_finegrained_gold,
     twoacorn_200_240_finegrained_gold,
 )
@@ -178,3 +179,23 @@ class GollyPythonTest(unittest.TestCase):
         self.assertEqual(live_counts['liveCells'], 617)
         self.assertEqual(live_counts['liveCells1'], 262)
         self.assertEqual(live_counts['liveCells2'], 355)
+
+    def test_halt_critera(self):
+        # Justyna methuselah
+        s1, s2 = get_justyna_fixture()
+
+        gol = golly_python.GOL(
+            s1 = s1,
+            s2 = s2,
+            rows = 100,
+            columns = 120,
+            neighbor_color_legacy_mode = False
+        )
+
+        while gol.running:
+            live_counts = gol.next_step()
+
+        self.assertEqual(gol.generation, 1305)
+        self.assertEqual(live_counts['liveCells'], 242)
+        self.assertEqual(live_counts['liveCells1'], 141)
+        self.assertEqual(live_counts['liveCells2'], 101)

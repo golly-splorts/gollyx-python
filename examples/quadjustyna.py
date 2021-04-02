@@ -29,6 +29,7 @@ def main():
 
     print("Should be 1305:")
     print(gol.generation)
+    print(live_counts)
 
 
 if __name__=="__main__":
