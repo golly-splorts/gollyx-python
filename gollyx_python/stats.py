@@ -14,9 +14,13 @@ class LifeStats(object):
     livecells1 = 0
     livecells2 = 0
     victory = 0.0
+    who_won = 0
     coverage = 0.0
     territory1 = 0.0
     territory2 = 0.0
+
+    found_victor: bool = False
+
     running_avg_window: MovingAvgList
     running_avg_last3: MovingAvgList
 
@@ -29,9 +33,9 @@ class LifeStats(object):
         self.columns = life.columns
         self.running_avg_window = MovingAvgList()
         self.running_avg_last3 = MovingAvgList()
+        self.found_victor = False
 
     def get_live_counts(self, state, state1, state2, generation):
-
 
         livecells = self.livecells = state.count_live_cells()
         livecells1 = self.livecells1 = state1.count_live_cells()
@@ -61,7 +65,7 @@ class LifeStats(object):
         )
 
     def update_moving_avg(self):
-        if not self.life.found_victor:
+        if not self.found_victor:
             if self.life.generation < MAXDIM:
                 self.running_avg_window.push_back(self.victory)
             else:
@@ -92,8 +96,8 @@ class LifeStats(object):
                         if (not (z1 or z2 or z3)) or zerocells:
                             # Declare victory in the life object
                             if self.livecells1 > self.livecells2:
-                                self.life.found_victor = True
-                                self.life.who_won = 1
+                                self.found_victor = True
+                                self.who_won = 1
                             elif self.livecells1 < self.livecells2:
-                                self.life.found_victor = True
-                                self.life.who_won = 2
+                                self.found_victor = True
+                                self.who_won = 2

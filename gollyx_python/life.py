@@ -19,7 +19,6 @@ class BinaryLife(object):
     row_b: list = []
     row_s: list = []
 
-    found_victor: bool = False
     running: bool = False
     neighbor_color_legacy_mode: bool = False
 
@@ -47,7 +46,6 @@ class BinaryLife(object):
 
         # Whether to stop when a victor is detected
         self.halt = halt
-        self.found_victor = False
 
         self.running = True
         self.generation = 0
@@ -84,7 +82,7 @@ class BinaryLife(object):
         """Advance the state of the simulator forward by one time step"""
         if self.running is False:
             return self.get_stats()
-        elif self.halt and self.found_victor:
+        elif self.halt and self.check_for_victor():
             self.running = False
             return self.get_stats()
         else:
@@ -92,7 +90,15 @@ class BinaryLife(object):
             live_counts = self._next_generation()
             # Method above will call stats.get_live_counts()
             self.stats.update_moving_avg()
+            if self.check_for_victor():
+                self.running = False
             return live_counts
+
+    def check_for_victor(self):
+        if self.stats.found_victor:
+            return True
+        else:
+            return 0
 
     def _next_generation(self):
         """
