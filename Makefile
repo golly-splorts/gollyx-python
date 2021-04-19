@@ -26,7 +26,7 @@ build: clean
 	python3 setup.py build install
 
 test: requirements-dev build
-	pytest
+	pytest -vs
 
 release_main:
 	@echo "Releasing current branch $(CB) to main"
