@@ -21,6 +21,7 @@ class GOL(object):
     running_avg_window: list = []
     running_avg_last3: list = [0.0, 0.0, 0.0]
     running = False
+    periodic = False
 
     def __init__(self, **kwargs):
         """Constructor just sets everything up"""
@@ -97,6 +98,11 @@ class GOL(object):
             self.neighbor_color_legacy_mode = kwargs["neighbor_color_legacy_mode"]
         else:
             self.neighbor_color_legacy_mode = False
+
+        if "periodic" in kwargs:
+            self.periodic = True
+        else:
+            self.periodic = False
 
     def load_state(self):
         """
@@ -181,6 +187,10 @@ class GOL(object):
         """
         Boolean function: is the cell at x, y alive
         """
+        if self.periodic:
+            x = (x + self.columns)%(self.columns)
+            y = (y + self.rows)%(self.rows)
+
         for row in self.actual_state:
             if row[0] == y:
                 for c in row[1:]:
@@ -193,6 +203,10 @@ class GOL(object):
         """
         Get the color of the given cell (1 or 2)
         """
+        if self.periodic:
+            x = (x + self.columns)%(self.columns)
+            y = (y + self.rows)%(self.rows)
+
         for row in self.actual_state1:
             if row[0] == y:
                 for c in row[1:]:
@@ -215,6 +229,10 @@ class GOL(object):
         """
         Remove the given cell from the given listlife state
         """
+        if self.periodic:
+            x = (x + self.columns)%(self.columns)
+            y = (y + self.rows)%(self.rows)
+
         for i, row in enumerate(state):
             if row[0] == y:
                 if len(row) == 2:
@@ -233,6 +251,10 @@ class GOL(object):
           [y2, x5, x6, x7, x8, x9]
           [y3, x10]
         """
+        if self.periodic:
+            x = (x + self.columns)%(self.columns)
+            y = (y + self.rows)%(self.rows)
+
         # Empty state case
         if len(state) == 0:
             return [[y, x]]
@@ -286,19 +308,45 @@ class GOL(object):
         neighbors1 = 0
         neighbors2 = 0
 
+        xm1 = x - 1
+        ym1 = y - 1
+
+        xp1 = x + 1
+        yp1 = y + 1
+
+        periodic = self.periodic
+        if periodic:
+            x = (x + self.columns)%(self.columns)
+            y = (y + self.rows)%(self.rows)
+
+            xm1 = ((x-1) + self.columns)%(self.columns)
+            ym1 = ((y-1) + self.rows)%(self.rows)
+
+            xp1 = ((x+1) + self.columns)%(self.columns)
+            yp1 = ((y+1) + self.rows)%(self.rows)
+
+        xstencilmin = min(xm1, x, xp1)
+        xstencilmax = max(xm1, x, xp1)
+
+        ystencilmin = min(ym1, y, yp1)
+        ystencilmax = max(ym1, y, yp1)
+
         # 1 row above current cell
-        if i >= 1:
-            if state[i - 1][0] == (y - 1):
-                for k in range(self.top_pointer, len(state[i - 1])):
-                    if state[i - 1][k] >= (x - 1):
+        im1 = i-1
+        if im1 < 0:
+            im1 = len(state)-1
+        if im1 < len(state):
+            if state[im1][0] == ym1:
+                for k in range(1, len(state[im1])):
+                    
+                    if state[im1][k] >= xm1 or periodic:
 
                         # NW
-                        if state[i - 1][k] == (x - 1):
+                        if state[im1][k] == xm1:
                             possible_neighbors_list[0] = None
-                            self.top_pointer = k + 1
                             neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
+                            xx = state[im1][k]
+                            yy = state[im1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -306,12 +354,11 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # N
-                        if state[i - 1][k] == x:
+                        if state[im1][k] == x:
                             possible_neighbors_list[1] = None
-                            self.top_pointer = k
                             neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
+                            xx = state[im1][k]
+                            yy = state[im1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -319,15 +366,11 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # NE
-                        if state[i - 1][k] == (x + 1):
+                        if state[im1][k] == xp1:
                             possible_neighbors_list[2] = None
-                            if k == 1:
-                                self.top_pointer = 1
-                            else:
-                                self.top_pointer = k - 1
                             neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
+                            xx = state[im1][k]
+                            yy = state[im1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -335,15 +378,15 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # Break it off early
-                        if state[i - 1][k] > (x + 1):
+                        if not periodic and state[im1][k] > xp1:
                             break
 
         # The row of the current cell
         for k in range(1, len(state[i])):
-            if state[i][k] >= (x - 1):
+            if state[i][k] >= xm1 or periodic:
 
                 # W
-                if state[i][k] == (x - 1):
+                if state[i][k] == xm1:
                     possible_neighbors_list[3] = None
                     neighbors += 1
                     xx = state[i][k]
@@ -355,7 +398,7 @@ class GOL(object):
                         neighbors2 += 1
 
                 # E
-                if state[i][k] == (x + 1):
+                if state[i][k] == xp1:
                     possible_neighbors_list[4] = None
                     neighbors += 1
                     xx = state[i][k]
@@ -367,22 +410,24 @@ class GOL(object):
                         neighbors2 += 1
 
                 # Break it off early
-                if state[i][k] > (x + 1):
+                if not periodic and state[i][k] > xp1:
                     break
 
         # 1 row below current cell
-        if i + 1 < len(state):
-            if state[i + 1][0] == (y + 1):
-                for k in range(self.bottom_pointer, len(state[i + 1])):
-                    if state[i + 1][k] >= (x - 1):
+        ip1 = i+1
+        if ip1 >= len(state):
+            ip1 = 0
+        if ip1 < len(state):
+            if state[ip1][0] == yp1:
+                for k in range(1, len(state[ip1])):
+                    if state[ip1][k] >= xm1 or periodic:
 
                         # SW
-                        if state[i + 1][k] == (x - 1):
+                        if state[ip1][k] == xm1:
                             possible_neighbors_list[5] = None
-                            self.bottom_pointer = k + 1
                             neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
+                            xx = state[ip1][k]
+                            yy = state[ip1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -390,12 +435,11 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # S
-                        if state[i + 1][k] == x:
+                        if state[ip1][k] == x:
                             possible_neighbors_list[6] = None
-                            self.bottom_pointer = k
                             neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
+                            xx = state[ip1][k]
+                            yy = state[ip1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -405,13 +449,9 @@ class GOL(object):
                         # SE
                         if state[i + 1][k] == (x + 1):
                             possible_neighbors_list[7] = None
-                            if k == 1:
-                                self.bottom_pinter = 1
-                            else:
-                                self.bottom_pointer = k - 1
                             neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
+                            xx = state[ip1][k]
+                            yy = state[ip1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
                             if neighborcolor == 1:
                                 neighbors1 += 1
@@ -419,7 +459,7 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # Break it off early
-                        if state[i + 1][k] > (x + 1):
+                        if not periodic and state[ip1][k] > xp1:
                             break
 
         color = 0
@@ -449,106 +489,123 @@ class GOL(object):
         color1 = 0
         color2 = 0
 
+        xm1 = x - 1
+        ym1 = y - 1
+
+        xp1 = x + 1
+        yp1 = y + 1
+
+        periodic = self.periodic
+        if periodic:
+            x = (x + self.columns)%(self.columns)
+            y = (y + self.rows)%(self.rows)
+            
+            xm1 = ((x-1) + self.columns)%(self.columns)
+            ym1 = ((y-1) + self.rows)%(self.rows)
+            
+            xp1 = ((x+1) + self.columns)%(self.columns)
+            yp1 = ((y+1) + self.rows)%(self.rows)
+
         # color1
         for i in range(len(state1)):
             yy = state1[i][0]
-            if yy == (y - 1):
+            if yy == ym1:
                 # 1 row above current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
+                    if xx >= xm1 or periodic:
+                        if xx == xm1:
                             # NW
                             color1 += 1
                         elif xx == x:
                             # N
                             color1 += 1
-                        elif xx == (x + 1):
+                        elif xx == xp1:
                             # NE
                             color1 += 1
-                    if xx >= (x + 1):
+                    if not periodic and xx >= xp1:
                         break
 
             elif yy == y:
                 # Row of current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
+                    if xx >= xm1 or periodic:
+                        if xx == xm1:
                             # W
                             color1 += 1
-                        elif xx == (x + 1):
+                        elif xx == xp1:
                             # E
                             color1 += 1
-                    if xx >= (x + 1):
+                    if not periodic and xx >= xp1:
                         break
 
-            elif yy == (y + 1):
+            elif yy == yp1:
                 # 1 row below current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
+                    if xx >= xm1 or periodic:
+                        if xx == xm1:
                             # SW
                             color1 += 1
                         elif xx == x:
                             # S
                             color1 += 1
-                        elif xx == (x + 1):
+                        elif xx == xp1:
                             # SE
                             color1 += 1
-                    if xx >= (x + 1):
+                    if not periodic and xx >= xp1:
                         break
 
         # color2
         for i in range(len(state2)):
             yy = state2[i][0]
-            if yy == (y - 1):
+            if yy == ym1:
                 # 1 row above current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
+                    if xx >= xm1 or periodic:
+                        if xx == xm1:
                             # NW
                             color2 += 1
                         elif xx == x:
                             # N
                             color2 += 1
-                        elif xx == (x + 1):
+                        elif xx == xp1:
                             # NE
                             color2 += 1
-                    if xx >= (x + 1):
+                    if not periodic and xx >= xp1:
                         break
 
             elif yy == y:
                 # Row of current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
+                    if xx >= xm1 or periodic:
+                        if xx == xm1:
                             # W
                             color2 += 1
-                        elif xx == (x + 1):
+                        elif xx == xp1:
                             # E
                             color2 += 1
-                    if xx >= (x + 1):
+                    if not periodic and xx >= xp1:
                         break
 
-            elif yy == (y + 1):
+            elif yy == yp1:
                 # 1 row below current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
+                    if xx >= xm1 or periodic:
+                        if xx == xm1:
                             # SW
                             color2 += 1
                         elif xx == x:
                             # S
                             color2 += 1
-                        elif xx == (x + 1):
+                        elif xx == xp1:
                             # SE
                             color2 += 1
-                    if xx >= (x + 1):
+                    if not periodic and xx >= xp1:
                         break
 
         if color1 > color2:
@@ -584,17 +641,34 @@ class GOL(object):
                 x = self.actual_state[i][j]
                 y = self.actual_state[i][0]
 
+                xm1 = x - 1
+                ym1 = y - 1
+
+                xp1 = x + 1
+                yp1 = y + 1
+
+                if self.periodic:
+
+                    x = (x + self.columns)%(self.columns)
+                    y = (y + self.rows)%(self.rows)
+
+                    xm1 = ((x-1) + self.columns)%(self.columns)
+                    ym1 = ((y-1) + self.rows)%(self.rows)
+
+                    xp1 = ((x+1) + self.columns)%(self.columns)
+                    yp1 = ((y+1) + self.rows)%(self.rows)
+
                 # create a list of possible dead neighbors
                 # get_neighbors_from_alive() will pare this down
                 dead_neighbors = [
-                    [x - 1, y - 1, 1],
-                    [x, y - 1, 1],
-                    [x + 1, y - 1, 1],
-                    [x - 1, y, 1],
-                    [x + 1, y, 1],
-                    [x - 1, y + 1, 1],
-                    [x, y + 1, 1],
-                    [x + 1, y + 1, 1],
+                    [xm1, ym1, 1],
+                    [x,   ym1, 1],
+                    [xp1, ym1, 1],
+                    [xm1, y,   1],
+                    [xp1, y,   1],
+                    [xm1, yp1, 1],
+                    [x,   yp1, 1],
+                    [xp1, yp1, 1],
                 ]
 
                 result = self.get_neighbors_from_alive(
