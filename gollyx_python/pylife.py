@@ -447,7 +447,7 @@ class GOL(object):
                                 neighbors2 += 1
 
                         # SE
-                        if state[i + 1][k] == (x + 1):
+                        if state[ip1][k] == xp1:
                             possible_neighbors_list[7] = None
                             neighbors += 1
                             xx = state[ip1][k]
