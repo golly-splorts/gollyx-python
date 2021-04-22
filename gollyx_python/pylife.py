@@ -30,7 +30,7 @@ class BinaryLife(object):
     running_avg_window: list = []
     running_avg_last3: list = [0.0, 0.0, 0.0]
     running = False
-    periodic = False
+    periodic = True
 
     found_victor: bool = False
 
@@ -48,7 +48,6 @@ class BinaryLife(object):
         rule_s: list = [],
         halt: bool = True,
         neighbor_color_legacy_mode: bool = False,
-        periodic: bool = False,
     ):
         self.ic1 = ic1
         self.ic2 = ic2
@@ -70,8 +69,6 @@ class BinaryLife(object):
         self.running_avg_window = [0,]*self.MAXDIM
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
-
-        self.periodic = periodic
 
         self.prepare()
 
