@@ -140,6 +140,7 @@ class GollyXPythonTest(unittest.TestCase):
             s2 = '[{"149":[114]},{"150":[116]},{"151":[113,114,117,118,119]}]',
             rows=200,
             columns=240,
+            neighbor_color_legacy_mode = False,
             rule_b=rule_b,
             rule_s=rule_s,
         )
@@ -158,11 +159,17 @@ class GollyXPythonTest(unittest.TestCase):
         if True:
             return True
 
+        rule_b = [3]
+        rule_s = [2, 3]
+
         gol = gollyx_python.GOL(
             s1 = '[{"49":[176,177,180,181,182]},{"50":[179]},{"51":[177]}]',
             s2 = '[{"149":[114]},{"150":[116]},{"151":[113,114,117,118,119]}]',
             rows=200,
             columns=240,
+            neighbor_color_legacy_mode = False,
+            rule_b=rule_b,
+            rule_s=rule_s,
         )
         live_counts = gol.count()
 
@@ -206,12 +213,17 @@ class GollyXPythonTest(unittest.TestCase):
         # Justyna methuselah
         s1, s2 = get_justyna_fixture()
 
+        rule_b = [3]
+        rule_s = [2, 3]
+
         gol = gollyx_python.GOL(
             s1 = s1,
             s2 = s2,
             rows = 100,
             columns = 120,
-            neighbor_color_legacy_mode = False
+            neighbor_color_legacy_mode = False,
+            rule_b=rule_b,
+            rule_s=rule_s,
         )
 
         while gol.running:
