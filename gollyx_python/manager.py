@@ -19,8 +19,8 @@ class GOL(object):
         for i in range(self.rows):
             row = "|"
             for j in range(self.columns):
-                if self.life.is_alive(j, i):
-                    color = self.life.get_cell_color(j, i)
+                if self.life.actual_state.is_alive(j, i):
+                    color = self.life.actual_state.get_cell_color(j, i)
                     if color == 1:
                         row += "#"
                     elif color == 2:
