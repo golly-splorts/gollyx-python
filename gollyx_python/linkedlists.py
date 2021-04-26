@@ -116,6 +116,14 @@ class OldSortedRowList(ListBase):
         agg += "]"
         return agg
 
+    def listify(self):
+        r = []
+        runner = self.front_node
+        while runner != None:
+            r.append(runner.data)
+            runner = runner.next_node
+        return r
+
     def head(self):
         if self.size > 0:
             return self.front_node.data
@@ -463,8 +471,6 @@ class SortedRowList(OldSortedRowList):
             return True
         else:
             # x is in points_map but is not in the list
-            import pdb; pdb.set_trace()
-
             raise Exception()
 
 class RowNode(NodeBase):
@@ -532,13 +538,21 @@ class LifeList(object):
         agg += "]"
         return agg
 
+    def listify(self):
+        r = []
+        runner = self.front_node
+        while runner != None:
+            r.append(runner.data.listify())
+            runner = runner.next_node
+        return r
+
     def serialize(self):
         s = "["
         yrunner = self.front_node
         while yrunner != None:
             row = yrunner.data
             y = row.head()
-            s += '{"' + str(y) + ":["
+            s += '{"' + str(y) + '":['
             xrunner = row.front_node.next_node
             xlist = []
             while xrunner != None:
