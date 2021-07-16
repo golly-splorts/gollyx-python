@@ -1,4 +1,4 @@
-from operator import indexOf
+from .rules import get_dragon_rules
 import json
 
 
@@ -28,10 +28,6 @@ class BinaryLife(object):
 
     found_victor: bool = False
 
-    neighbor_color_legacy_mode: bool = False
-
-    MAXDIM = 240
-
     def __init__(
         self,
         ic1: dict,
@@ -41,18 +37,14 @@ class BinaryLife(object):
         rule_b: list = [],
         rule_s: list = [],
         halt: bool = True,
-        neighbor_color_legacy_mode: bool = False,
     ):
+        self.rule = get_random_dragon_rules()
+
         self.ic1 = ic1
         self.ic2 = ic2
 
         self.rows = rows
         self.columns = columns
-
-        self.rule_b = rule_b
-        self.rule_s = rule_s
-
-        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
         # Whether to stop when a victor is detected
         self.halt = halt
@@ -60,8 +52,6 @@ class BinaryLife(object):
         self.running = True
         self.generation = 0
 
-        self.running_avg_window = [0,]*self.MAXDIM
-        self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
 
         self.prepare()
@@ -85,48 +75,6 @@ class BinaryLife(object):
                     self.actual_state2 = self.add_cell(xx, yy, self.actual_state2)
 
         livecounts = self.get_live_counts()
-        self.update_moving_avg(livecounts)
-
-    def update_moving_avg(self, livecounts):
-        if not self.found_victor:
-            maxdim = self.MAXDIM
-            # maxdim = max(2 * self.columns, 2 * self.rows)
-            if self.generation < maxdim:
-                self.running_avg_window[self.generation] = livecounts["victoryPct"]
-            else:
-                self.running_avg_window = self.running_avg_window[1:] + [
-                    livecounts["victoryPct"]
-                ]
-                summ = sum(self.running_avg_window)
-                running_avg = summ / (1.0 * len(self.running_avg_window))
-
-                # update running average last 3
-                removed = self.running_avg_last3[0]
-                self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
-
-                tol = 1e-8
-                # skip the first few steps where we're removing zeros
-                if not self.approx_equal(removed, 0.0, tol):
-                    b1 = self.approx_equal(
-                        self.running_avg_last3[0], self.running_avg_last3[1], tol
-                    )
-                    b2 = self.approx_equal(
-                        self.running_avg_last3[1], self.running_avg_last3[2], tol
-                    )
-                    zerocells = (
-                        livecounts["liveCells1"] == 0 or livecounts["liveCells2"] == 0
-                    )
-                    if (b1 and b2) or zerocells:
-                        z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
-                        z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
-                        z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
-                        if (not (z1 or z2 or z3)) or zerocells:
-                            if livecounts["liveCells1"] > livecounts["liveCells2"]:
-                                self.found_victor = True
-                                self.who_won = 1
-                            elif livecounts["liveCells1"] < livecounts["liveCells2"]:
-                                self.found_victor = True
-                                self.who_won = 2
 
     def approx_equal(self, a, b, tol):
         SMOL = 1e-12
@@ -177,7 +125,7 @@ class BinaryLife(object):
                     state = state[:i] + state[i + 1 :]
                     return
                 else:
-                    j = indexOf(row, x)
+                    j = row.index(x)
                     state[i] = row[:j] + row[j + 1 :]
 
     def add_cell(self, x, y, state):
@@ -236,289 +184,6 @@ class BinaryLife(object):
 
             return new_state
 
-    def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
-        neighbors = 0
-        neighbors1 = 0
-        neighbors2 = 0
-
-        # 1 row above current cell
-        if i >= 1:
-            if state[i - 1][0] == (y - 1):
-                for k in range(self.top_pointer, len(state[i - 1])):
-                    if state[i - 1][k] >= (x - 1):
-
-                        # NW
-                        if state[i - 1][k] == (x - 1):
-                            possible_neighbors_list[0] = None
-                            self.top_pointer = k + 1
-                            neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # N
-                        if state[i - 1][k] == x:
-                            possible_neighbors_list[1] = None
-                            self.top_pointer = k
-                            neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # NE
-                        if state[i - 1][k] == (x + 1):
-                            possible_neighbors_list[2] = None
-                            if k == 1:
-                                self.top_pointer = 1
-                            else:
-                                self.top_pointer = k - 1
-                            neighbors += 1
-                            xx = state[i - 1][k]
-                            yy = state[i - 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # Break it off early
-                        if state[i - 1][k] > (x + 1):
-                            break
-
-        # The row of the current cell
-        for k in range(1, len(state[i])):
-            if state[i][k] >= (x - 1):
-
-                # W
-                if state[i][k] == (x - 1):
-                    possible_neighbors_list[3] = None
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-                # E
-                if state[i][k] == (x + 1):
-                    possible_neighbors_list[4] = None
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-                # Break it off early
-                if state[i][k] > (x + 1):
-                    break
-
-        # 1 row below current cell
-        if i + 1 < len(state):
-            if state[i + 1][0] == (y + 1):
-                for k in range(self.bottom_pointer, len(state[i + 1])):
-                    if state[i + 1][k] >= (x - 1):
-
-                        # SW
-                        if state[i + 1][k] == (x - 1):
-                            possible_neighbors_list[5] = None
-                            self.bottom_pointer = k + 1
-                            neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # S
-                        if state[i + 1][k] == x:
-                            possible_neighbors_list[6] = None
-                            self.bottom_pointer = k
-                            neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # SE
-                        if state[i + 1][k] == (x + 1):
-                            possible_neighbors_list[7] = None
-                            if k == 1:
-                                self.bottom_pinter = 1
-                            else:
-                                self.bottom_pointer = k - 1
-                            neighbors += 1
-                            xx = state[i + 1][k]
-                            yy = state[i + 1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # Break it off early
-                        if state[i + 1][k] > (x + 1):
-                            break
-
-        color = 0
-        if neighbors1 > neighbors2:
-            color = 1
-        elif neighbors2 > neighbors1:
-            color = 2
-        else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-
-        return dict(neighbors=neighbors, color=color)
-
-    def get_color_from_alive(self, x, y):
-        """
-        This function seems redundant, but is slightly different.
-        The above function is for dead cells that become alive.
-        This function is for dead cells that come alive because of THOSE cells.
-        """
-        state1 = self.actual_state1
-        state2 = self.actual_state2
-
-        color1 = 0
-        color2 = 0
-
-        # color1
-        for i in range(len(state1)):
-            yy = state1[i][0]
-            if yy == (y - 1):
-                # 1 row above current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
-                            # NW
-                            color1 += 1
-                        elif xx == x:
-                            # N
-                            color1 += 1
-                        elif xx == (x + 1):
-                            # NE
-                            color1 += 1
-                    if xx >= (x + 1):
-                        break
-
-            elif yy == y:
-                # Row of current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
-                            # W
-                            color1 += 1
-                        elif xx == (x + 1):
-                            # E
-                            color1 += 1
-                    if xx >= (x + 1):
-                        break
-
-            elif yy == (y + 1):
-                # 1 row below current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
-                            # SW
-                            color1 += 1
-                        elif xx == x:
-                            # S
-                            color1 += 1
-                        elif xx == (x + 1):
-                            # SE
-                            color1 += 1
-                    if xx >= (x + 1):
-                        break
-
-        # color2
-        for i in range(len(state2)):
-            yy = state2[i][0]
-            if yy == (y - 1):
-                # 1 row above current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
-                            # NW
-                            color2 += 1
-                        elif xx == x:
-                            # N
-                            color2 += 1
-                        elif xx == (x + 1):
-                            # NE
-                            color2 += 1
-                    if xx >= (x + 1):
-                        break
-
-            elif yy == y:
-                # Row of current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
-                            # W
-                            color2 += 1
-                        elif xx == (x + 1):
-                            # E
-                            color2 += 1
-                    if xx >= (x + 1):
-                        break
-
-            elif yy == (y + 1):
-                # 1 row below current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= (x - 1):
-                        if xx == (x - 1):
-                            # SW
-                            color2 += 1
-                        elif xx == x:
-                            # S
-                            color2 += 1
-                        elif xx == (x + 1):
-                            # SE
-                            color2 += 1
-                    if xx >= (x + 1):
-                        break
-
-        if color1 > color2:
-            return 1
-        elif color1 < color2:
-            return 2
-        else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-            return color
-
     def next_generation(self):
         """
         Evolve the actual_state list life state to the next generation.
@@ -529,80 +194,146 @@ class BinaryLife(object):
         new_state1 = []
         new_state2 = []
 
-        self.redraw_list = []
+        # The generation tells us which row we're on
+        # This is the new row
+        ym1 = self.generation
+        y = ym1 + 1
 
+        # -------
+        # Repeat a procedure 3 times:
+        # - once for actual_state
+        # - once for actual_state1
+        # - once for actual_state2
+
+        # actual_state:
+
+        # Get the index of actual state that corresponds to y-1
+        actual_state_prev_ix = -999
         for i in range(len(self.actual_state)):
-            self.top_pointer = 1
-            self.bottom_pointer = 1
+            if self.actual_state[i][0] == ym1:
+                actual_state_prev_ix = i
+                break
 
-            for j in range(1, len(self.actual_state[i])):
-                x = self.actual_state[i][j]
-                y = self.actual_state[i][0]
+        # get the x values from row at y-1
+        actual_state_prev_xs = []
 
-                # create a list of possible dead neighbors
-                # get_neighbors_from_alive() will pare this down
-                dead_neighbors = [
-                    [x - 1, y - 1, 1],
-                    [x, y - 1, 1],
-                    [x + 1, y - 1, 1],
-                    [x - 1, y, 1],
-                    [x + 1, y, 1],
-                    [x - 1, y + 1, 1],
-                    [x, y + 1, 1],
-                    [x + 1, y + 1, 1],
-                ]
+        # if actual_state_prev_ix is -999, no index found for y-1 b/c
+        # not in actual_state, so row has no x values. nothing else to do.
 
-                result = self.get_neighbors_from_alive(
-                    x, y, i, self.actual_state, dead_neighbors
-                )
-                neighbors = result["neighbors"]
-                color = result["color"]
+        # otherwise, get x values
+        if actual_state_prev_ix != -999:
+            actual_state_prev_xs = self.actual_state[actual_state_prev_ix][1:]
 
-                # join dead neighbors remaining to check list
-                for dead_neighbor in dead_neighbors:
-                    if dead_neighbor is not None:
-                        # this cell is dead
-                        xx = dead_neighbor[0]
-                        yy = dead_neighbor[1]
-                        key = str(xx) + "," + str(yy)
+        # actual_state1:
 
-                        # counting number of dead neighbors
-                        if key not in all_dead_neighbors:
-                            all_dead_neighbors[key] = 1
-                        else:
-                            all_dead_neighbors[key] += 1
+        # Get the index of actual state1 that corresponds to y-1
+        actual_state1_prev_ix = -999
+        for i in range(len(self.actual_state1)):
+            if self.actual_state1[i][0] == ym1:
+                actual_state1_prev_ix = i
+                break
 
-                if not (neighbors == 0 or neighbors == 1 or neighbors > 3):
-                    new_state = self.add_cell(x, y, new_state)
-                    if color == 1:
-                        new_state1 = self.add_cell(x, y, new_state1)
-                    elif color == 2:
-                        new_state2 = self.add_cell(x, y, new_state2)
-                    # Keep cell alive
-                    self.redraw_list.append([x, y, 2])
+        # get the x values from row at y-1
+        actual_state1_prev_xs = []
+
+        # if actual_state1_prev_ix is -999, no index found for y-1 b/c
+        # not in actual_state1, so row has no x values. nothing else to do.
+
+        # otherwise, get x values
+        if actual_state1_prev_ix != -999:
+            actual_state1_prev_xs = self.actual_state1[actual_state1_prev_ix][1:]
+
+        # actual_state2:
+
+        # Get the index of actual state1 that corresponds to y-1
+        actual_state2_prev_ix = -999
+        for i in range(len(self.actual_state2)):
+            if self.actual_state2[i][0] == ym1:
+                actual_state2_prev_ix = i
+                break
+
+        # get the x values from row at y-1
+        actual_state2_prev_xs = []
+
+        # if actual_state2_prev_ix is -999, no index found for y-1 b/c
+        # not in actual_state2, so row has no x values. nothing else to do.
+
+        # otherwise, get x values
+        if actual_state2_prev_ix != -999:
+            actual_state2_prev_xs = self.actual_state2[actual_state2_prev_ix][1:]
+
+        # The procedure we apply is to stride left to right,
+        # assembling a key based on cell dead/alive color 1/alive color 2
+        # (0 1 2). Using this key and a map, we get the corresponding
+        # cell state/color (0 1 2) outcome.
+        key = ""
+
+        # ---------------
+        # Left boundary
+        key = "0"
+        for j in range(2):
+            if j in actual_state_prev_xs:
+                if j in actual_state1_prev_xs:
+                    key += "1"
+                elif j in actual_state2_prev_xs:
+                    key += "2"
                 else:
-                    # Kill cell
-                    self.redraw_list.append([x, y, 0])
+                    key += "0"
+            else:
+                key += "0"
 
-        # Process dead neighbors
-        for key in all_dead_neighbors:
-            if all_dead_neighbors[key] == 3:
-                # This cell is dead, but has enough neighbors
-                # that are alive that it will make new life
-                key = key.split(",")
-                t1 = int(key[0])
-                t2 = int(key[1])
+        left_boundary_state = self.rules[key]
+        if left_boundary_state > 0:
+            new_state = self.add_cell(0, y, new_state)
+            if left_boundary_state == 1:
+                new_state1 = self.add_cell(0, y, new_state1)
+            elif left_boundary_state == 2:
+                new_state2 = self.add_cell(0, y, new_state2)
 
-                # Get color from neighboring parent cells
-                color = self.get_color_from_alive(t1, t2)
-
-                new_state = self.add_cell(t1, t2, new_state)
+        # ---------------
+        # Internal
+        for j in range(1, self.columns - 1):
+            key = ""
+            for k in range(j - 1, j + 2):
+                if k in actual_state_prev_xs:
+                    if k in actual_state1_prev_xs:
+                        key += "1"
+                    elif k in actual_state2_prev_xs:
+                        key += "2"
+                    else:
+                        key += "0"
+                else:
+                    key += "0"
+            cell_state = self.rules.states[key]
+            if cell_state > 0:
+                new_state = self.add_cell(j, y, new_state)
                 if color == 1:
-                    new_state1 = self.add_cell(t1, t2, new_state1)
+                    new_state1 = self.add_cell(j, y, new_state1)
                 elif color == 2:
-                    new_state2 = self.add_cell(t1, t2, new_state2)
+                    new_state2 = self.add_cell(j, y, new_state2)
 
-                self.redraw_list.append([t1, t2, 1])
+        # ---------------
+        # Right boundary
+        key = ""
+        for j in range(self.columns - 2, self.columns):
+            if j in actual_state_prev_xs:
+                if j in actual_state1_prev_xs:
+                    key += "1"
+                elif j in actual_state2_prev_xs:
+                    key += "2"
+                else:
+                    key += "0"
+            else:
+                key += "0"
+        key += "0"
+
+        right_boundary_state = self.rules[key]
+        if right_boundary_state > 0:
+            new_state = self.add_cell(self.columns - 1, y, new_state)
+            if right_boundary_state == 1:
+                new_state1 = self.add_cell(self.columns - 1, y, new_state1)
+            elif right_boundary_state == 2:
+                new_state2 = self.add_cell(self.columns - 1, y, new_state2)
 
         self.actual_state = new_state
         self.actual_state1 = new_state1
@@ -674,7 +405,6 @@ class BinaryLife(object):
         else:
             self.generation += 1
             live_counts = self.next_generation()
-            self.update_moving_avg(live_counts)
             return live_counts
 
 
