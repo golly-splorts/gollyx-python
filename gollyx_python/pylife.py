@@ -1,14 +1,12 @@
-from .rules import get_dragon_rules
+from .rules import get_dragon_rules, get_rule_states
 import json
 
 
-class BinaryLife(object):
+class DragonLife(object):
 
     actual_state: list = []
     actual_state1: list = []
     actual_state2: list = []
-    running_avg_window: list = []
-    running_avg_last3: list = []
 
     generation = 0
     columns = 0
@@ -23,8 +21,6 @@ class BinaryLife(object):
     victory = 0.0
     who_won = 0
     coverage = 0.0
-    territory1 = 0.0
-    territory2 = 0.0
 
     found_victor: bool = False
 
@@ -32,16 +28,15 @@ class BinaryLife(object):
         self,
         ic1: dict,
         ic2: dict,
+        rule: str,
         rows: int,
         columns: int,
-        rule_b: list = [],
-        rule_s: list = [],
         halt: bool = True,
     ):
-        self.rule = get_random_dragon_rules()
-
         self.ic1 = ic1
         self.ic2 = ic2
+
+        self.states = get_rule_states(rule)
 
         self.rows = rows
         self.columns = columns
@@ -188,8 +183,6 @@ class BinaryLife(object):
         """
         Evolve the actual_state list life state to the next generation.
         """
-        all_dead_neighbors = {}
-
         new_state = []
         new_state1 = []
         new_state2 = []
@@ -282,7 +275,7 @@ class BinaryLife(object):
             else:
                 key += "0"
 
-        left_boundary_state = self.rules[key]
+        left_boundary_state = int(self.states[key])
         if left_boundary_state > 0:
             new_state = self.add_cell(0, y, new_state)
             if left_boundary_state == 1:
@@ -304,12 +297,12 @@ class BinaryLife(object):
                         key += "0"
                 else:
                     key += "0"
-            cell_state = self.rules.states[key]
+            cell_state = int(self.states[key])
             if cell_state > 0:
                 new_state = self.add_cell(j, y, new_state)
-                if color == 1:
+                if cell_state == 1:
                     new_state1 = self.add_cell(j, y, new_state1)
-                elif color == 2:
+                elif cell_state == 2:
                     new_state2 = self.add_cell(j, y, new_state2)
 
         # ---------------
@@ -327,7 +320,7 @@ class BinaryLife(object):
                 key += "0"
         key += "0"
 
-        right_boundary_state = self.rules[key]
+        right_boundary_state = int(self.states[key])
         if right_boundary_state > 0:
             new_state = self.add_cell(self.columns - 1, y, new_state)
             if right_boundary_state == 1:
@@ -378,13 +371,6 @@ class BinaryLife(object):
         coverage = coverage * 100
         self.coverage = coverage
 
-        territory1 = livecells1 / (1.0 * total_area)
-        territory1 = territory1 * 100
-        territory2 = livecells2 / (1.0 * total_area)
-        territory2 = territory2 * 100
-        self.territory1 = territory1
-        self.territory2 = territory2
-
         return dict(
             generation=self.generation,
             liveCells=livecells,
@@ -392,8 +378,6 @@ class BinaryLife(object):
             liveCells2=livecells2,
             victoryPct=victory,
             coverage=coverage,
-            territory1=territory1,
-            territory2=territory2,
         )
 
     def next_step(self):
@@ -409,21 +393,22 @@ class BinaryLife(object):
 
 
 def main():
-    gol = BinaryLife(
-        s1='[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
-        s2='[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
-        rows=120,
-        columns=100,
-    )
+    pass
+    # gol = DragonLife(
+    #     s1='[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
+    #     s2='[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
+    #     rows=120,
+    #     columns=100,
+    # )
 
-    while gol.running:
-        gol.next_step()
-        if gol.generation % 500 == 0:
-            print(f"Simulating generation {gol.generation}")
+    # while gol.running:
+    #     gol.next_step()
+    #     if gol.generation % 500 == 0:
+    #         print(f"Simulating generation {gol.generation}")
 
-    from pprint import pprint
+    # from pprint import pprint
 
-    pprint(gol.get_live_counts())
+    # pprint(gol.get_live_counts())
 
 
 if __name__ == "__main__":

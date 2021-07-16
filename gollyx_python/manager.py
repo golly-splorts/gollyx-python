@@ -1,13 +1,11 @@
 import json
-from .pylife import BinaryLife
+from .pylife import DragonLife
 
 
-class GOL(object):
+class CA(object):
     team_names: list = []
     columns = 0
     rows = 0
-    rule_b: list = []
-    rule_s: list = []
 
     def __init__(self, **kwargs):
         self.load_config(**kwargs)
@@ -41,38 +39,48 @@ class GOL(object):
         rep += "\nLive cells, color 1: %d" % (livecounts["liveCells1"])
         rep += "\nLive cells, color 2: %d" % (livecounts["liveCells2"])
         rep += "\nLive cells, total: %d" % (livecounts["liveCells"])
-        rep += "\nVictory Percent: %0.1f %%" % (livecounts["victoryPct"])
-        rep += "\nCoverage: %0.2f %%" % (livecounts["coverage"])
-        rep += "\nTerritory, color 1: %0.2f %%" % (livecounts["territory1"])
-        rep += "\nTerritory, color 2: %0.2f %%" % (livecounts["territory2"])
 
         return rep
 
     def load_config(self, **kwargs):
-        """Load configuration from user-provided input params"""
+        """
+        Load configuration from user-provided input params
+        """
+
+        # Initial conditions
         if "s1" in kwargs and "s2" in kwargs:
             self.ic1 = kwargs["s1"]
             self.ic2 = kwargs["s2"]
         else:
             raise Exception("ERROR: s1 and s2 parameters must both be specified")
 
+        # Rule string
+        rulestr = ""
+        if "rule" in kwargs:
+            rulestr = str(kwargs["rule"])
+            if len(rulestr) != 27:
+                err = "ERROR: three-state rule strings must have length 27, "
+                err += f"yours has length {len(rulestr)}"
+                raise Exception(err)
+            for c in rulestr:
+                if c not in ["0", "1", "2"]:
+                    raise Exception("ERROR: three-state rule strings must contain only {0,1,2}")
+        else:
+            raise Exception("ERROR: no 'rule' kwarg specified!")
+
+        # Ternary rule string
+        self.rule = rulestr
+
+        # Grid size
         if "rows" in kwargs and "columns" in kwargs:
             self.rows = kwargs["rows"]
             self.columns = kwargs["columns"]
         else:
             raise Exception(
-                "ERROR: rows and columns parameters must be provided to GOL constructor"
+                "ERROR: rows and columns parameters must be provided to CA constructor"
             )
 
-        if "rule_b" in kwargs:
-            self.rule_b = [int(j) for j in kwargs['rule_b']]
-        else:
-            self.rule_b = [3]
-        if "rule_s" in kwargs:
-            self.rule_s = [int(j) for j in kwargs['rule_s']]
-        else:
-            self.rule_s = [2, 3]
-
+        # Team names
         if "team1" in kwargs and "team2" in kwargs:
             self.team_names = [kwargs["team1"], kwargs["team2"]]
         else:
@@ -84,36 +92,30 @@ class GOL(object):
         else:
             self.halt = True
 
-        # Neighbor color legacy mode was used in Seasons 1-3
-        if "neighbor_color_legacy_mode" in kwargs:
-            self.neighbor_color_legacy_mode = kwargs["neighbor_color_legacy_mode"]
-        else:
-            self.neighbor_color_legacy_mode = False
-
     def create_life(self):
         try:
             ic1 = json.loads(self.ic1)
         except json.decoder.JSONDecodeError:
-            err = "Error: Could not load data as json:\n"
+            err = "ERROR: Could not load data as json:\n"
             err += self.ic1
             raise Exception(err)
 
         try:
             ic2 = json.loads(self.ic2)
         except json.decoder.JSONDecodeError:
-            err = "Error: Could not load data as json:\n"
+            err = "ERROR: Could not load data as json:\n"
             err += self.ic1
             raise Exception(err)
 
-        self.life = BinaryLife(
+        rule = self.rule
+
+        self.life = DragonLife(
             ic1,
             ic2,
+            rule,
             self.rows,
             self.columns,
-            self.rule_b,
-            self.rule_s,
             self.halt,
-            self.neighbor_color_legacy_mode,
         )
 
     def next_step(self):
