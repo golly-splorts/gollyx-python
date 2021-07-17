@@ -7,6 +7,14 @@ def get_towers_fixture():
     s2 = '[{"0":[88]}]'
     return s1, s2
 
+def get_minitowers_fixture():
+    # URL:
+    # ?s1=[{"0":[10]}]&s2=[{"0":[22]}]&rows=150&cols=50
+    s1 = '[{"0":[10]}]'
+    s2 = '[{"0":[22]}]'
+    return s1, s2
+
+
 def get_rule30():
     # Rule 30 Electric Dove
     rule = "000000002000000001222111210"

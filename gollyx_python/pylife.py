@@ -379,7 +379,21 @@ class DragonLife(object):
         else:
             live_counts = self.next_generation()
             self.generation += 1
+            self.check_for_victor(live_counts)
             return live_counts
+
+    def check_for_victor(self, live_counts):
+        if self.generation == self.rows-1:
+            self.running = False
+            if live_counts['liveCells1'] > live_counts['liveCells2']:
+                self.who_won = 1
+                self.found_victor = True
+            elif live_counts['liveCells2'] > live_counts['liveCells1']:
+                self.who_won = 2
+                self.found_victor = True
+            else:
+                # Tie!!
+                self.found_victor = False
 
 
 def main():
