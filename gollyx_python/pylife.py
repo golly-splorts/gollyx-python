@@ -18,9 +18,8 @@ class DragonLife(object):
     livecells = 0
     livecells1 = 0
     livecells2 = 0
-    victory = 0.0
     who_won = 0
-    coverage = 0.0
+    #coverage = 0.0
 
     found_victor: bool = False
 
@@ -183,17 +182,16 @@ class DragonLife(object):
         """
         Evolve the actual_state list life state to the next generation.
         """
-        new_state = []
-        new_state1 = []
-        new_state2 = []
-
         # The generation tells us which row we're on
         # This is the new row
         ym1 = self.generation
         y = ym1 + 1
 
-        # -------
-        # Repeat a procedure 3 times:
+        # --------------------------------------------------------------
+        # Get x locations of alive cells in prior row.
+        # These are used to compute the next row
+        # 
+        # Repeat the procedure 3 times:
         # - once for actual_state
         # - once for actual_state1
         # - once for actual_state2
@@ -202,8 +200,11 @@ class DragonLife(object):
 
         # Get the index of actual state that corresponds to y-1
         actual_state_prev_ix = -999
-        for i in range(len(self.actual_state)):
-            if self.actual_state[i][0] == ym1:
+        actual_state_nrows = len(self.actual_state)
+        for i in range(actual_state_nrows):
+            this_row = self.actual_state[i]
+            this_y = this_row[0]
+            if this_y == ym1:
                 actual_state_prev_ix = i
                 break
 
@@ -255,6 +256,9 @@ class DragonLife(object):
         if actual_state2_prev_ix != -999:
             actual_state2_prev_xs = self.actual_state2[actual_state2_prev_ix][1:]
 
+        # --------------------------------------------------------------
+        # Compute the next row.
+        #
         # The procedure we apply is to stride left to right,
         # assembling a key based on cell dead/alive color 1/alive color 2
         # (0 1 2). Using this key and a map, we get the corresponding
@@ -277,11 +281,11 @@ class DragonLife(object):
 
         left_boundary_state = int(self.states[key])
         if left_boundary_state > 0:
-            new_state = self.add_cell(0, y, new_state)
+            self.actual_state = self.add_cell(0, y, self.actual_state)
             if left_boundary_state == 1:
-                new_state1 = self.add_cell(0, y, new_state1)
+                self.actual_state1 = self.add_cell(0, y, self.actual_state1)
             elif left_boundary_state == 2:
-                new_state2 = self.add_cell(0, y, new_state2)
+                self.actual_state2 = self.add_cell(0, y, self.actual_state2)
 
         # ---------------
         # Internal
@@ -299,11 +303,11 @@ class DragonLife(object):
                     key += "0"
             cell_state = int(self.states[key])
             if cell_state > 0:
-                new_state = self.add_cell(j, y, new_state)
+                self.actual_state = self.add_cell(j, y, self.actual_state)
                 if cell_state == 1:
-                    new_state1 = self.add_cell(j, y, new_state1)
+                    self.actual_state1 = self.add_cell(j, y, self.actual_state1)
                 elif cell_state == 2:
-                    new_state2 = self.add_cell(j, y, new_state2)
+                    self.actual_state2 = self.add_cell(j, y, self.actual_state2)
 
         # ---------------
         # Right boundary
@@ -322,15 +326,11 @@ class DragonLife(object):
 
         right_boundary_state = int(self.states[key])
         if right_boundary_state > 0:
-            new_state = self.add_cell(self.columns - 1, y, new_state)
+            self.actual_state = self.add_cell(self.columns - 1, y, self.actual_state)
             if right_boundary_state == 1:
-                new_state1 = self.add_cell(self.columns - 1, y, new_state1)
+                self.actual_state1 = self.add_cell(self.columns - 1, y, self.actual_state1)
             elif right_boundary_state == 2:
-                new_state2 = self.add_cell(self.columns - 1, y, new_state2)
-
-        self.actual_state = new_state
-        self.actual_state1 = new_state1
-        self.actual_state2 = new_state2
+                self.actual_state2 = self.add_cell(self.columns - 1, y, self.actual_state2)
 
         return self.get_live_counts()
 
@@ -342,10 +342,10 @@ class DragonLife(object):
 
         def _count_live_cells(state):
             livecells = 0
-            for i in range(len(state)):
-                if (state[i][0] >= 0) and (state[i][0] < self.rows):
-                    for j in range(1, len(state[i])):
-                        if (state[i][j] >= 0) and (state[i][j] < self.columns):
+            for iy in range(len(state)):
+                if (state[iy][0] >= 0) and (state[iy][0] < self.rows):
+                    for ix in range(1, len(state[iy])):
+                        if (state[iy][ix] >= 0) and (state[iy][ix] < self.columns):
                             livecells += 1
             return livecells
 
@@ -357,27 +357,17 @@ class DragonLife(object):
         self.livecells1 = livecells1
         self.livecells2 = livecells2
 
-        victory = 0.0
-        SMOL = 1e-12
-        if livecells1 > livecells2:
-            victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
-        else:
-            victory = livecells2 / (1.0 * livecells1 + livecells2 + SMOL)
-        victory = victory * 100
-        self.victory = victory
-
-        total_area = self.columns * self.rows
-        coverage = livecells / (1.0 * total_area)
-        coverage = coverage * 100
-        self.coverage = coverage
+        #total_area = self.columns * self.rows
+        #coverage = livecells / (1.0 * total_area)
+        #coverage = coverage * 100
+        #self.coverage = coverage
 
         return dict(
             generation=self.generation,
             liveCells=livecells,
             liveCells1=livecells1,
             liveCells2=livecells2,
-            victoryPct=victory,
-            coverage=coverage,
+            #coverage=coverage,
         )
 
     def next_step(self):
@@ -387,8 +377,8 @@ class DragonLife(object):
             self.running = False
             return self.get_live_counts()
         else:
-            self.generation += 1
             live_counts = self.next_generation()
+            self.generation += 1
             return live_counts
 
 
