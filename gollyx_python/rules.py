@@ -1,3 +1,6 @@
+import random
+
+
 def get_random_dragon_rule():
     rules = get_dragon_rules()
     return random.choice(rules.items())
