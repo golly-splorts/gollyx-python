@@ -393,6 +393,7 @@ class DragonLife(object):
             else:
                 # Tie!!
                 self.found_victor = False
+        return self.found_victor
 
 
 def main():
