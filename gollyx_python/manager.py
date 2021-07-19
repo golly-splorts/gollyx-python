@@ -115,7 +115,6 @@ class CA(object):
             rule,
             self.rows,
             self.columns,
-            self.halt,
         )
 
     def next_step(self):

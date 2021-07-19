@@ -30,7 +30,6 @@ class DragonLife(object):
         rule: str,
         rows: int,
         columns: int,
-        halt: bool = True,
     ):
         self.ic1 = ic1
         self.ic2 = ic2
@@ -40,8 +39,6 @@ class DragonLife(object):
         self.rows = rows
         self.columns = columns
 
-        # Whether to stop when a victor is detected
-        self.halt = halt
 
         self.running = True
         self.generation = 0
@@ -373,7 +370,7 @@ class DragonLife(object):
     def next_step(self):
         if self.running is False:
             return self.get_live_counts()
-        elif self.halt and self.found_victor:
+        elif self.found_victor:
             self.running = False
             return self.get_live_counts()
         else:
