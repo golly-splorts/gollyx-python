@@ -382,7 +382,9 @@ class DragonLife(object):
             self.check_for_victor(live_counts)
             return live_counts
 
-    def check_for_victor(self, live_counts):
+    def check_for_victor(self, live_counts=None):
+        if live_counts==None:
+            live_counts = self.get_live_counts()
         if self.generation == self.rows-1:
             self.running = False
             if live_counts['liveCells1'] > live_counts['liveCells2']:
