@@ -34,8 +34,6 @@ class BinaryLife(object):
 
     found_victor: bool = False
 
-    neighbor_color_legacy_mode: bool = False
-
     MAXDIM = 240
 
     def __init__(
@@ -47,7 +45,6 @@ class BinaryLife(object):
         rule_b: list = [],
         rule_s: list = [],
         halt: bool = True,
-        neighbor_color_legacy_mode: bool = False,
         periodic: bool = False,
     ):
         self.ic1 = ic1
@@ -58,8 +55,6 @@ class BinaryLife(object):
 
         self.rule_b = rule_b
         self.rule_s = rule_s
-
-        self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
         # Whether to stop when a victor is detected
         self.halt = halt
@@ -427,9 +422,7 @@ class BinaryLife(object):
         elif neighbors2 > neighbors1:
             color = 2
         else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
+            if x % 2 == y % 2:
                 color = 1
             else:
                 color = 2
@@ -572,9 +565,7 @@ class BinaryLife(object):
         elif color1 < color2:
             return 2
         else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
+            if x % 2 == y % 2:
                 color = 1
             else:
                 color = 2
