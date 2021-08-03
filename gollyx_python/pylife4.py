@@ -1,4 +1,3 @@
-from operator import indexOf
 import json
 
 
@@ -29,7 +28,6 @@ class QuaternaryLife(object):
     livecells4 = 0
 
     victory = 0.0
-    who_won = 0
     coverage = 0.0
 
     territory1 = 0.0
@@ -41,7 +39,7 @@ class QuaternaryLife(object):
     running_avg_window: list = []
     running_avg_last3: list = [0.0, 0.0, 0.0]
     running = False
-    periodic = False
+    periodic = True
 
     found_victor: bool = False
 
@@ -58,7 +56,7 @@ class QuaternaryLife(object):
         rule_b: list = [],
         rule_s: list = [],
         halt: bool = True,
-        periodic: bool = False,
+        periodic: bool = True,
     ):
         self.ic1 = ic1
         self.ic2 = ic2
@@ -75,14 +73,15 @@ class QuaternaryLife(object):
         self.running = True
         self.generation = 0
 
-        self.running_avg_window = [0,]*self.AVGWINDOW
+        self.running_avg_window = [
+            0,
+        ] * self.AVGWINDOW
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
 
         self.periodic = periodic
 
         self.prepare()
-
 
     def prepare(self):
         s1 = self.ic1
@@ -133,37 +132,65 @@ class QuaternaryLife(object):
                 ]
                 summ = sum(self.running_avg_window)
                 running_avg = summ / (1.0 * len(self.running_avg_window))
-
                 # update running average last 3
+
                 removed = self.running_avg_last3[0]
                 self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
-
-
-                ### TODO - fix this - stopped here
 
                 tol = 1e-8
                 # skip the first few steps where we're removing zeros
                 if not self.approx_equal(removed, 0.0, tol):
-                    b1 = self.approx_equal(
+                    # We have a nonzero running average, and no victor,
+                    # check if average has become stable
+                    b0eq1 = self.approx_equal(
                         self.running_avg_last3[0], self.running_avg_last3[1], tol
                     )
-                    b2 = self.approx_equal(
+                    b1eq2 = self.approx_equal(
                         self.running_avg_last3[1], self.running_avg_last3[2], tol
                     )
-                    zerocells = (
-                        livecounts["liveCells1"] == 0 or livecounts["liveCells2"] == 0
+                    victory_by_stability = (b0eq1 and b1eq2) and (
+                        livecounts["liveCells"] > 0
                     )
-                    if (b1 and b2) or zerocells:
-                        z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
-                        z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
-                        z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
-                        if (not (z1 or z2 or z3)) or zerocells:
-                            if livecounts["liveCells1"] > livecounts["liveCells2"]:
-                                self.found_victor = True
-                                self.who_won = 1
-                            elif livecounts["liveCells1"] < livecounts["liveCells2"]:
-                                self.found_victor = True
-                                self.who_won = 2
+                    if victory_by_stability:
+                        # Someone one due to simulation becoming stable
+                        ranks = self.get_ranks(livecounts)
+                        self.found_victor = True
+                        self.running = False
+
+            # end if gen > maxdim
+            zero_scores = 0
+            if livecounts["liveCells1"] == 0:
+                zero_scores += 1
+            if livecounts["liveCells2"] == 0:
+                zero_scores += 1
+            if livecounts["liveCells3"] == 0:
+                zero_scores += 1
+            if livecounts["liveCells4"] == 0:
+                zero_scores += 1
+            victory_by_shutout = zero_scores == 3
+            if victory_by_shutout:
+                ranks = self.get_ranks(livecounts)
+                self.found_victor = True
+                self.running = False
+
+    def get_ranks(self, livecounts):
+        """
+        Return an array of 4 elements:
+        The ranks of each team
+        [team1rank, team2rank, team3rank, team4rank]
+        """
+        unsorted_scores = [
+            livecounts["liveCells1"],
+            livecounts["liveCells2"],
+            livecounts["liveCells3"],
+            livecounts["liveCells4"],
+        ]
+        sorted_scores = reversed(sorted(unsorted_scores))
+        ranks = [3, 3, 3, 3]
+        for i, unsorted_score in enumerate(unsorted_scores):
+            if unsorted_score > 0:
+                ranks[i] = sorted_scores.index(unsorted_score)
+        return sorted_scores
 
     def approx_equal(self, a, b, tol):
         SMOL = 1e-12
@@ -174,8 +201,8 @@ class QuaternaryLife(object):
         Boolean function: is the cell at x, y alive
         """
         if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+            x = (x + self.columns) % (self.columns)
+            y = (y + self.rows) % (self.rows)
 
         for row in self.actual_state:
             if row[0] == y:
@@ -190,24 +217,24 @@ class QuaternaryLife(object):
         Get the color of the given cell (1 or 2)
         """
         if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+            x = (x + self.columns) % (self.columns)
+            y = (y + self.rows) % (self.rows)
 
-        for row in self.actual_state1:
-            if row[0] == y:
-                for c in row[1:]:
-                    if c == x:
-                        return 1
-            elif row[0] > y:
-                break
-
-        for row in self.actual_state2:
-            if row[0] == y:
-                for c in row[1:]:
-                    if c == x:
-                        return 2
-            elif row[0] > y:
-                break
+        states = [
+            self.actual_state1,
+            self.actual_state2,
+            self.actual_state3,
+            self.actual_state4,
+        ]
+        for i in range(len(states)):
+            state = states[i]
+            for row in state:
+                if row[0] == y:
+                    for c in row[1:]:
+                        if c == x:
+                            return i + 1
+                elif row[0] > y:
+                    break
 
         return 0
 
@@ -216,8 +243,8 @@ class QuaternaryLife(object):
         Remove the given cell from the given listlife state
         """
         if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+            x = (x + self.columns) % (self.columns)
+            y = (y + self.rows) % (self.rows)
 
         for i, row in enumerate(state):
             if row[0] == y:
@@ -226,7 +253,7 @@ class QuaternaryLife(object):
                     state = state[:i] + state[i + 1 :]
                     return
                 else:
-                    j = indexOf(row, x)
+                    j = row.index(x)
                     state[i] = row[:j] + row[j + 1 :]
 
     def add_cell(self, x, y, state):
@@ -238,8 +265,8 @@ class QuaternaryLife(object):
           [y3, x10]
         """
         if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+            x = (x + self.columns) % (self.columns)
+            y = (y + self.rows) % (self.rows)
 
         # Empty state case
         if len(state) == 0:
@@ -291,8 +318,7 @@ class QuaternaryLife(object):
 
     def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
         neighbors = 0
-        neighbors1 = 0
-        neighbors2 = 0
+        neighbors_counter = [0, 0, 0, 0]
 
         xm1 = x - 1
         ym1 = y - 1
@@ -302,14 +328,14 @@ class QuaternaryLife(object):
 
         periodic = self.periodic
         if periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+            x = (x + self.columns) % (self.columns)
+            y = (y + self.rows) % (self.rows)
 
-            xm1 = ((x-1) + self.columns)%(self.columns)
-            ym1 = ((y-1) + self.rows)%(self.rows)
+            xm1 = ((x - 1) + self.columns) % (self.columns)
+            ym1 = ((y - 1) + self.rows) % (self.rows)
 
-            xp1 = ((x+1) + self.columns)%(self.columns)
-            yp1 = ((y+1) + self.rows)%(self.rows)
+            xp1 = ((x + 1) + self.columns) % (self.columns)
+            yp1 = ((y + 1) + self.rows) % (self.rows)
 
         xstencilmin = min(xm1, x, xp1)
         xstencilmax = max(xm1, x, xp1)
@@ -318,13 +344,13 @@ class QuaternaryLife(object):
         ystencilmax = max(ym1, y, yp1)
 
         # 1 row above current cell
-        im1 = i-1
+        im1 = i - 1
         if im1 < 0:
-            im1 = len(state)-1
+            im1 = len(state) - 1
         if im1 < len(state):
             if state[im1][0] == ym1:
                 for k in range(1, len(state[im1])):
-                    
+
                     if state[im1][k] >= xm1 or periodic:
 
                         # NW
@@ -334,10 +360,8 @@ class QuaternaryLife(object):
                             xx = state[im1][k]
                             yy = state[im1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                            if neighborcolor > 0:
+                                neighbors_counter[neighborcolor - 1] += 1
 
                         # N
                         if state[im1][k] == x:
@@ -346,10 +370,8 @@ class QuaternaryLife(object):
                             xx = state[im1][k]
                             yy = state[im1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                            if neighborcolor > 0:
+                                neighbors_counter[neighborcolor - 1] += 1
 
                         # NE
                         if state[im1][k] == xp1:
@@ -358,10 +380,8 @@ class QuaternaryLife(object):
                             xx = state[im1][k]
                             yy = state[im1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                            if neighborcolor > 0:
+                                neighbors_counter[neighborcolor - 1] += 1
 
                         # Break it off early
                         if not periodic and state[im1][k] > xp1:
@@ -378,10 +398,8 @@ class QuaternaryLife(object):
                     xx = state[i][k]
                     yy = state[i][0]
                     neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
+                    if neighborcolor > 0:
+                        neighbors_counter[neighborcolor - 1] += 1
 
                 # E
                 if state[i][k] == xp1:
@@ -390,17 +408,15 @@ class QuaternaryLife(object):
                     xx = state[i][k]
                     yy = state[i][0]
                     neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
+                    if neighborcolor > 0:
+                        neighbors_counter[neighborcolor - 1] += 1
 
                 # Break it off early
                 if not periodic and state[i][k] > xp1:
                     break
 
         # 1 row below current cell
-        ip1 = i+1
+        ip1 = i + 1
         if ip1 >= len(state):
             ip1 = 0
         if ip1 < len(state):
@@ -415,10 +431,8 @@ class QuaternaryLife(object):
                             xx = state[ip1][k]
                             yy = state[ip1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                            if neighborcolor > 0:
+                                neighbors_counter[neighborcolor - 1] += 1
 
                         # S
                         if state[ip1][k] == x:
@@ -427,10 +441,8 @@ class QuaternaryLife(object):
                             xx = state[ip1][k]
                             yy = state[ip1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                            if neighborcolor > 0:
+                                neighbors_counter[neighborcolor - 1] += 1
 
                         # SE
                         if state[ip1][k] == xp1:
@@ -439,25 +451,16 @@ class QuaternaryLife(object):
                             xx = state[ip1][k]
                             yy = state[ip1][0]
                             neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                            if neighborcolor > 0:
+                                neighbors_counter[neighborcolor - 1] += 1
 
                         # Break it off early
                         if not periodic and state[ip1][k] > xp1:
                             break
 
         color = 0
-        if neighbors1 > neighbors2:
-            color = 1
-        elif neighbors2 > neighbors1:
-            color = 2
-        else:
-            if x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
+        if sum(neighbors_counter) > 0:
+            color = 1 + neighbors_counter.index(max(neighbors_counter))
 
         return dict(neighbors=neighbors, color=color)
 
@@ -467,11 +470,13 @@ class QuaternaryLife(object):
         The above function is for dead cells that become alive.
         This function is for dead cells that come alive because of THOSE cells.
         """
-        state1 = self.actual_state1
-        state2 = self.actual_state2
-
-        color1 = 0
-        color2 = 0
+        states = [
+            self.actual_state1,
+            self.actual_state2,
+            self.actual_state3,
+            self.actual_state4,
+        ]
+        colors_counter = [0, 0, 0, 0]
 
         xm1 = x - 1
         ym1 = y - 1
@@ -481,127 +486,73 @@ class QuaternaryLife(object):
 
         periodic = self.periodic
         if periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-            
-            xm1 = ((x-1) + self.columns)%(self.columns)
-            ym1 = ((y-1) + self.rows)%(self.rows)
-            
-            xp1 = ((x+1) + self.columns)%(self.columns)
-            yp1 = ((y+1) + self.rows)%(self.rows)
+            x = (x + self.columns) % (self.columns)
+            y = (y + self.rows) % (self.rows)
 
-        # color1
-        for i in range(len(state1)):
-            yy = state1[i][0]
-            if yy == ym1:
-                # 1 row above current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # NW
-                            color1 += 1
-                        elif xx == x:
-                            # N
-                            color1 += 1
-                        elif xx == xp1:
-                            # NE
-                            color1 += 1
-                    if not periodic and xx >= xp1:
-                        break
+            xm1 = ((x - 1) + self.columns) % (self.columns)
+            ym1 = ((y - 1) + self.rows) % (self.rows)
 
-            elif yy == y:
-                # Row of current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # W
-                            color1 += 1
-                        elif xx == xp1:
-                            # E
-                            color1 += 1
-                    if not periodic and xx >= xp1:
-                        break
+            xp1 = ((x + 1) + self.columns) % (self.columns)
+            yp1 = ((y + 1) + self.rows) % (self.rows)
 
-            elif yy == yp1:
-                # 1 row below current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # SW
-                            color1 += 1
-                        elif xx == x:
-                            # S
-                            color1 += 1
-                        elif xx == xp1:
-                            # SE
-                            color1 += 1
-                    if not periodic and xx >= xp1:
-                        break
+        for s in range(len(states)):
+            state = states[s]
 
-        # color2
-        for i in range(len(state2)):
-            yy = state2[i][0]
-            if yy == ym1:
-                # 1 row above current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # NW
-                            color2 += 1
-                        elif xx == x:
-                            # N
-                            color2 += 1
-                        elif xx == xp1:
-                            # NE
-                            color2 += 1
-                    if not periodic and xx >= xp1:
-                        break
+            for i in range(len(state)):
+                yy = state[i][0]
+                if yy == ym1:
+                    # 1 row above current cell
+                    for j in range(1, len(state[i])):
+                        xx = state[i][j]
+                        if xx >= xm1 or periodic:
+                            if xx == xm1:
+                                # NW
+                                colors_counter[s] += 1
+                            elif xx == x:
+                                # N
+                                colors_counter[s] += 1
+                            elif xx == xp1:
+                                # NE
+                                colors_counter[s] += 1
+                        if not periodic and xx >= xp1:
+                            break
 
-            elif yy == y:
-                # Row of current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # W
-                            color2 += 1
-                        elif xx == xp1:
-                            # E
-                            color2 += 1
-                    if not periodic and xx >= xp1:
-                        break
+                elif yy == y:
+                    # Row of current cell
+                    for j in range(1, len(state[i])):
+                        xx = state[i][j]
+                        if xx >= xm1 or periodic:
+                            if xx == xm1:
+                                # W
+                                colors_counter[s] += 1
+                            elif xx == xp1:
+                                # E
+                                colors_counter[s] += 1
+                        if not periodic and xx >= xp1:
+                            break
 
-            elif yy == yp1:
-                # 1 row below current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # SW
-                            color2 += 1
-                        elif xx == x:
-                            # S
-                            color2 += 1
-                        elif xx == xp1:
-                            # SE
-                            color2 += 1
-                    if not periodic and xx >= xp1:
-                        break
+                elif yy == yp1:
+                    # 1 row below current cell
+                    for j in range(1, len(state[i])):
+                        xx = state[i][j]
+                        if xx >= xm1 or periodic:
+                            if xx == xm1:
+                                # SW
+                                colors_counter[s] += 1
+                            elif xx == x:
+                                # S
+                                colors_counter[s] += 1
+                            elif xx == xp1:
+                                # SE
+                                colors_counter[s] += 1
+                        if not periodic and xx >= xp1:
+                            break
 
-        if color1 > color2:
-            return 1
-        elif color1 < color2:
-            return 2
-        else:
-            if x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-            return color
+        color = 0
+        if sum(colors_counter) > 0:
+            color = 1 + colors_counter.index(max(colors_counter))
+
+        return color
 
     def next_generation(self):
         """
@@ -610,10 +561,8 @@ class QuaternaryLife(object):
         all_dead_neighbors = {}
 
         new_state = []
-        new_state1 = []
-        new_state2 = []
 
-        self.redraw_list = []
+        new_states = [[], [], [], []]
 
         for i in range(len(self.actual_state)):
             self.top_pointer = 1
@@ -631,25 +580,25 @@ class QuaternaryLife(object):
 
                 if self.periodic:
 
-                    x = (x + self.columns)%(self.columns)
-                    y = (y + self.rows)%(self.rows)
+                    x = (x + self.columns) % (self.columns)
+                    y = (y + self.rows) % (self.rows)
 
-                    xm1 = ((x-1) + self.columns)%(self.columns)
-                    ym1 = ((y-1) + self.rows)%(self.rows)
+                    xm1 = ((x - 1) + self.columns) % (self.columns)
+                    ym1 = ((y - 1) + self.rows) % (self.rows)
 
-                    xp1 = ((x+1) + self.columns)%(self.columns)
-                    yp1 = ((y+1) + self.rows)%(self.rows)
+                    xp1 = ((x + 1) + self.columns) % (self.columns)
+                    yp1 = ((y + 1) + self.rows) % (self.rows)
 
                 # create a list of possible dead neighbors
                 # get_neighbors_from_alive() will pare this down
                 dead_neighbors = [
                     [xm1, ym1, 1],
-                    [x,   ym1, 1],
+                    [x, ym1, 1],
                     [xp1, ym1, 1],
-                    [xm1, y,   1],
-                    [xp1, y,   1],
+                    [xm1, y, 1],
+                    [xp1, y, 1],
                     [xm1, yp1, 1],
-                    [x,   yp1, 1],
+                    [x, yp1, 1],
                     [xp1, yp1, 1],
                 ]
 
@@ -657,7 +606,11 @@ class QuaternaryLife(object):
                     x, y, i, self.actual_state, dead_neighbors
                 )
                 neighbors = result["neighbors"]
-                color = result["color"]
+                if neighbors == 2:
+                    # Tie, keep current color
+                    color = self.get_cell_color(x, y)
+                else:
+                    color = result["color"]
 
                 # join dead neighbors remaining to check list
                 for dead_neighbor in dead_neighbors:
@@ -674,16 +627,15 @@ class QuaternaryLife(object):
                             all_dead_neighbors[key] += 1
 
                 if not (neighbors == 0 or neighbors == 1 or neighbors > 3):
-                    new_state = self.add_cell(x, y, new_state)
-                    if color == 1:
-                        new_state1 = self.add_cell(x, y, new_state1)
-                    elif color == 2:
-                        new_state2 = self.add_cell(x, y, new_state2)
                     # Keep cell alive
-                    self.redraw_list.append([x, y, 2])
+                    new_state = self.add_cell(x, y, new_state)
+                    if color > 0:
+                        state = new_states[color-1]
+                        state = self.add_cell(x, y, state)
+                        new_states[color-1] = state
                 else:
                     # Kill cell
-                    self.redraw_list.append([x, y, 0])
+                    pass
 
         # Process dead neighbors
         for key in all_dead_neighbors:
@@ -702,8 +654,6 @@ class QuaternaryLife(object):
                     new_state1 = self.add_cell(t1, t2, new_state1)
                 elif color == 2:
                     new_state2 = self.add_cell(t1, t2, new_state2)
-
-                self.redraw_list.append([t1, t2, 1])
 
         self.actual_state = new_state
         self.actual_state1 = new_state1
@@ -729,41 +679,30 @@ class QuaternaryLife(object):
         livecells = _count_live_cells(self.actual_state)
         livecells1 = _count_live_cells(self.actual_state1)
         livecells2 = _count_live_cells(self.actual_state2)
+        livecells3 = _count_live_cells(self.actual_state3)
+        livecells4 = _count_live_cells(self.actual_state4)
 
         self.livecells = livecells
         self.livecells1 = livecells1
         self.livecells2 = livecells2
+        self.livecells3 = livecells3
+        self.livecells4 = livecells4
 
-        victory = 0.0
         SMOL = 1e-12
-        if livecells1 > livecells2:
-            victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
-        else:
-            victory = livecells2 / (1.0 * livecells1 + livecells2 + SMOL)
-        victory = victory * 100
-        self.victory = victory
 
         total_area = self.columns * self.rows
         coverage = livecells / (1.0 * total_area)
         coverage = coverage * 100
         self.coverage = coverage
 
-        territory1 = livecells1 / (1.0 * total_area)
-        territory1 = territory1 * 100
-        territory2 = livecells2 / (1.0 * total_area)
-        territory2 = territory2 * 100
-        self.territory1 = territory1
-        self.territory2 = territory2
-
         return dict(
             generation=self.generation,
             liveCells=livecells,
             liveCells1=livecells1,
             liveCells2=livecells2,
-            victoryPct=victory,
+            liveCells3=livecells3,
+            liveCells4=livecells4,
             coverage=coverage,
-            territory1=territory1,
-            territory2=territory2,
         )
 
     def next_step(self):
