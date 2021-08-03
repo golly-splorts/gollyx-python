@@ -60,6 +60,8 @@ class QuaternaryLife(object):
     ):
         self.ic1 = ic1
         self.ic2 = ic2
+        self.ic3 = ic3
+        self.ic4 = ic4
 
         self.rows = rows
         self.columns = columns
@@ -125,10 +127,10 @@ class QuaternaryLife(object):
             maxdim = self.AVGWINDOW
             # maxdim = max(2 * self.columns, 2 * self.rows)
             if self.generation < maxdim:
-                self.running_avg_window[self.generation] = livecounts["victoryPct"]
+                self.running_avg_window[self.generation] = livecounts["coverage"]
             else:
                 self.running_avg_window = self.running_avg_window[1:] + [
-                    livecounts["victoryPct"]
+                    livecounts["coverage"]
                 ]
                 summ = sum(self.running_avg_window)
                 running_avg = summ / (1.0 * len(self.running_avg_window))
@@ -185,12 +187,12 @@ class QuaternaryLife(object):
             livecounts["liveCells3"],
             livecounts["liveCells4"],
         ]
-        sorted_scores = reversed(sorted(unsorted_scores))
+        sorted_scores = list(reversed(sorted(unsorted_scores)))
         ranks = [3, 3, 3, 3]
         for i, unsorted_score in enumerate(unsorted_scores):
             if unsorted_score > 0:
                 ranks[i] = sorted_scores.index(unsorted_score)
-        return sorted_scores
+        return list(sorted_scores)
 
     def approx_equal(self, a, b, tol):
         SMOL = 1e-12
@@ -650,14 +652,14 @@ class QuaternaryLife(object):
                 color = self.get_color_from_alive(t1, t2)
 
                 new_state = self.add_cell(t1, t2, new_state)
-                if color == 1:
-                    new_state1 = self.add_cell(t1, t2, new_state1)
-                elif color == 2:
-                    new_state2 = self.add_cell(t1, t2, new_state2)
+                if color > 0:
+                    state = new_states[color-1]
+                    state = self.add_cell(t1, t2, state)
+                    new_states[color-1] = state
 
         self.actual_state = new_state
-        self.actual_state1 = new_state1
-        self.actual_state2 = new_state2
+
+        (self.actual_state1, self.actual_state2, self.actual_state3, self.actual_state4) = new_states
 
         return self.get_live_counts()
 
@@ -719,11 +721,19 @@ class QuaternaryLife(object):
 
 
 def main():
-    gol = BinaryLife(
-        s1='[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
-        s2='[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
+    ics = [
+        '[{"50":[60,160]},{"51":[62,162]},{"52":[59,60,63,64,65,159,160,163,164,165]}]',
+        '[{"60":[60,160]},{"61":[62,162]},{"62":[59,60,63,64,65,159,160,163,164,165]}]',
+        '[{"31":[29,30,33,34,35,129,130,133,134,135]},{"32":[32,132]},{"33":[30,130]}]',
+        '[{"61":[29,30,33,34,35,129,130,133,134,135]},{"62":[32,132]},{"63":[30,130]}]',
+    ]
+    states = [
+        json.loads(ics[i]) for i in range(len(ics))
+    ]
+    gol = QuaternaryLife(
+        *states,
         rows=120,
-        columns=100,
+        columns=180,
     )
 
     while gol.running:
