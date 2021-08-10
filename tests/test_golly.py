@@ -53,8 +53,8 @@ class GollyXPythonTest(unittest.TestCase):
         rule_s = [2, 3]
 
         gol = gollyx_python.GOL(
-            s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
-            s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
+            s1 = self.STATE1,
+            s2 = self.STATE2,
             rows = 100,
             columns = 120,
             rule_b=rule_b,
@@ -82,8 +82,8 @@ class GollyXPythonTest(unittest.TestCase):
         rule_s = [2, 3]
 
         gol = gollyx_python.GOL(
-            s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
-            s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
+            s1 = self.STATE1,
+            s2 = self.STATE2,
             rows = 100,
             columns = 120,
             rule_b=rule_b,
@@ -266,8 +266,8 @@ class GollyXPythonTest(unittest.TestCase):
         gol = gollyx_python.GOL(
             s1 = s1,
             s2 = s2,
-            rows = 100,
-            columns = 120,
+            rows = self.ROWS,
+            columns = self.COLS,
             neighbor_color_legacy_mode = False
         )
 
