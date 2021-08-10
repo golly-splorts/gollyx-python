@@ -1,6 +1,6 @@
 import gollyx_python
 import unittest
-from .fixtures import get_twoacorn_fourcolor_fixture,
+from .fixtures import get_twoacorn_fourcolor_fixture
 
 
 class GollyXPythonTest(unittest.TestCase):
@@ -19,10 +19,13 @@ class GollyXPythonTest(unittest.TestCase):
         gollyx_python.GOL(
             s1 = self.STATE1,
             s2 = self.STATE2,
+            s3 = self.STATE3,
+            s4 = self.STATE4,
             rows = self.ROWS,
             columns = self.COLS,
             rule_b=rule_b,
             rule_s=rule_s,
+            nteams=4
         )
 
     def test_steps(self):
@@ -32,7 +35,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        states = get_twoacorn_fourcolor_fixture
+        states = get_twoacorn_fourcolor_fixture()
         kwargs = {}
         for i in range(len(states)):
             k = f"s{i+1}"
@@ -42,9 +45,10 @@ class GollyXPythonTest(unittest.TestCase):
         gol = gollyx_python.GOL(
             **kwargs,
             rows = self.ROWS,
-            columns = self.COLUMNS,
+            columns = self.COLS,
             rule_b=rule_b,
             rule_s=rule_s,
+            nteams=4
         )
         for i in range(20):
             gol.next_step()
@@ -53,7 +57,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        states = get_twoacorn_fourcolor_fixture
+        states = get_twoacorn_fourcolor_fixture()
         kwargs = {}
         for i in range(len(states)):
             k = f"s{i+1}"
@@ -63,14 +67,15 @@ class GollyXPythonTest(unittest.TestCase):
         gol = gollyx_python.GOL(
             **kwargs,
             rows = self.ROWS,
-            columns = self.COLUMNS,
+            columns = self.COLS,
             rule_b=rule_b,
             rule_s=rule_s,
+            nteams=4
         )
         live_counts = gol.count()
 
         while gol.running and gol.generation < 1200:
-            live_counts = gol.next_step()
+            lc = gol.next_step()
 
         self.assertEqual(lc['generation'], 1154)
         self.assertEqual(lc['liveCells'], 400)
