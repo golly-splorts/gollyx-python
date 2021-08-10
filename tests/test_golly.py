@@ -10,8 +10,9 @@ from .fixtures import (
 class GollyXPythonTest(unittest.TestCase):
     STATE1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]'
     STATE2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]'
-    ROWS = 120
-    COLS = 100
+
+    ROWS = 100
+    COLS = 120
 
     def test_constructor(self):
         rule_b = [3]
@@ -34,8 +35,8 @@ class GollyXPythonTest(unittest.TestCase):
         rule_s = [2, 3]
 
         gol = gollyx_python.GOL(
-            s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
-            s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
+            s1 = self.STATE1,
+            s2 = self.STATE2,
             rows = 100,
             columns = 120,
             rule_b=rule_b,
