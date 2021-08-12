@@ -1,0 +1,1 @@
+git+git://github.com/golly-splorts/gollyx-maps@mainx#egg=gollyx_maps
