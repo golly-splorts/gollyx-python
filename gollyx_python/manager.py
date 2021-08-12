@@ -138,8 +138,12 @@ class GOL(object):
     def count(self):
         return self.life.get_live_counts()
 
+    def get_live_counts(self):
+        """alias"""
+        return self.life.get_live_counts()
+
     def check_for_victor(self):
-        return self.life.check_for_victor()
+        return self.life.found_victor
 
     @property
     def running(self):
