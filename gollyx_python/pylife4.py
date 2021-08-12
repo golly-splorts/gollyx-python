@@ -160,6 +160,9 @@ class QuaternaryLife(object):
                         self.running = False
 
             # end if gen > maxdim
+
+            # Second way for a victor to be declared,
+            # is to have three teams get shut out.
             zero_scores = 0
             if livecounts["liveCells1"] == 0:
                 zero_scores += 1
@@ -171,6 +174,7 @@ class QuaternaryLife(object):
                 zero_scores += 1
             victory_by_shutout = zero_scores == 3
             if victory_by_shutout:
+                # Someone won because everyone else died
                 ranks = self.get_ranks(livecounts)
                 self.found_victor = True
                 self.running = False
