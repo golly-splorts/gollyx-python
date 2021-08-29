@@ -261,6 +261,7 @@ class QuaternaryLife(object):
                 else:
                     j = row.index(x)
                     state[i] = row[:j] + row[j + 1 :]
+                    return
 
     def add_cell(self, x, y, state):
         """
@@ -464,9 +465,18 @@ class QuaternaryLife(object):
                         if not periodic and state[ip1][k] > xp1:
                             break
 
+        # This is Part 2 of the second Rainbow Cup bug.
+        # We adjusted this to account for ties.
         color = 0
         if sum(neighbors_counter) > 0:
-            color = 1 + neighbors_counter.index(max(neighbors_counter))
+            max_neighbors = max(neighbors_counter)
+            if max_neighbors==1 and sum(neighbors_counter)==3:
+                # Special case: three-way tie
+                # In case of a 3-way tie,
+                # the winner is the 4th (missing) color
+                color = 1 + colors_counter.index(0)
+            else:
+                color = 1 + colors_counter.index(max_neighbors)
 
         return dict(neighbors=neighbors, color=color)
 
@@ -554,9 +564,32 @@ class QuaternaryLife(object):
                         if not periodic and xx >= xp1:
                             break
 
+        # This is where we found the second Rainbow Cup bug.
+        # This is a mistake.
+        # We have to check for a tie first,
+        # otherwise index returns the first occurrence,
+        # and there will be a bias toward
+        # Team 1, Team 2, etc., hence the double shutout
+        # simulated by the Python package.
+        # ...
+        # This is a death blow.
+        # 
+        # Old, incorrect way:
+        ### color = 0
+        ### if sum(colors_counter) > 0:
+        ###     color = 1 + colors_counter.index(max(colors_counter))
+
+        # New, correct way:
         color = 0
         if sum(colors_counter) > 0:
-            color = 1 + colors_counter.index(max(colors_counter))
+            max_color = max(colors_counter)
+            if max_color==1 and sum(colors_counter)==3:
+                # Special case: three-way tie
+                # In case of a 3-way tie,
+                # the winner is the 4th (missing) color
+                color = 1 + colors_counter.index(0)
+            else:
+                color = 1 + colors_counter.index(max_color)
 
         return color
 
