@@ -1,6 +1,10 @@
 import gollyx_python
 import unittest
-from .fixtures import get_twoacorn_fourcolor_fixture
+from .fixtures_quad import (
+    get_twoacorn_fourcolor_fixture,
+    get_math_fourcolor_fixture,
+    math_fourcolor_finegrained_gold,
+)
 
 
 class GollyXPythonTest(unittest.TestCase):
@@ -36,14 +40,9 @@ class GollyXPythonTest(unittest.TestCase):
         rule_s = [2, 3]
 
         states = get_twoacorn_fourcolor_fixture()
-        kwargs = {}
-        for i in range(len(states)):
-            k = f"s{i+1}"
-            v = states[i]
-            kwargs[k] = v
 
         gol = gollyx_python.GOL(
-            **kwargs,
+            **states,
             rows = self.ROWS,
             columns = self.COLS,
             rule_b=rule_b,
@@ -58,14 +57,9 @@ class GollyXPythonTest(unittest.TestCase):
         rule_s = [2, 3]
 
         states = get_twoacorn_fourcolor_fixture()
-        kwargs = {}
-        for i in range(len(states)):
-            k = f"s{i+1}"
-            v = states[i]
-            kwargs[k] = v
 
         gol = gollyx_python.GOL(
-            **kwargs,
+            **states,
             rows = self.ROWS,
             columns = self.COLS,
             rule_b=rule_b,
@@ -83,3 +77,30 @@ class GollyXPythonTest(unittest.TestCase):
         self.assertEqual(lc['liveCells2'], 116)
         self.assertEqual(lc['liveCells3'], 168)
         self.assertEqual(lc['liveCells4'], 49)
+
+    def test_life_120_180_finegrained(self):
+        rule_b = [3]
+        rule_s = [2, 3]
+
+        states = get_math_fourcolor_fixture()
+
+        gol = gollyx_python.GOL(
+            **states,
+            rows = self.ROWS,
+            columns = self.COLS,
+            rule_b=rule_b,
+            rule_s=rule_s,
+            nteams=4
+        )
+        lc = gol.count()
+
+        for gen, tot, t1s, t2s, t3s, t4s in math_fourcolor_finegrained_gold:
+            # Update to this generation
+            while gol.generation != gen:
+                lc = gol.next_step()
+            self.assertEqual(lc['generation'], gen)
+            self.assertEqual(lc['liveCells'], tot)
+            self.assertEqual(lc['liveCells1'], t1s)
+            self.assertEqual(lc['liveCells2'], t2s)
+            self.assertEqual(lc['liveCells3'], t3s)
+            self.assertEqual(lc['liveCells4'], t4s)
