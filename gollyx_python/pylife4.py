@@ -474,9 +474,9 @@ class QuaternaryLife(object):
                 # Special case: three-way tie
                 # In case of a 3-way tie,
                 # the winner is the 4th (missing) color
-                color = 1 + colors_counter.index(0)
+                color = 1 + neighbors_counter.index(0)
             else:
-                color = 1 + colors_counter.index(max_neighbors)
+                color = 1 + neighbors_counter.index(max_neighbors)
 
         return dict(neighbors=neighbors, color=color)
 
