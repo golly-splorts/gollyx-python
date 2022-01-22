@@ -206,14 +206,14 @@ class GollyXPythonTest(unittest.TestCase):
         """
         Check the actual results of the calculations against known good results
         """
-        gol = gollyx_python.pylife.GOL(
+        gol = gollyx_python.GOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
             columns = 120,
             periodic = True
         )
-        live_counts = gol.get_live_counts()
+        live_counts = gol.count()
         self.assertEqual(live_counts['generation'], 0)
         self.assertEqual(live_counts['liveCells1'], 7)
         self.assertEqual(live_counts['liveCells2'], 7)
