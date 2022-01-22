@@ -1,8 +1,8 @@
 import json
-from .pylife import BinaryLife
+from .pylife import ToroidalBinaryLife
 
 
-class GOL(object):
+class ToroidalGOL(object):
     team_names: list = []
     columns = 0
     rows = 0
@@ -105,7 +105,7 @@ class GOL(object):
             err += self.ic1
             raise Exception(err)
 
-        self.life = BinaryLife(
+        self.life = ToroidalBinaryLife(
             ic1,
             ic2,
             self.rows,

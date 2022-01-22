@@ -17,7 +17,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        gollyx_python.GOL(
+        gollyx_python.ToroidalGOL(
             s1 = self.STATE1,
             s2 = self.STATE2,
             rows = self.ROWS,
@@ -33,7 +33,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -51,7 +51,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -80,7 +80,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -135,7 +135,7 @@ class GollyXPythonTest(unittest.TestCase):
         rule_b = [3]
         rule_s = [2, 3]
 
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = '[{"49":[176,177,180,181,182]},{"50":[179]},{"51":[177]}]',
             s2 = '[{"149":[114]},{"150":[116]},{"151":[113,114,117,118,119]}]',
             rows=200,
@@ -158,7 +158,7 @@ class GollyXPythonTest(unittest.TestCase):
         if True:
             return True
 
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = '[{"49":[176,177,180,181,182]},{"50":[179]},{"51":[177]}]',
             s2 = '[{"149":[114]},{"150":[116]},{"151":[113,114,117,118,119]}]',
             rows=200,
@@ -206,7 +206,7 @@ class GollyXPythonTest(unittest.TestCase):
         """
         Check the actual results of the calculations against known good results
         """
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = '[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
             s2 = '[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
             rows = 100,
@@ -262,7 +262,7 @@ class GollyXPythonTest(unittest.TestCase):
         # Justyna methuselah
         s1, s2 = get_justyna_fixture()
 
-        gol = gollyx_python.GOL(
+        gol = gollyx_python.ToroidalGOL(
             s1 = s1,
             s2 = s2,
             rows = 100,
