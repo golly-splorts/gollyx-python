@@ -1,4 +1,4 @@
-from .manager import GOL  # noqa
+from .manager import ToroidalGOL, RainbowGOL  # noqa
 
 
-__version__ = "14.0.0.x0"
+__version__ = "63.0.dev0"
