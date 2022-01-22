@@ -2,7 +2,7 @@ from operator import indexOf
 import json
 
 
-class BinaryLife(object):
+class ToroidalBinaryLife(object):
 
     actual_state: list = []
     actual_state1: list = []
