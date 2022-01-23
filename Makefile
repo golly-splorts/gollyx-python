@@ -28,9 +28,9 @@ build: clean
 test: requirements-dev build
 	pytest -vs
 
-release_main:
-	@echo "Releasing current branch $(CB) to main"
-	scripts/release.sh $(CB) main
+release_mainx:
+	@echo "Releasing current branch $(CB) to mainx"
+	scripts/release.sh $(CB) mainx
 
 clean:
 	rm -fr build dist __pycache__ *.egg-info/
