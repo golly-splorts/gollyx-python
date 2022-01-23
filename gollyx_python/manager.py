@@ -4,8 +4,8 @@ from .pylife import (
     RainbowQuaternaryLife,
     Dragon1D
 )
-
 from .hellmouthlife import HellmouthBinaryLife
+from .starlife import StarBinaryGenerationsCA
 
 
 class ToroidalGOL(object):
@@ -522,6 +522,166 @@ class DragonCA(object):
             rule,
             self.rows,
             self.columns,
+        )
+
+    def next_step(self):
+        return self.life.next_step()
+
+    def count(self):
+        return self.life.get_live_counts()
+
+    def check_for_victor(self):
+        return self.life.check_for_victor()
+
+    @property
+    def running(self):
+        return self.life.running
+
+    @property
+    def generation(self):
+        return self.life.generation
+
+
+class StarGOLGenerations(object):
+
+    # http://www.mirekw.com/ca/rullex_gene.html
+
+    team_names: list = []
+    columns = 0
+    rows = 0
+    rule_b: list = []
+    rule_s: list = []
+    rule_c: list = []
+    tol_zero_default: float = 1e-8
+    tol_stable_default: float = 1e-6
+    running_avg_max_dim: int = 280
+
+    def __init__(self, **kwargs):
+        self.load_config(**kwargs)
+        self.create_life()
+
+    def __repr__(self):
+        s = []
+        s.append("+" + "-" * (self.columns) + "+")
+        for i in range(self.rows):
+            row = "|"
+            for j in range(self.columns):
+                if self.life.is_alive(j, i):
+                    color = self.life.get_cell_color(j, i)
+                    if color == 1:
+                        row += "#"
+                    elif color == 2:
+                        row += "o"
+                    else:
+                        row += "?"
+                elif self.life.is_dead_wait(i,j):
+                    row += ":"
+                else:
+                    row += "."
+            row += "|"
+            s.append(row)
+        s.append("+" + "-" * (self.columns) + "+")
+        rep = "\n".join(s)
+        rep += "\n"
+
+        livecounts = self.count()
+
+        rep += "\nGeneration: %d" % (self.generation)
+        rep += "\nLive cells, color 1: %d" % (livecounts["liveCellsColors"][0])
+        rep += "\nLive cells, color 2: %d" % (livecounts["liveCellsColors"][1])
+        rep += "\nLive cells, referees: %d" % (livecounts["liveCellsColors"][2])
+        rep += "\nLive cells, total: %d" % (livecounts["liveCells"])
+        rep += "\nCoverage: %0.2f %%" % (livecounts["coverage"])
+
+        return rep
+
+    def load_config(self, **kwargs):
+        """Load configuration from user-provided input params"""
+
+        # TODO: This entire method is a travesty.
+
+        if "s1" in kwargs and "s2" in kwargs:
+            self.ic1 = kwargs["s1"]
+            self.ic2 = kwargs["s2"]
+        else:
+            raise Exception("ERROR: s1 and s2 parameters must both be specified")
+
+        if "rows" in kwargs and "columns" in kwargs:
+            self.rows = kwargs["rows"]
+            self.columns = kwargs["columns"]
+        else:
+            raise Exception(
+                "ERROR: rows and columns parameters must be provided to GOL constructor"
+            )
+
+        if "rule_b" in kwargs:
+            self.rule_b = [int(j) for j in kwargs['rule_b']]
+        else:
+            self.rule_b = [2]
+
+        if "rule_s" in kwargs:
+            self.rule_s = [int(j) for j in kwargs['rule_s']]
+        else:
+            self.rule_s = [3, 4, 5]
+
+        if "rule_c" in kwargs:
+            self.rule_c = int(kwargs['rule_c'])
+        else:
+            self.rule_c = 4
+
+        if "team1" in kwargs and "team2" in kwargs:
+            self.team_names = [kwargs["team1"], kwargs["team2"]]
+        else:
+            self.team_names = ["Team 1", "Team 2", "Referees"]
+
+        if "periodic" in kwargs:
+            self.periodic = kwargs["periodic"]
+        else:
+            # PERIODIC BY DEFAULT
+            self.periodic = True
+
+        if "tol_zero" in kwargs:
+            self.tol_zero = kwargs["tol_zero"]
+        else:
+            self.tol_zero = self.tol_zero_default
+
+        if "tol_stable" in kwargs:
+            self.tol_stable = kwargs["tol_stable"]
+        else:
+            self.tol_stable = self.tol_stable_default
+
+        if "halt" in kwargs:
+            self.halt = kwargs["halt"]
+        else:
+            self.halt = True
+
+    def create_life(self):
+        try:
+            ic1 = json.loads(self.ic1)
+        except json.decoder.JSONDecodeError:
+            err = "Error: Could not load data as json:\n"
+            err += self.ic1
+            raise Exception(err)
+
+        try:
+            ic2 = json.loads(self.ic2)
+        except json.decoder.JSONDecodeError:
+            err = "Error: Could not load data as json:\n"
+            err += self.ic1
+            raise Exception(err)
+
+        self.life = StarBinaryGenerationsCA(
+            ic1,
+            ic2,
+            self.rows,
+            self.columns,
+            self.rule_b,
+            self.rule_s,
+            self.rule_c,
+            self.halt,
+            self.periodic,
+            self.tol_zero,
+            self.tol_stable
         )
 
     def next_step(self):
