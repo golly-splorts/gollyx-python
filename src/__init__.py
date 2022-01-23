@@ -1,4 +1,4 @@
 from .manager import ToroidalGOL, RainbowGOL, HellmouthGOL, DragonCA, StarGOLGenerations  # noqa
 
 
-__version__ = "63.0.dev0"
+__version__ = "64.0.dev0"
