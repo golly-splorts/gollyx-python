@@ -14,12 +14,13 @@ with open(os.path.join(this_directory, 'Readme.md'), encoding='utf-8') as f:
 
 # Note: the _program variable is set in __init__.py.
 # it determines the name of the command line tool.
-from gollyx_python import __version__
+from src import __version__
 
 setup(
     name='gollyx-python',
     version=__version__,
     packages=['gollyx_python'],
+    package_dir={'gollyx_python': 'src'},
     description='gollyx-python is a package for running experimental cellular autonoma simulations for GollyX',
     url='https://golly.life',
     author='Ch4zm of Hellmouth',
