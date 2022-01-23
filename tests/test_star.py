@@ -25,7 +25,7 @@ class StarGenerationsTest(unittest.TestCase):
         """
         Test that we can successfully construct a Generations CA
         """
-        gollyx_python.GOLGenerations(
+        gollyx_python.StarGOLGenerations(
             s1 = self.STATE1,
             s2 = self.STATE2,
             rows = self.ROWS,
@@ -40,7 +40,7 @@ class StarGenerationsTest(unittest.TestCase):
         """
         Check that we can step through the algorithm several times without errors
         """
-        gol = gollyx_python.GOLGenerations(
+        gol = gollyx_python.StarGOLGenerations(
             s1 = self.STATE1,
             s2 = self.STATE2,
             rows = self.ROWS,
@@ -57,7 +57,7 @@ class StarGenerationsTest(unittest.TestCase):
         """
         Check the actual results of steps against known good results from JS simulator
         """
-        gol = gollyx_python.GOLGenerations(
+        gol = gollyx_python.StarGOLGenerations(
             s1 = self.STATE1,
             s2 = self.STATE2,
             rows = self.ROWS,
