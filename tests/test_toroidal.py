@@ -1,9 +1,5 @@
 import gollyx_python
 import unittest
-from .fixtures import (
-    twoacorn_100_120_finegrained_gold,
-    twoacorn_200_240_finegrained_gold,
-)
 
 
 class ToroidalTest(unittest.TestCase):
