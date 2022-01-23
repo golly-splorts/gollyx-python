@@ -8,6 +8,10 @@ from .hellmouthlife import HellmouthBinaryLife
 from .starlife import StarBinaryGenerationsCA
 
 
+# TODO: add PseudoGOL
+# re-use hellmouth binary life
+
+
 class ToroidalGOL(object):
     team_names: list = []
     columns = 0
