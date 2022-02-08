@@ -1,3 +1,7 @@
+Version 67.0:
+
+* Fixes in algorithm and halting criteria from backend generation
+
 Version 63.0:
 
 * Integrating all branches for all cups (Hellmouth, Pseudo, Toroidal, Dragon, Rainbow)
