@@ -31,7 +31,7 @@ fi
 
 export PROMOTE_FROM_BRANCH=$1 PROMOTE_DEST_BRANCH=$2
 
-if [[ "$(git log ${REMOTE}/${PROMOTE_FROM_BRANCH}..HEAD)" ]]; then
+if [[ "$(git log ${REMOTE}/${PROMOTE_FROM_BRANCH}..${PROMOTE_FROM_BRANCH})" ]]; then
     echo "You have unpushed changes on your promote from branch ${PROMOTE_FROM_BRANCH}! Aborting."
     exit 1
 fi
