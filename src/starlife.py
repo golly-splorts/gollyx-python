@@ -742,19 +742,22 @@ class StarBinaryGenerationsCA(object):
         """
         color0 = color-1
         if color0 >= 0 and color0 < 3:
-            # Add to alive state
-            state = self._add_cell(x, y, state)
             rep = f"({x},{y})"
 
             # Verify this cell is not alredy in another color set
             for i in range(3):
                 if i!=color0:
                     if rep in color_set[i]:
-                        err = f"Error: add_cell_to_custom_state() asked to add duplicate cell from color {i+1} to color {color}"
-                        raise Exception(err)
+                        #err = f"Error: add_cell_to_custom_state() asked to add duplicate cell from color {i+1} to color {color}"
+                        #raise Exception(err)
+                        return state, color_set
+
+            # Add to alive state
+            state = self._add_cell(x, y, state)
 
             # Add this point to set of points for specified color
             color_set[color0].add(rep)
+
         else:
             err = f"Error: add_cell_to_custom_state() called with invalid color {color} at cell ({x},{y})"
             raise Exception(err)
