@@ -26,15 +26,16 @@ class StarBinaryGenerationsCA(object):
     running_avg_window: list = []
     running_avg_last3: list = [0.0, 0.0, 0.0]
     running = False
-    periodic = False
+    periodic = True
 
     found_victor: bool = False
-    tol_zero = 0
-    tol_stable = 0
 
-    neighbor_color_legacy_mode: bool = False
+    # These are star cup defaults
+    # Many bothans died to find these tolerances
+    tol_zero = 1e-8
+    tol_stable = 1e-6
 
-    MAXDIM = 240
+    MAXDIM = 280
 
     def __init__(
         self,
@@ -46,9 +47,9 @@ class StarBinaryGenerationsCA(object):
         rule_s: list = [],
         rule_c: int = -1,
         halt: bool = True,
-        periodic: bool = False,
-        tol_zero: float = 0.0,
-        tol_stable: float = 0.0,
+        periodic: bool = True,
+        tol_zero: float = None,
+        tol_stable: float = None,
     ):
         self.ic1 = ic1
         self.ic2 = ic2
@@ -60,9 +61,13 @@ class StarBinaryGenerationsCA(object):
         self.rule_s = rule_s
         self.rule_c = rule_c
 
-        # Tolerance
-        self.tol_zero = tol_zero
-        self.tol_stable = tol_stable
+        # Tolerances
+        if tol_zero is not None:
+            self.tol_zero = tol_zero
+        if tol_stable is not None:
+            self.tol_stable = tol_stable
+        if self.tol_zero < 0 or self.tol_stable < 0:
+            raise Exception(f"Error: tolerances must be > 0")
 
         # Initialize alive states
         self.actual_state = []
@@ -127,18 +132,21 @@ class StarBinaryGenerationsCA(object):
                     self.add_alive_cell(xx, yy, color)
 
         livecounts = self.get_live_counts()
-        self.update_moving_avg(livecounts)
+        self.check_for_victor(livecounts)
 
-    def update_moving_avg(self, livecounts):
+    def check_for_victor(self, livecounts):
         """similar to checkForVictor in js simulator"""
         if not self.found_victor:
             maxdim = self.MAXDIM
             # maxdim = max(2 * self.columns, 2 * self.rows)
 
             rootsum = 0
-            for i in range(3):
+            # This should be 2, not 3 (refs don't count)
+            for i in range(2):
                 rootsum += livecounts['liveCellsColors'][i]**2
             rootsum = math.sqrt(rootsum)
+
+            #print(f"{self.generation} - {rootsum} - {livecounts['liveCellsColors']}")
 
             if self.generation < maxdim:
                 self.running_avg_window[self.generation] = rootsum
@@ -156,32 +164,54 @@ class StarBinaryGenerationsCA(object):
 
                 # skip the first few steps where we're removing zeros
                 if not self.approx_equal(removed, 0.0, tol_zero):
+                    # We are here because we have a nonzero running average (game is going), and no victor
+                    # Check if average has become stable
                     b1 = self.approx_equal(
                         self.running_avg_last3[0], self.running_avg_last3[1], tol_stable
                     )
                     b2 = self.approx_equal(
                         self.running_avg_last3[1], self.running_avg_last3[2], tol_stable
                     )
-                    # Games can also end if one team is shut out
-                    zerocells = (
-                        livecounts["liveCellsColors"][0] == 0 or livecounts["liveCellsColors"][1] == 0
-                    )
-                    if (b1 and b2) or zerocells:
-                        # Extra check not in JS simulator: ensure we don't have a 50/50 tie
-                        z1 = self.approx_equal(
-                            self.running_avg_last3[0], 50.0, tol_stable
-                        )
-                        z2 = self.approx_equal(
-                            self.running_avg_last3[1], 50.0, tol_stable
-                        )
-                        if (not (z1 or z2)) or zerocells:
-                            if livecounts["liveCellsColors"][0] > livecounts["liveCellsColors"][1]:
-                                self.found_victor = True
-                                self.who_won = 1
-                            elif livecounts["liveCellsColors"][0] < livecounts["liveCellsColors"][1]:
-                                self.found_victor = True
-                                self.who_won = 2
-                        # Note: an else here could keep tie games from getting stuck
+                    victory_by_stability = (b1 and b2) and (livecounts['liveCells'] > 0)
+
+                    if victory_by_stability:
+                        # Someone won due to simulation becoming stable
+                        self.found_victor = True
+                        if livecounts["liveCellsColors"][0] > livecounts["liveCellsColors"][1]:
+                            self.who_won = 1
+                        elif livecounts["liveCellsColors"][0] < livecounts["liveCellsColors"][1]:
+                            self.who_won = 2
+                        else:
+                            # Tie
+                            self.who_won = -1
+
+            # The second way for a victor to be declared,
+            # is to have all other teams get shut out.
+            # But if gen < maxDim, this game is invalid.
+            victory_by_shutout = False
+
+            # Hard-coded rules format
+            zero_score_counter = 0
+            threshold = 1
+            for i in range(2):
+                if livecounts["liveCellsColors"][i] == 0:
+                    zero_score_counter += 1
+            if zero_score_counter >= threshold:
+                victory_by_shutout = True
+
+            if victory_by_shutout:
+                # Someone won by shutting out the other team
+                self.found_victor = True
+                if self.generation < maxdim:
+                    self.who_won = -1
+                else:
+                    if livecounts["liveCellsColors"][0] > livecounts["liveCellsColors"][1]:
+                        self.who_won = 1
+                    elif livecounts["liveCellsColors"][0] < livecounts["liveCellsColors"][1]:
+                        self.who_won = 2
+                    else:
+                        # Tie
+                        self.who_won = -1
 
     def next_step(self):
         """
@@ -195,7 +225,7 @@ class StarBinaryGenerationsCA(object):
         else:
             self.generation += 1
             live_counts = self.next_generation()
-            self.update_moving_avg(live_counts)
+            self.check_for_victor(live_counts)
             return live_counts
 
     def next_generation(self):
@@ -748,9 +778,8 @@ class StarBinaryGenerationsCA(object):
             for i in range(3):
                 if i!=color0:
                     if rep in color_set[i]:
-                        #err = f"Error: add_cell_to_custom_state() asked to add duplicate cell from color {i+1} to color {color}"
-                        #raise Exception(err)
-                        return state, color_set
+                        err = f"Error: add_cell_to_custom_state() asked to add duplicate cell from color {i+1} to color {color}"
+                        raise Exception(err)
 
             # Add to alive state
             state = self._add_cell(x, y, state)
@@ -848,9 +877,9 @@ class StarBinaryGenerationsCA(object):
         return state
 
     def approx_equal(self, a, b, tol):
-        return self.relative_diff(a, b, tol)
+        return self.relative_diff(a, b) < tol
 
-    def relative_diff(self, a, b, tol):
+    def relative_diff(self, a, b):
         SMOL = 1e-12
         denom = max(a + SMOL, b + SMOL)
         return abs(a - b) / (1.0 * denom)
