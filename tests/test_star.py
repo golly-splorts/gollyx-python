@@ -26,10 +26,10 @@ class StarGenerationsTest(unittest.TestCase):
         Test that we can successfully construct a Generations CA
         """
         gollyx_python.StarGOLGenerations(
-            s1 = rainbowmath_120_180_state1,
-            s2 = rainbowmath_120_180_state2,
-            rows = rainbowmath_120_180_rows,
-            columns = rainbowmath_120_180_cols,
+            s1=rainbowmath_120_180_state1,
+            s2=rainbowmath_120_180_state2,
+            rows=rainbowmath_120_180_rows,
+            columns=rainbowmath_120_180_cols,
             rule_b=self.star_wars_b,
             rule_s=self.star_wars_s,
             rule_c=self.star_wars_c,
@@ -42,10 +42,10 @@ class StarGenerationsTest(unittest.TestCase):
         without smoke coming out of the machine.
         """
         gol = gollyx_python.StarGOLGenerations(
-            s1 = rainbowmath_120_180_state1,
-            s2 = rainbowmath_120_180_state2,
-            rows = rainbowmath_120_180_rows,
-            columns = rainbowmath_120_180_cols,
+            s1=rainbowmath_120_180_state1,
+            s2=rainbowmath_120_180_state2,
+            rows=rainbowmath_120_180_rows,
+            columns=rainbowmath_120_180_cols,
             rule_b=self.star_wars_b,
             rule_s=self.star_wars_s,
             rule_c=self.star_wars_c,
@@ -59,10 +59,10 @@ class StarGenerationsTest(unittest.TestCase):
         Check the actual results of steps against known good results from JS simulator
         """
         gol = gollyx_python.StarGOLGenerations(
-            s1 = rainbowmath_120_180_state1,
-            s2 = rainbowmath_120_180_state2,
-            rows = rainbowmath_120_180_rows,
-            columns = rainbowmath_120_180_cols,
+            s1=rainbowmath_120_180_state1,
+            s2=rainbowmath_120_180_state2,
+            rows=rainbowmath_120_180_rows,
+            columns=rainbowmath_120_180_cols,
             rule_b=self.star_wars_b,
             rule_s=self.star_wars_s,
             rule_c=self.star_wars_c,
@@ -86,10 +86,12 @@ class StarGenerationsTest(unittest.TestCase):
 
     def test_random_100_120_halting(self):
         gol = gollyx_python.StarGOLGenerations(
-            s1 = rainbowmath_120_180_state1,
-            s2 = rainbowmath_120_180_state2,
-            rows = rainbowmath_120_180_rows,
-            columns = rainbowmath_120_180_cols,
+            s1=random_100_120_state1,
+            s2=random_100_120_state2,
+            rows=random_100_120_rows,
+            columns=random_100_120_cols,
+            tol_zero=1e-8,
+            tol_stable=1e-6,
             rule_b=self.star_wars_b,
             rule_s=self.star_wars_s,
             rule_c=self.star_wars_c,
