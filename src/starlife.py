@@ -26,15 +26,16 @@ class StarBinaryGenerationsCA(object):
     running_avg_window: list = []
     running_avg_last3: list = [0.0, 0.0, 0.0]
     running = False
-    periodic = False
+    periodic = True
 
     found_victor: bool = False
-    tol_zero = 0
-    tol_stable = 0
 
-    neighbor_color_legacy_mode: bool = False
+    # These are star cup defaults
+    # Many bothans died to find these tolerances
+    tol_zero = 1e-8
+    tol_stable = 1e-6
 
-    MAXDIM = 240
+    MAXDIM = 280
 
     def __init__(
         self,
@@ -46,9 +47,9 @@ class StarBinaryGenerationsCA(object):
         rule_s: list = [],
         rule_c: int = -1,
         halt: bool = True,
-        periodic: bool = False,
-        tol_zero: float = 0.0,
-        tol_stable: float = 0.0,
+        periodic: bool = True,
+        tol_zero: float = None,
+        tol_stable: float = None,
     ):
         self.ic1 = ic1
         self.ic2 = ic2
@@ -60,9 +61,13 @@ class StarBinaryGenerationsCA(object):
         self.rule_s = rule_s
         self.rule_c = rule_c
 
-        # Tolerance
-        self.tol_zero = tol_zero
-        self.tol_stable = tol_stable
+        # Tolerances
+        if tol_zero is not None:
+            self.tol_zero = tol_zero
+        if tol_stable is not None:
+            self.tol_stable = tol_stable
+        if self.tol_zero < 0 or self.tol_stable < 0:
+            raise Exception(f"Error: tolerances must be > 0")
 
         # Initialize alive states
         self.actual_state = []
@@ -136,9 +141,12 @@ class StarBinaryGenerationsCA(object):
             # maxdim = max(2 * self.columns, 2 * self.rows)
 
             rootsum = 0
-            for i in range(3):
+            # This should be 2, not 3 (refs don't count)
+            for i in range(2):
                 rootsum += livecounts['liveCellsColors'][i]**2
             rootsum = math.sqrt(rootsum)
+
+            print(f"{self.generation} - {rootsum} - {livecounts['liveCellsColors']}")
 
             if self.generation < maxdim:
                 self.running_avg_window[self.generation] = rootsum
