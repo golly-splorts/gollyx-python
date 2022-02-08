@@ -1,7 +1,6 @@
 import gollyx_python
 import unittest
 from .fixtures_star import (
-    rainbowmath_120_180_finegrained_gold,
     rainbowmath_120_180_state1,
     rainbowmath_120_180_state2,
     rainbowmath_120_180_rows,
@@ -12,6 +11,7 @@ from .fixtures_star import (
     random_100_120_rows,
     random_100_120_cols,
     random_100_120_final,
+    random_100_120_finegrained_gold,
 )
 
 
@@ -107,3 +107,32 @@ class StarGenerationsTest(unittest.TestCase):
         self.assertEqual(live_counts['liveCellsColors'][1], random_100_120_final[2])
         self.assertEqual(live_counts['liveCellsColors'][2], random_100_120_final[3])
 
+    def test_random_100_120_finegrained(self):
+        """
+        Check the actual results of steps against known good results from JS simulator
+        """
+        gol = gollyx_python.StarGOLGenerations(
+            s1=random_100_120_state1,
+            s2=random_100_120_state2,
+            rows=random_100_120_rows,
+            columns=random_100_120_cols,
+            rule_b=self.star_wars_b,
+            rule_s=self.star_wars_s,
+            rule_c=self.star_wars_c,
+            periodic=True
+        )
+        live_counts = gol.count()
+
+        gold = random_100_120_finegrained_gold
+        for gold_generation, gold_color1, gold_color2, gold_color3 in gold:
+            try:
+                self.assertEqual(live_counts['generation'], gold_generation)
+                self.assertEqual(live_counts['liveCellsColors'][0], gold_color1)
+                self.assertEqual(live_counts['liveCellsColors'][1], gold_color2)
+                self.assertEqual(live_counts['liveCellsColors'][2], gold_color3)
+            except AssertionError:
+                err = "Error: did not match counts on generation {gold_generation}"
+                err += "\ngold 1, 2: {gold_color1} , {gold_color2}"
+                err += "\ncalc 1, 2: {live_counts['liveCellsColors'][0]} , {live_counts['liveCellsColors'][0]}"
+                raise Exception(err)
+            live_counts = gol.next_step()
