@@ -134,8 +134,11 @@ class StarBinaryGenerationsCA(object):
         livecounts = self.get_live_counts()
         self.check_for_victor(livecounts)
 
-    def check_for_victor(self, livecounts):
+    def check_for_victor(self, livecounts = None):
         """similar to checkForVictor in js simulator"""
+        if livecounts is None:
+            livecounts = self.get_live_counts()
+
         if not self.found_victor:
             maxdim = self.MAXDIM
             # maxdim = max(2 * self.columns, 2 * self.rows)
