@@ -132,9 +132,18 @@ class StarBinaryGenerationsCA(object):
                     self.add_alive_cell(xx, yy, color)
 
         livecounts = self.get_live_counts()
-        self.check_for_victor(livecounts)
+        self.update_moving_avg(livecounts)
 
-    def check_for_victor(self, livecounts = None):
+    def check_for_victor(self):
+        if self.found_victor:
+            if self.who_won < 0:
+                raise Exception(f"ERROR: Game ended in a tie")
+            else:
+                return True
+        else:
+            return False
+
+    def update_moving_avg(self, livecounts = None):
         """similar to checkForVictor in js simulator"""
         if livecounts is None:
             livecounts = self.get_live_counts()
@@ -228,7 +237,7 @@ class StarBinaryGenerationsCA(object):
         else:
             self.generation += 1
             live_counts = self.next_generation()
-            self.check_for_victor(live_counts)
+            self.update_moving_avg(live_counts)
             return live_counts
 
     def next_generation(self):
