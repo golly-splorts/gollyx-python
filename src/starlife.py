@@ -136,10 +136,7 @@ class StarBinaryGenerationsCA(object):
 
     def check_for_victor(self):
         if self.found_victor:
-            if self.who_won < 0:
-                raise Exception(f"ERROR: Game ended in a tie")
-            else:
-                return True
+            return True
         else:
             return False
 
