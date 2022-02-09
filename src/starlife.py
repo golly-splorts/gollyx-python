@@ -778,8 +778,9 @@ class StarBinaryGenerationsCA(object):
             for i in range(3):
                 if i!=color0:
                     if rep in color_set[i]:
-                        err = f"Error: add_cell_to_custom_state() asked to add duplicate cell from color {i+1} to color {color}"
-                        raise Exception(err)
+                        #err = f"Error: add_cell_to_custom_state() asked to add duplicate cell from color {i+1} to color {color}"
+                        #raise Exception(err)
+                        return state, color_set
 
             # Add to alive state
             state = self._add_cell(x, y, state)
