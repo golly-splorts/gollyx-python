@@ -151,9 +151,9 @@ class KleinBinaryLife(object):
                     if victory_by_stability:
                         # Someone won due to simulation becoming stable
                         self.found_victor = True
-                        if livecounts["liveCellsColors"][0] > livecounts["liveCellsColors"][1]:
+                        if livecounts["liveCells1"] > livecounts["liveCells2"]:
                             self.who_won = 1
-                        elif livecounts["liveCellsColors"][0] < livecounts["liveCellsColors"][1]:
+                        elif livecounts["liveCells1"] < livecounts["liveCells2"]:
                             self.who_won = 2
                         else:
                             # Tie
@@ -207,45 +207,78 @@ class KleinBinaryLife(object):
 
         for i in range(len(self.actual_state)):
 
+            y = self.actual_state[i][0]
+
+            ym1 = self.periodic_normalize_y(y-1)
+            yp1 = self.periodic_normalize_y(y+1)
+            y = self.periodic_normalize_y(y)
+
             for j in range(1, len(self.actual_state[i])):
+
                 x = self.actual_state[i][j]
-                y = self.actual_state[i][0]
+                xm1 = self.periodic_normalize_x(x-1)
+                xp1 = self.periodic_normalize_x(x+1)
+                x = self.periodic_normalize_x(x)
 
-                xm1 = x - 1
-                ym1 = y - 1
+                if y==0:
 
-                xp1 = x + 1
-                yp1 = y + 1
+                    kxm1 = self.klein_inverse_x(xm1)
+                    kx = self.klein_inverse_x(x)
+                    kxp1 = self.klein_inverse_x(xp1)
 
-                if self.periodic:
+                    # Note: don't swap the kxm1/kxp1
+                    # (order of points here must match
+                    # with order in get neighbors from alive)
+                    dead_neighbors = [
+                        [kxm1, ym1, 1],
+                        [kx,   ym1, 1],
+                        [kxp1, ym1, 1],
+                        [xm1, y,   1],
+                        [xp1, y,   1],
+                        [xm1, yp1, 1],
+                        [x,   yp1, 1],
+                        [xp1, yp1, 1],
+                    ]
 
-                    xm1 = self.periodic_normalize_x(x - 1)
-                    ym1 = self.periodic_normalize_y(y - 1)
+                elif y==self.rows-1:
 
-                    xp1 = self.periodic_normalize_x(x + 1)
-                    yp1 = self.periodic_normalize_y(y + 1)
+                    kxm1 = self.klein_inverse_x(xm1)
+                    kx = self.klein_inverse_x(x)
+                    kxp1 = self.klein_inverse_x(xp1)
 
-                    x = self.periodic_normalize_x(x)
-                    y = self.periodic_normalize_y(y)
+                    dead_neighbors = [
+                        [xm1, ym1, 1],
+                        [x,   ym1, 1],
+                        [xp1, ym1, 1],
+                        [xm1, y,   1],
+                        [xp1, y,   1],
+                        [kxm1, yp1, 1],
+                        [kx,   yp1, 1],
+                        [kxp1, yp1, 1],
+                    ]
 
-                # create a list of possible dead neighbors
-                # get_neighbors_from_alive() will pare this down
-                dead_neighbors = [
-                    [xm1, ym1, 1],
-                    [x,   ym1, 1],
-                    [xp1, ym1, 1],
-                    [xm1, y,   1],
-                    [xp1, y,   1],
-                    [xm1, yp1, 1],
-                    [x,   yp1, 1],
-                    [xp1, yp1, 1],
-                ]
+                else:
+
+                    # create a list of possible dead neighbors
+                    # get neighbors from alive will pare this down
+                    dead_neighbors = [
+                        [xm1, ym1, 1],
+                        [x,   ym1, 1],
+                        [xp1, ym1, 1],
+                        [xm1, y,   1],
+                        [xp1, y,   1],
+                        [xm1, yp1, 1],
+                        [x,   yp1, 1],
+                        [xp1, yp1, 1],
+                    ]
 
                 result = self.get_neighbors_from_alive(
                     x, y, i, self.actual_state, dead_neighbors
                 )
                 neighbors = result["neighbors"]
                 color = result["color"]
+                if color <= 0:
+                    color = self.get_cell_color(x, y)
 
                 # join dead neighbors remaining to check list
                 for dead_neighbor in dead_neighbors:
@@ -342,26 +375,28 @@ class KleinBinaryLife(object):
         )
 
     def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
+
         neighbors = 0
         neighbors1 = 0
         neighbors2 = 0
 
-        xm1 = x - 1
-        ym1 = y - 1
+        xm1 = self.periodic_normalize_x(x-1)
+        xp1 = self.periodic_normalize_x(x+1)
+        x = self.periodic_normalize_x(x)
 
-        xp1 = x + 1
-        yp1 = y + 1
+        ym1 = self.periodic_normalize_y(y-1)
+        yp1 = self.periodic_normalize_y(y+1)
+        y = self.periodic_normalize_y(y)
 
-        periodic = self.periodic
-        if periodic:
-            x = self.periodic_normalize_x(x)
-            y = self.periodic_normalize_y(y)
+        if y==0:
+            kxm1 = self.klein_inverse_x(xm1)
+            kx = self.klein_inverse_x(x)
+            kxp1 = self.klein_inverse_x(xp1)
 
-            xm1 = self.periodic_normalize_x(xm1)
-            ym1 = self.periodic_normalize_y(ym1)
-
-            xp1 = self.periodic_normalize_x(xp1)
-            yp1 = self.periodic_normalize_y(yp1)
+        elif y==self.rows-1:
+            kxm1 = self.klein_inverse_x(xm1)
+            kx = self.klein_inverse_x(x)
+            kxp1 = self.klein_inverse_x(xp1)
 
         # 1 row above current cell
         im1 = i-1
@@ -369,73 +404,79 @@ class KleinBinaryLife(object):
             im1 = len(state)-1
         if im1 < len(state):
             if state[im1][0] == ym1:
+
+                if y==0:
+                    xm1_ = kxm1
+                    x_ = kx
+                    xp1_ = kxp1
+                else:
+                    xm1_ = xm1
+                    x_ = x
+                    xp1_ = xp1
+
                 for k in range(1, len(state[im1])):
                     
-                    if state[im1][k] >= xm1 or periodic:
+                    # NW
+                    if state[im1][k] == xm1_:
+                        possible_neighbors_list[0] = None
+                        neighbors += 1
+                        xx = state[im1][k]
+                        yy = state[im1][0]
+                        neighborcolor = self.get_cell_color(xx, yy)
+                        if neighborcolor == 1:
+                            neighbors1 += 1
+                        elif neighborcolor == 2:
+                            neighbors2 += 1
 
-                        # NW
-                        if state[im1][k] == xm1:
-                            possible_neighbors_list[0] = None
-                            neighbors += 1
-                            xx = state[im1][k]
-                            yy = state[im1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                    # N
+                    if state[im1][k] == x_:
+                        possible_neighbors_list[1] = None
+                        neighbors += 1
+                        xx = state[im1][k]
+                        yy = state[im1][0]
+                        neighborcolor = self.get_cell_color(xx, yy)
+                        if neighborcolor == 1:
+                            neighbors1 += 1
+                        elif neighborcolor == 2:
+                            neighbors2 += 1
 
-                        # N
-                        if state[im1][k] == x:
-                            possible_neighbors_list[1] = None
-                            neighbors += 1
-                            xx = state[im1][k]
-                            yy = state[im1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # NE
-                        if state[im1][k] == xp1:
-                            possible_neighbors_list[2] = None
-                            neighbors += 1
-                            xx = state[im1][k]
-                            yy = state[im1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                    # NE
+                    if state[im1][k] == xp1_:
+                        possible_neighbors_list[2] = None
+                        neighbors += 1
+                        xx = state[im1][k]
+                        yy = state[im1][0]
+                        neighborcolor = self.get_cell_color(xx, yy)
+                        if neighborcolor == 1:
+                            neighbors1 += 1
+                        elif neighborcolor == 2:
+                            neighbors2 += 1
 
         # The row of the current cell
         for k in range(1, len(state[i])):
-            if state[i][k] >= xm1 or periodic:
+            # W
+            if state[i][k] == xm1:
+                possible_neighbors_list[3] = None
+                neighbors += 1
+                xx = state[i][k]
+                yy = state[i][0]
+                neighborcolor = self.get_cell_color(xx, yy)
+                if neighborcolor == 1:
+                    neighbors1 += 1
+                elif neighborcolor == 2:
+                    neighbors2 += 1
 
-                # W
-                if state[i][k] == xm1:
-                    possible_neighbors_list[3] = None
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-                # E
-                if state[i][k] == xp1:
-                    possible_neighbors_list[4] = None
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
+            # E
+            if state[i][k] == xp1:
+                possible_neighbors_list[4] = None
+                neighbors += 1
+                xx = state[i][k]
+                yy = state[i][0]
+                neighborcolor = self.get_cell_color(xx, yy)
+                if neighborcolor == 1:
+                    neighbors1 += 1
+                elif neighborcolor == 2:
+                    neighbors2 += 1
 
         # 1 row below current cell
         ip1 = i+1
@@ -443,44 +484,53 @@ class KleinBinaryLife(object):
             ip1 = 0
         if ip1 < len(state):
             if state[ip1][0] == yp1:
+
+                if y==self.rows-1:
+                    xm1_ = kxm1
+                    x_ = kx
+                    xp1_ = kxp1
+                else:
+                    xm1_ = xm1
+                    x_ = x
+                    xp1_ = xp1
+
                 for k in range(1, len(state[ip1])):
-                    if state[ip1][k] >= xm1 or periodic:
 
-                        # SW
-                        if state[ip1][k] == xm1:
-                            possible_neighbors_list[5] = None
-                            neighbors += 1
-                            xx = state[ip1][k]
-                            yy = state[ip1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                    # SW
+                    if state[ip1][k] == xm1_:
+                        possible_neighbors_list[5] = None
+                        neighbors += 1
+                        xx = state[ip1][k]
+                        yy = state[ip1][0]
+                        neighborcolor = self.get_cell_color(xx, yy)
+                        if neighborcolor == 1:
+                            neighbors1 += 1
+                        elif neighborcolor == 2:
+                            neighbors2 += 1
 
-                        # S
-                        if state[ip1][k] == x:
-                            possible_neighbors_list[6] = None
-                            neighbors += 1
-                            xx = state[ip1][k]
-                            yy = state[ip1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                    # S
+                    if state[ip1][k] == x_:
+                        possible_neighbors_list[6] = None
+                        neighbors += 1
+                        xx = state[ip1][k]
+                        yy = state[ip1][0]
+                        neighborcolor = self.get_cell_color(xx, yy)
+                        if neighborcolor == 1:
+                            neighbors1 += 1
+                        elif neighborcolor == 2:
+                            neighbors2 += 1
 
-                        # SE
-                        if state[ip1][k] == xp1:
-                            possible_neighbors_list[7] = None
-                            neighbors += 1
-                            xx = state[ip1][k]
-                            yy = state[ip1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
+                    # SE
+                    if state[ip1][k] == xp1_:
+                        possible_neighbors_list[7] = None
+                        neighbors += 1
+                        xx = state[ip1][k]
+                        yy = state[ip1][0]
+                        neighborcolor = self.get_cell_color(xx, yy)
+                        if neighborcolor == 1:
+                            neighbors1 += 1
+                        elif neighborcolor == 2:
+                            neighbors2 += 1
 
         color = 0
         if neighbors1 > neighbors2:
@@ -488,7 +538,7 @@ class KleinBinaryLife(object):
         elif neighbors2 > neighbors1:
             color = 2
         else:
-            color = -1
+            color = 0
 
         return dict(neighbors=neighbors, color=color)
 
@@ -504,127 +554,161 @@ class KleinBinaryLife(object):
         color1 = 0
         color2 = 0
 
-        xm1 = x - 1
-        ym1 = y - 1
+        xm1 = self.periodic_normalize_x(x-1)
+        xp1 = self.periodic_normalize_x(x+1)
+        x = self.periodic_normalize_x(x)
 
-        xp1 = x + 1
-        yp1 = y + 1
+        ym1 = self.periodic_normalize_y(y-1)
+        yp1 = self.periodic_normalize_y(y+1)
+        y = self.periodic_normalize_y(y)
 
-        periodic = self.periodic
-        if periodic:
-            x = self.periodic_normalize_x(x)
-            y = self.periodic_normalize_y(y)
+        if y==0:
+            kxm1 = self.klein_inverse_x(xm1)
+            kx = self.klein_inverse_x(x)
+            kxp1 = self.klein_inverse_x(xp1)
 
-            xm1 = self.periodic_normalize_x(xm1)
-            ym1 = self.periodic_normalize_y(ym1)
-
-            xp1 = self.periodic_normalize_x(xp1)
-            yp1 = self.periodic_normalize_y(yp1)
+        elif y==self.rows-1:
+            kxm1 = self.klein_inverse_x(xm1)
+            kx = self.klein_inverse_x(x)
+            kxp1 = self.klein_inverse_x(xp1)
 
         # color1
         for i in range(len(state1)):
             yy = state1[i][0]
             if yy == ym1:
+
+                if y==0:
+                    xm1_ = kxm1
+                    x_ = kx
+                    xp1_ = kxp1
+                else:
+                    xm1_ = xm1
+                    x_ = x
+                    xp1_ = xp1
+
                 # 1 row above current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # NW
-                            color1 += 1
-                        elif xx == x:
-                            # N
-                            color1 += 1
-                        elif xx == xp1:
-                            # NE
-                            color1 += 1
+                    if xx == xm1_:
+                        # NW
+                        color1 += 1
+                    elif xx == x_:
+                        # N
+                        color1 += 1
+                    elif xx == xp1_:
+                        # NE
+                        color1 += 1
 
             elif yy == y:
                 # Row of current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # W
-                            color1 += 1
-                        elif xx == xp1:
-                            # E
-                            color1 += 1
+                    if xx == xm1:
+                        # W
+                        color1 += 1
+                    elif xx == xp1:
+                        # E
+                        color1 += 1
 
             elif yy == yp1:
+
+                if y==self.rows-1:
+                    xm1_ = kxm1
+                    x_ = kx
+                    xp1_ = kxp1
+                else:
+                    xm1_ = xm1
+                    x_ = x
+                    xp1_ = xp1
+
                 # 1 row below current cell
                 for j in range(1, len(state1[i])):
                     xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # SW
-                            color1 += 1
-                        elif xx == x:
-                            # S
-                            color1 += 1
-                        elif xx == xp1:
-                            # SE
-                            color1 += 1
+                    if xx == xm1_:
+                        # SW
+                        color1 += 1
+                    elif xx == x_:
+                        # S
+                        color1 += 1
+                    elif xx == xp1_:
+                        # SE
+                        color1 += 1
 
         # color2
         for i in range(len(state2)):
             yy = state2[i][0]
             if yy == ym1:
+
+                if y==0:
+                    xm1_ = kxm1
+                    x_ = kx
+                    xp1_ = kxp1
+                else:
+                    xm1_ = xm1
+                    x_ = x
+                    xp1_ = xp1
+
                 # 1 row above current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # NW
-                            color2 += 1
-                        elif xx == x:
-                            # N
-                            color2 += 1
-                        elif xx == xp1:
-                            # NE
-                            color2 += 1
+                    if xx == xm1_:
+                        # NW
+                        color2 += 1
+                    elif xx == x_:
+                        # N
+                        color2 += 1
+                    elif xx == xp1_:
+                        # NE
+                        color2 += 1
 
             elif yy == y:
                 # Row of current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # W
-                            color2 += 1
-                        elif xx == xp1:
-                            # E
-                            color2 += 1
+                    if xx == xm1:
+                        # W
+                        color2 += 1
+                    elif xx == xp1:
+                        # E
+                        color2 += 1
 
             elif yy == yp1:
+
+                if y==self.rows-1:
+                    xm1_ = kxm1
+                    x_ = kx
+                    xp1_ = kxp1
+                else:
+                    xm1_ = xm1
+                    x_ = x
+                    xp1_ = xp1
+
                 # 1 row below current cell
                 for j in range(1, len(state2[i])):
                     xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # SW
-                            color2 += 1
-                        elif xx == x:
-                            # S
-                            color2 += 1
-                        elif xx == xp1:
-                            # SE
-                            color2 += 1
+                    if xx == xm1_:
+                        # SW
+                        color2 += 1
+                    elif xx == x_:
+                        # S
+                        color2 += 1
+                    elif xx == xp1_:
+                        # SE
+                        color2 += 1
 
         if color1 > color2:
             return 1
         elif color1 < color2:
             return 2
         else:
-            return -1
+            return 0
 
     def is_alive(self, x, y):
         """
         Boolean function: is the cell at x, y alive
         """
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+        x = self.periodic_normalize_x(x)
+        y = self.periodic_normalize_y(y)
 
         for row in self.actual_state:
             if row[0] == y:
@@ -638,9 +722,8 @@ class KleinBinaryLife(object):
         """
         Remove the given cell from the given listlife state
         """
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+        x = self.periodic_normalize_x(x)
+        y = self.periodic_normalize_y(y)
 
         for i, row in enumerate(state):
             if row[0] == y:
@@ -660,9 +743,8 @@ class KleinBinaryLife(object):
           [y2, x5, x6, x7, x8, x9]
           [y3, x10]
         """
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
+        x = self.periodic_normalize_x(x)
+        y = self.periodic_normalize_y(y)
 
         # Empty state case
         if len(state) == 0:
@@ -746,312 +828,6 @@ class KleinBinaryLife(object):
 
         return 0
 
-    def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
-        neighbors = 0
-        neighbors1 = 0
-        neighbors2 = 0
-
-        xm1 = x - 1
-        ym1 = y - 1
-
-        xp1 = x + 1
-        yp1 = y + 1
-
-        periodic = self.periodic
-        if periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-
-            xm1 = ((x-1) + self.columns)%(self.columns)
-            ym1 = ((y-1) + self.rows)%(self.rows)
-
-            xp1 = ((x+1) + self.columns)%(self.columns)
-            yp1 = ((y+1) + self.rows)%(self.rows)
-
-        xstencilmin = min(xm1, x, xp1)
-        xstencilmax = max(xm1, x, xp1)
-
-        ystencilmin = min(ym1, y, yp1)
-        ystencilmax = max(ym1, y, yp1)
-
-        # 1 row above current cell
-        im1 = i-1
-        if im1 < 0:
-            im1 = len(state)-1
-        if im1 < len(state):
-            if state[im1][0] == ym1:
-                for k in range(1, len(state[im1])):
-                    
-                    if state[im1][k] >= xm1 or periodic:
-
-                        # NW
-                        if state[im1][k] == xm1:
-                            possible_neighbors_list[0] = None
-                            neighbors += 1
-                            xx = state[im1][k]
-                            yy = state[im1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # N
-                        if state[im1][k] == x:
-                            possible_neighbors_list[1] = None
-                            neighbors += 1
-                            xx = state[im1][k]
-                            yy = state[im1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # NE
-                        if state[im1][k] == xp1:
-                            possible_neighbors_list[2] = None
-                            neighbors += 1
-                            xx = state[im1][k]
-                            yy = state[im1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-        # The row of the current cell
-        for k in range(1, len(state[i])):
-            if state[i][k] >= xm1 or periodic:
-
-                # W
-                if state[i][k] == xm1:
-                    possible_neighbors_list[3] = None
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-                # E
-                if state[i][k] == xp1:
-                    possible_neighbors_list[4] = None
-                    neighbors += 1
-                    xx = state[i][k]
-                    yy = state[i][0]
-                    neighborcolor = self.get_cell_color(xx, yy)
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-
-        # 1 row below current cell
-        ip1 = i+1
-        if ip1 >= len(state):
-            ip1 = 0
-        if ip1 < len(state):
-            if state[ip1][0] == yp1:
-                for k in range(1, len(state[ip1])):
-                    if state[ip1][k] >= xm1 or periodic:
-
-                        # SW
-                        if state[ip1][k] == xm1:
-                            possible_neighbors_list[5] = None
-                            neighbors += 1
-                            xx = state[ip1][k]
-                            yy = state[ip1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # S
-                        if state[ip1][k] == x:
-                            possible_neighbors_list[6] = None
-                            neighbors += 1
-                            xx = state[ip1][k]
-                            yy = state[ip1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-                        # SE
-                        if state[ip1][k] == xp1:
-                            possible_neighbors_list[7] = None
-                            neighbors += 1
-                            xx = state[ip1][k]
-                            yy = state[ip1][0]
-                            neighborcolor = self.get_cell_color(xx, yy)
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-
-        color = 0
-        if neighbors1 > neighbors2:
-            color = 1
-        elif neighbors2 > neighbors1:
-            color = 2
-        else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-
-        return dict(neighbors=neighbors, color=color)
-
-    def get_color_from_alive(self, x, y):
-        """
-        This function seems redundant, but is slightly different.
-        The above function is for dead cells that become alive.
-        This function is for dead cells that come alive because of THOSE cells.
-        """
-        state1 = self.actual_state1
-        state2 = self.actual_state2
-
-        color1 = 0
-        color2 = 0
-
-        xm1 = x - 1
-        ym1 = y - 1
-
-        xp1 = x + 1
-        yp1 = y + 1
-
-        periodic = self.periodic
-        if periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-            
-            xm1 = ((x-1) + self.columns)%(self.columns)
-            ym1 = ((y-1) + self.rows)%(self.rows)
-            
-            xp1 = ((x+1) + self.columns)%(self.columns)
-            yp1 = ((y+1) + self.rows)%(self.rows)
-
-        # color1
-        for i in range(len(state1)):
-            yy = state1[i][0]
-            if yy == ym1:
-                # 1 row above current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # NW
-                            color1 += 1
-                        elif xx == x:
-                            # N
-                            color1 += 1
-                        elif xx == xp1:
-                            # NE
-                            color1 += 1
-
-            elif yy == y:
-                # Row of current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # W
-                            color1 += 1
-                        elif xx == xp1:
-                            # E
-                            color1 += 1
-
-            elif yy == yp1:
-                # 1 row below current cell
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # SW
-                            color1 += 1
-                        elif xx == x:
-                            # S
-                            color1 += 1
-                        elif xx == xp1:
-                            # SE
-                            color1 += 1
-
-        # color2
-        for i in range(len(state2)):
-            yy = state2[i][0]
-            if yy == ym1:
-                # 1 row above current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # NW
-                            color2 += 1
-                        elif xx == x:
-                            # N
-                            color2 += 1
-                        elif xx == xp1:
-                            # NE
-                            color2 += 1
-
-            elif yy == y:
-                # Row of current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # W
-                            color2 += 1
-                        elif xx == xp1:
-                            # E
-                            color2 += 1
-
-            elif yy == yp1:
-                # 1 row below current cell
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            # SW
-                            color2 += 1
-                        elif xx == x:
-                            # S
-                            color2 += 1
-                        elif xx == xp1:
-                            # SE
-                            color2 += 1
-
-        if color1 > color2:
-            return 1
-        elif color1 < color2:
-            return 2
-        else:
-            if self.neighbor_color_legacy_mode:
-                color = 1
-            elif x % 2 == y % 2:
-                color = 1
-            else:
-                color = 2
-            return color
-
-    def next_step(self):
-        if self.running is False:
-            return self.get_live_counts()
-        elif self.halt and self.found_victor:
-            self.running = False
-            return self.get_live_counts()
-        else:
-            self.generation += 1
-            live_counts = self.next_generation()
-            self.update_moving_avg(live_counts)
-            return live_counts
-
     def periodic_normalize_x(self, x):
         return self._periodic_normalize(x, self.columns)
 
@@ -1064,4 +840,5 @@ class KleinBinaryLife(object):
         else:
             return q
 
-
+    def klein_inverse_x(self, x):
+        return self.columns - x - 1

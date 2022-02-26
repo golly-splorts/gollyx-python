@@ -6,7 +6,7 @@ from .pylife import (
 )
 from .hellmouthlife import HellmouthBinaryLife
 from .starlife import StarBinaryGenerationsCA
-from .kleinlife import KleinBinaryLife,
+from .kleinlife import KleinBinaryLife
 
 
 # TODO: add PseudoGOL
@@ -819,7 +819,6 @@ class KleinGOL(object):
             self.rule_b,
             self.rule_s,
             self.halt,
-            self.periodic,
             self.tol_zero,
             self.tol_stable
         )
