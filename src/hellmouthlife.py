@@ -108,6 +108,14 @@ class MovingAvgList(object):
     def __init__(self):
         pass
 
+    def to_list(self):
+        r = []
+        runner = self.back_node.next_node
+        for i in range(self.size):
+            r.append(runner.data)
+            runner = runner.next_node
+        return r
+
     def length(self):
         return self.size
 
