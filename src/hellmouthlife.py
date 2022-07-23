@@ -369,6 +369,11 @@ class LifeStats(object):
         territory1 = self.territory1 = (livecells1 / (1.0 * total_area)) * 100
         territory2 = self.territory2 = (livecells2 / (1.0 * total_area)) * 100
 
+        try:
+            last3list = self.running_avg_last3.to_list()
+        except AttributeError:
+            last3list = [0, 0, 0]
+
         return dict(
             generation=generation,
             liveCells=livecells,
@@ -378,7 +383,7 @@ class LifeStats(object):
             coverage=coverage,
             territory1=territory1,
             territory2=territory2,
-            last3=self.running_avg_last3.to_list(),
+            last3=last3list,
         )
 
     def update_moving_avg(self):
