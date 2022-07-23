@@ -96,6 +96,9 @@ class ToroidalBinaryLife(object):
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
 
+    def _moving_avg_hook(self, last3, tol):
+        pass
+
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
             maxdim = self.MAXDIM
@@ -136,6 +139,8 @@ class ToroidalBinaryLife(object):
                             elif livecounts["liveCells1"] < livecounts["liveCells2"]:
                                 self.found_victor = True
                                 self.who_won = 2
+
+                self._moving_avg_hook(self.running_avg_last3, tol)
 
     def approx_equal(self, a, b, tol):
         SMOL = 1e-12
@@ -890,6 +895,8 @@ class RainbowQuaternaryLife(object):
             live_amt4 = livecounts["liveCells4"]
 
             if self.generation < maxdim:
+                # Update the moving average and keep going
+                # Too early to check for victory
                 if self.legacy_stopping_criteria:
                     # legacy mode: victory percent
                     self.running_avg_window[self.generation] = livecounts["coverage"]
@@ -899,6 +906,8 @@ class RainbowQuaternaryLife(object):
                     self.running_avg_window[self.generation] = math.sqrt(hypotsq)
 
             else:
+                # Enough generations have passed that we should
+                # check if someone has won already.
                 if self.legacy_stopping_criteria:
                     # legacy mode: victory percent
                     self.running_avg_window = self.running_avg_window[1:] + [
@@ -938,7 +947,9 @@ class RainbowQuaternaryLife(object):
                         self.found_victor = True
                         self.running = False
 
-            # end if gen > maxdim
+                self._moving_avg_hook(self.running_avg_last3, tol)
+
+            # end check if gen < maxdim or gen > maxdim
 
             # Second way for a victor to be declared,
             # is to have three teams get shut out.
