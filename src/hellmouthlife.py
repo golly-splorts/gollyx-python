@@ -378,7 +378,7 @@ class LifeStats(object):
             coverage=coverage,
             territory1=territory1,
             territory2=territory2,
-            last3=self.running_avg_last3,
+            last3=self.running_avg_last3.to_list(),
         )
 
     def update_moving_avg(self):
