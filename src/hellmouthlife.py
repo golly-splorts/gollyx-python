@@ -370,10 +370,8 @@ class LifeStats(object):
             coverage=coverage,
             territory1=territory1,
             territory2=territory2,
+            last3=self.running_avg_last3,
         )
-
-    def _moving_avg_hook(self, last3, tol):
-        pass
 
     def update_moving_avg(self):
         if not self.found_victor:
@@ -412,8 +410,6 @@ class LifeStats(object):
                             elif self.livecells1 < self.livecells2:
                                 self.found_victor = True
                                 self.who_won = 2
-
-                self._moving_avg_hook(self.running_avg_last3, tol)
 
 
 class OldSortedRowList(ListBase):

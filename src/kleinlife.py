@@ -372,6 +372,7 @@ class KleinBinaryLife(object):
             liveCells1=livecells1,
             liveCells2=livecells2,
             coverage=coverage,
+            last3=self.running_avg_last3,
         )
 
     def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):

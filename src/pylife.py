@@ -4,6 +4,13 @@ import json
 import math
 
 
+# Used to determine if two numbers are approximately equal
+EQUALTOL = 1e-8
+
+# Used to avoid dividing by zero
+SMOL = 1e-12
+
+
 class ToroidalBinaryLife(object):
 
     actual_state: list = []
@@ -96,9 +103,6 @@ class ToroidalBinaryLife(object):
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
 
-    def _moving_avg_hook(self, last3, tol):
-        pass
-
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
             maxdim = self.MAXDIM
@@ -116,7 +120,7 @@ class ToroidalBinaryLife(object):
                 removed = self.running_avg_last3[0]
                 self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
 
-                tol = 1e-8
+                tol = EQUALTOL
                 # skip the first few steps where we're removing zeros
                 if not self.approx_equal(removed, 0.0, tol):
                     b1 = self.approx_equal(
@@ -139,8 +143,6 @@ class ToroidalBinaryLife(object):
                             elif livecounts["liveCells1"] < livecounts["liveCells2"]:
                                 self.found_victor = True
                                 self.who_won = 2
-
-                self._moving_avg_hook(self.running_avg_last3, tol)
 
     def approx_equal(self, a, b, tol):
         SMOL = 1e-12
@@ -745,6 +747,7 @@ class ToroidalBinaryLife(object):
             coverage=coverage,
             territory1=territory1,
             territory2=territory2,
+            last3=self.running_avg_last3,
         )
 
     def next_step(self):
@@ -946,8 +949,6 @@ class RainbowQuaternaryLife(object):
                         ranks = self.get_ranks(livecounts)
                         self.found_victor = True
                         self.running = False
-
-                self._moving_avg_hook(self.running_avg_last3, tol)
 
             # end check if gen < maxdim or gen > maxdim
 
@@ -1532,6 +1533,7 @@ class RainbowQuaternaryLife(object):
             liveCells3=livecells3,
             liveCells4=livecells4,
             coverage=coverage,
+            last3=self.running_avg_last3,
         )
 
     def next_step(self):
