@@ -435,8 +435,8 @@ class StarBinaryGenerationsCA(object):
         return dict(
             generation=self.generation,
             liveCells=livecells,
-            liveCells1=livecells1,
-            liveCells2=livecells2,
+            liveCells1=livecells_colors[0],
+            liveCells2=livecells_colors[1],
             liveCellsColors=livecells_colors,
             coverage=coverage,
             last3=self.running_avg_last3,
