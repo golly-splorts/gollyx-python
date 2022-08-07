@@ -185,6 +185,8 @@ class ToroidalGOL(HellmouthGOL):
             self.neighbor_color_legacy_mode,
         )
 
+    def count(self):
+        return self.life.get_live_counts()
 
 class RainbowGOL(object):
     team_names: list = []
