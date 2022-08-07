@@ -1,3 +1,8 @@
+Version 69.1:
+
+* Add PseudoGOL, upgrade other classes to be consistent
+* Fix broken tests
+
 Version 69.0:
 
 * Add Klein Cup
