@@ -146,6 +146,11 @@ class PseudoGOL(HellmouthGOL):
     rule_s = [2, 3, 8]
 
     def __init__(self, *args, **kwargs):
+        # redundant info
+        if 'rule_b' in kwargs:
+            del kwargs['rule_b']
+        if 'rule_s' in kwargs:
+            del kwargs['rule_s']
         super().__init__(
             rule_b=self.rule_b,
             rule_s=self.rule_s,
