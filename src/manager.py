@@ -188,6 +188,10 @@ class ToroidalGOL(HellmouthGOL):
     def count(self):
         return self.life.get_live_counts()
 
+    def check_for_victor(self):
+        return self.life.found_victor
+
+
 class RainbowGOL(object):
     team_names: list = []
     columns = 0
