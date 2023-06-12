@@ -2040,7 +2040,7 @@ class HellmouthBinaryLife(object):
         if self.stats.found_victor:
             return True
         else:
-            return 0
+            return False
 
     def _next_generation(self):
         """
