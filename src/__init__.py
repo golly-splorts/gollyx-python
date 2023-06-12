@@ -8,4 +8,4 @@ from .manager import (
 ) # noqa
 
 
-__version__ = "201.1.dev0"
+__version__ = "201.1.0"
