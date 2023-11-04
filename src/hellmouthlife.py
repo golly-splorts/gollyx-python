@@ -8,6 +8,18 @@ SMOL = 1e-12
 MAXDIM = 240
 
 
+"""
+hellmouthlife does its own thing
+
+defines a stats class
+which is where the moving avg calculated
+update_moving_avg method
+
+as opposed to rainbow or toroidal life
+which defines how to update moving avg in the life class itself
+"""
+
+
 def lists_equal(a, b):
     if len(a) != len(b):
         return False
