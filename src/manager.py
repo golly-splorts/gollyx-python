@@ -91,7 +91,7 @@ class HellmouthGOL(object):
         if "maxdim" in kwargs:
             self.maxdim = kwargs["maxdim"]
         else:
-            self.maxdim = self.HELLMOUTH_MAXDIM
+            self.maxdim = HELLMOUTH_MAXDIM
 
         # Whether to stop when a victor is detected
         if "halt" in kwargs:
@@ -105,6 +105,13 @@ class HellmouthGOL(object):
             self.neighbor_color_legacy_mode = kwargs["neighbor_color_legacy_mode"]
         else:
             self.neighbor_color_legacy_mode = False
+
+        # No 'periodic' option, because code was originally written
+        # for non-periodic grids, and ported to periodic grids later
+        # via the ToroidalBinaryLife and ToroidalGOL classes.
+        # Since then, HellmouthBinaryLife was rewritten from scratch,
+        # and ToroidalBinaryLife... wasn't.
+        # We are continuing to use ToroidalBinaryLife for all Hellmouth Cups.
 
     def create_life(self):
         try:
@@ -191,6 +198,7 @@ class ToroidalGOL(HellmouthGOL):
             self.columns,
             self.rule_b,
             self.rule_s,
+            self.maxdim,
             self.halt,
             self.neighbor_color_legacy_mode,
         )
@@ -573,7 +581,7 @@ class StarGOLGenerations(object):
         if "maxdim" in kwargs:
             self.maxdim = kwargs["maxdim"]
         else:
-            self.maxdim = self.STAR_MAXDIM
+            self.maxdim = STAR_MAXDIM
 
         # Whether to stop when a victor is detected
         if "halt" in kwargs:
