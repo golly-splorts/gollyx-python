@@ -2,6 +2,10 @@ import math
 from operator import indexOf
 
 
+# Dimension (in time) of time-average window
+MAXDIM = 240
+
+
 class StarBinaryGenerationsCA(object):
 
     running_avg_window: list = []
@@ -35,17 +39,16 @@ class StarBinaryGenerationsCA(object):
     tol_zero = 1e-8
     tol_stable = 1e-6
 
-    MAXDIM = 280
-
     def __init__(
         self,
         ic1: dict,
         ic2: dict,
         rows: int,
         columns: int,
-        rule_b: list = [],
-        rule_s: list = [],
-        rule_c: int = -1,
+        rule_b: list,
+        rule_s: list,
+        rule_c: int,
+        maxdim: int,
         halt: bool = True,
         periodic: bool = True,
         tol_zero: float = None,
@@ -60,6 +63,8 @@ class StarBinaryGenerationsCA(object):
         self.rule_b = rule_b
         self.rule_s = rule_s
         self.rule_c = rule_c
+
+        self.maxdim = maxdim
 
         # Tolerances
         if tol_zero is not None:
