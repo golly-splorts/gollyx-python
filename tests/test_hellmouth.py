@@ -94,7 +94,7 @@ class HelmouthTest(unittest.TestCase):
         self.assertEqual(live_counts["liveCells1"], 30)
         self.assertEqual(live_counts["liveCells2"], 30)
 
-        # Take 20 steps, check results
+        # Take 10 more steps (20 total), check results
         for i in range(10):
             live_counts = gol.next_step()
 
@@ -102,7 +102,7 @@ class HelmouthTest(unittest.TestCase):
         self.assertEqual(live_counts["liveCells1"], 32)
         self.assertEqual(live_counts["liveCells2"], 32)
 
-        # Take 100 steps, check results
+        # Take 80 more steps (100 total), check results
         for i in range(80):
             live_counts = gol.next_step()
 
@@ -165,7 +165,7 @@ class HelmouthTest(unittest.TestCase):
             live_counts = gol.next_step()
 
         self.assertEqual(live_counts["generation"], 500)
-        self.assertEqual(live_counts["liveCells"], 565)
+        self.assertEqual(live_counts["liveCells"],  565)
         self.assertEqual(live_counts["liveCells1"], 267)
         self.assertEqual(live_counts["liveCells2"], 298)
 
@@ -174,7 +174,7 @@ class HelmouthTest(unittest.TestCase):
             live_counts = gol.next_step()
 
         self.assertEqual(live_counts["generation"], 1000)
-        self.assertEqual(live_counts["liveCells"], 857)
+        self.assertEqual(live_counts["liveCells"],  857)
         self.assertEqual(live_counts["liveCells1"], 403)
         self.assertEqual(live_counts["liveCells2"], 454)
 
@@ -183,7 +183,7 @@ class HelmouthTest(unittest.TestCase):
             live_counts = gol.next_step()
 
         self.assertEqual(live_counts["generation"], 1500)
-        self.assertEqual(live_counts["liveCells"], 696)
+        self.assertEqual(live_counts["liveCells"],  696)
         self.assertEqual(live_counts["liveCells1"], 338)
         self.assertEqual(live_counts["liveCells2"], 358)
 
@@ -192,7 +192,7 @@ class HelmouthTest(unittest.TestCase):
             live_counts = gol.next_step()
 
         self.assertEqual(live_counts["generation"], 2000)
-        self.assertEqual(live_counts["liveCells"], 617)
+        self.assertEqual(live_counts["liveCells"],  617)
         self.assertEqual(live_counts["liveCells1"], 262)
         self.assertEqual(live_counts["liveCells2"], 355)
 
@@ -211,11 +211,13 @@ class HelmouthTest(unittest.TestCase):
             #periodic=False,
         )
 
+        # Stops after 1305 generations
         while gol.running and gol.generation < 1308:
             live_counts = gol.next_step()
 
+        # Should stop right at 1305
         self.assertEqual(gol.generation, 1305)
-        self.assertEqual(live_counts["liveCells"], 242)
+        self.assertEqual(live_counts["liveCells"],  242)
         self.assertEqual(live_counts["liveCells1"], 141)
         self.assertEqual(live_counts["liveCells2"], 101)
 
