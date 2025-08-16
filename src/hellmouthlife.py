@@ -353,9 +353,10 @@ class LifeStats(object):
     running_avg_last3: MovingAvgList
 
     def __init__(self, life):
+        self.maxdim = life.maxdim
         self.running_avg_window = [
             0.0,
-        ] * MAXDIM
+        ] * self.maxdim
         self.life = life
         self.rows = life.rows
         self.columns = life.columns
@@ -400,7 +401,7 @@ class LifeStats(object):
 
     def update_moving_avg(self):
         if not self.found_victor:
-            if self.life.generation < MAXDIM:
+            if self.life.generation < self.maxdim:
                 self.running_avg_window.push_back(self.victory)
             else:
                 # pop front push back
@@ -1986,7 +1987,12 @@ class HellmouthBinaryLife(object):
         rule_s: list,
         halt: bool = True,
         neighbor_color_legacy_mode: bool = False,
+        maxdim = None
     ):
+        if maxdim is None:
+            self.maxdim = MAXDIM
+        else:
+            self.maxdim = maxdim
         self.ic1 = ic1
         self.ic2 = ic2
 
