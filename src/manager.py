@@ -5,7 +5,9 @@ from .pylife import (
     Dragon1D
 )
 from .hellmouthlife import HellmouthBinaryLife
+from .hellmouthlife import MAXDIM as HELLMOUTH_MAXDIM
 from .starlife import StarBinaryGenerationsCA
+from .starlife import MAXDIM as STAR_MAXDIM
 from .kleinlife import KleinBinaryLife
 
 
@@ -85,6 +87,12 @@ class HellmouthGOL(object):
         else:
             self.team_names = ["Team 1", "Team 2"]
 
+        # Whether a maximum dimension is set
+        if "maxdim" in kwargs:
+            self.maxdim = kwargs["maxdim"]
+        else:
+            self.maxdim = self.HELLMOUTH_MAXDIM
+
         # Whether to stop when a victor is detected
         if "halt" in kwargs:
             self.halt = kwargs["halt"]
@@ -120,6 +128,8 @@ class HellmouthGOL(object):
             self.columns,
             self.rule_b,
             self.rule_s,
+            self.maxdim,
+            self.halt,
             self.neighbor_color_legacy_mode,
         )
 
@@ -559,6 +569,19 @@ class StarGOLGenerations(object):
             # PERIODIC BY DEFAULT
             self.periodic = True
 
+        # Whether a maximum dimension is set
+        if "maxdim" in kwargs:
+            self.maxdim = kwargs["maxdim"]
+        else:
+            self.maxdim = self.STAR_MAXDIM
+
+        # Whether to stop when a victor is detected
+        if "halt" in kwargs:
+            self.halt = kwargs["halt"]
+        else:
+            self.halt = True
+
+        # Tolerances
         if "tol_zero" in kwargs:
             self.tol_zero = kwargs["tol_zero"]
         else:
@@ -568,11 +591,6 @@ class StarGOLGenerations(object):
             self.tol_stable = kwargs["tol_stable"]
         else:
             self.tol_stable = self.tol_stable_default
-
-        if "halt" in kwargs:
-            self.halt = kwargs["halt"]
-        else:
-            self.halt = True
 
     def create_life(self):
         try:
@@ -597,6 +615,7 @@ class StarGOLGenerations(object):
             self.rule_b,
             self.rule_s,
             self.rule_c,
+            self.maxdim,
             self.halt,
             self.periodic,
             self.tol_zero,
