@@ -95,3 +95,75 @@ class ToroidalTest(unittest.TestCase):
         self.assertEqual(live_counts["liveCells1"], 64)
         self.assertEqual(live_counts["liveCells2"], 382)
 
+    def test_life_150_240_stoppingcriteria_280(self):
+        rule_b = [3]
+        rule_s = [2, 3]
+
+        gol = gollyx_python.ToroidalGOL(
+            s1='[{"30":[50,51,54,55,56]},{"31":[53]},{"32":[51]}]',
+            s2='[{"90":[25]},{"91":[27]},{"92":[24,25,28,29,30]}]',
+            rows=150,
+            columns=240,
+            rule_b=rule_b,
+            rule_s=rule_s,
+            maxdim=280,
+            periodic=True,
+        )
+        live_counts = gol.count()
+
+        self.assertEqual(live_counts["generation"], 0)
+        self.assertEqual(live_counts["liveCells"],  14)
+        self.assertEqual(live_counts["liveCells1"], 7)
+        self.assertEqual(live_counts["liveCells2"], 7)
+
+        # Take 60 steps, check results
+        for i in range(60):
+            live_counts = gol.next_step()
+
+        self.assertEqual(live_counts["generation"], 60)
+        self.assertEqual(live_counts["liveCells"],  156)
+        self.assertEqual(live_counts["liveCells1"], 78)
+        self.assertEqual(live_counts["liveCells2"], 78)
+        print("Passed 60 steps check")
+
+        # Take 80 steps, check results
+        for i in range(20):
+            live_counts = gol.next_step()
+
+        self.assertEqual(live_counts["generation"], 80)
+        self.assertEqual(live_counts["liveCells"],  190)
+        self.assertEqual(live_counts["liveCells1"], 95)
+        self.assertEqual(live_counts["liveCells2"], 95)
+        print("Passed 80 steps check")
+
+        # ----------
+
+        # Take 100 steps, check results
+        for i in range(20):
+            live_counts = gol.next_step()
+
+        self.assertEqual(live_counts["generation"], 100)
+        self.assertEqual(live_counts["liveCells"],  152)
+        self.assertEqual(live_counts["liveCells1"], 76)
+        self.assertEqual(live_counts["liveCells2"], 76)
+        print("Passed 10 steps check")
+
+        # Take 500 steps, check results
+        for i in range(400):
+            live_counts = gol.next_step()
+
+        self.assertEqual(live_counts["generation"], 500)
+        self.assertEqual(live_counts["liveCells"],  678)
+        self.assertEqual(live_counts["liveCells1"], 207)
+        self.assertEqual(live_counts["liveCells2"], 471)
+
+        # Stops after 3364 generations
+        while gol.running and gol.generation < 3368:
+            live_counts = gol.next_step()
+
+        # Should stop right at 3364
+        self.assertEqual(gol.generation, 3364)
+        self.assertEqual(live_counts["liveCells"],  689)
+        self.assertEqual(live_counts["liveCells1"], 132)
+        self.assertEqual(live_counts["liveCells2"], 557)
+
