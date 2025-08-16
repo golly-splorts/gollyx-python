@@ -1985,14 +1985,10 @@ class HellmouthBinaryLife(object):
         columns: int,
         rule_b: list,
         rule_s: list,
+        maxdim: int,
         halt: bool = True,
         neighbor_color_legacy_mode: bool = False,
-        maxdim = None
     ):
-        if maxdim is None:
-            self.maxdim = MAXDIM
-        else:
-            self.maxdim = maxdim
         self.ic1 = ic1
         self.ic2 = ic2
 
@@ -2001,6 +1997,8 @@ class HellmouthBinaryLife(object):
 
         self.rule_b = rule_b
         self.rule_s = rule_s
+
+        self.maxdim = maxdim
 
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
