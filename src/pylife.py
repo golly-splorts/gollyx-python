@@ -45,16 +45,15 @@ class ToroidalBinaryLife(object):
 
     neighbor_color_legacy_mode: bool = False
 
-    MAXDIM = 240
-
     def __init__(
         self,
         ic1: dict,
         ic2: dict,
         rows: int,
         columns: int,
-        rule_b: list = [],
-        rule_s: list = [],
+        rule_b: list,
+        rule_s: list,
+        maxdim: int,
         halt: bool = True,
         neighbor_color_legacy_mode: bool = False,
     ):
@@ -67,6 +66,8 @@ class ToroidalBinaryLife(object):
         self.rule_b = rule_b
         self.rule_s = rule_s
 
+        self.maxdim = maxdim
+
         self.neighbor_color_legacy_mode = neighbor_color_legacy_mode
 
         # Whether to stop when a victor is detected
@@ -75,7 +76,7 @@ class ToroidalBinaryLife(object):
         self.running = True
         self.generation = 0
 
-        self.running_avg_window = [0,]*self.MAXDIM
+        self.running_avg_window = [0,]*self.maxdim
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
 
@@ -105,8 +106,7 @@ class ToroidalBinaryLife(object):
 
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
-            maxdim = self.MAXDIM
-            # maxdim = max(2 * self.columns, 2 * self.rows)
+            maxdim = self.maxdim
             if self.generation < maxdim:
                 self.running_avg_window[self.generation] = livecounts["victoryPct"]
             else:
@@ -890,6 +890,7 @@ class RainbowQuaternaryLife(object):
 
     def update_moving_avg(self, livecounts):
         if not self.found_victor:
+            # Rainbow average window is larger
             maxdim = self.AVGWINDOW
 
             live_amt1 = livecounts["liveCells1"]
