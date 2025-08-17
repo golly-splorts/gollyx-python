@@ -1,0 +1,37 @@
+# pyproject.toml
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "gollyx-python"
+dynamic = ["version"]
+description = "gollyx-python is a package for running experimental cellular autonoma simulations for GollyX"
+readme = "Readme.md"
+license = { file = "LICENSE" }
+keywords = []
+authors = [
+    { name = "Ch4zm of Hellmouth", email = "ch4zm.of.hellmouth@gmail.com" },
+]
+dependencies = []
+
+[project.urls]
+"Homepage" = "https://golly.life"
+
+[project.optional-dependencies]
+# Replaces requirements-dev.txt
+dev = [
+    "pytest",
+    "flake8",
+    "mypy",
+]
+
+[tool.setuptools]
+# This section tells setuptools how to find your package.
+# It maps the importable package name 'gollyx_python' to the 'src' directory.
+packages = { find = { where = ["src"] } }
+
+[tool.setuptools.dynamic]
+# Get the version from __version__ variable in the package's __init__.py file
+version = { attr = "gollyx_python.__version__" }
