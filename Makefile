@@ -1,5 +1,3 @@
-include common.mk
-
 MODULES=golly_python
 
 CB := $(shell git branch --show-current)
