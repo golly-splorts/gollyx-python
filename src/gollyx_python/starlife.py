@@ -3,7 +3,7 @@ from operator import indexOf
 
 
 # Default value for dimension (in time) of time-average window
-MAXDIM = 240
+MAXDIM = 280
 
 
 class StarBinaryGenerationsCA(object):
