@@ -2,6 +2,10 @@ import math
 from operator import indexOf
 
 
+# Default value for dimension (in time) of time-average window
+MAXDIM = 240
+
+
 class StarBinaryGenerationsCA(object):
 
     running_avg_window: list = []
