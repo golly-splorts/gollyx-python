@@ -2,10 +2,6 @@ import math
 from operator import indexOf
 
 
-# Dimension (in time) of time-average window
-MAXDIM = 240
-
-
 class StarBinaryGenerationsCA(object):
 
     running_avg_window: list = []
@@ -104,7 +100,7 @@ class StarBinaryGenerationsCA(object):
 
         self.running_avg_window = [
             0,
-        ] * self.MAXDIM
+        ] * self.maxdim
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
 
@@ -151,7 +147,7 @@ class StarBinaryGenerationsCA(object):
             livecounts = self.get_live_counts()
 
         if not self.found_victor:
-            maxdim = self.MAXDIM
+            maxdim = self.maxdim
             # maxdim = max(2 * self.columns, 2 * self.rows)
 
             rootsum = 0
