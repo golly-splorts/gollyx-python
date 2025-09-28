@@ -145,7 +145,6 @@ class ToroidalBinaryLife(object):
                                 self.who_won = 2
 
     def approx_equal(self, a, b, tol):
-        SMOL = 1e-12
         return (abs(b - a) / abs(a + SMOL)) < tol
 
     def is_alive(self, x, y):
@@ -718,7 +717,6 @@ class ToroidalBinaryLife(object):
         self.livecells2 = livecells2
 
         victory = 0.0
-        SMOL = 1e-12
         if livecells1 > livecells2:
             victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
         else:
@@ -931,7 +929,7 @@ class RainbowQuaternaryLife(object):
                 removed = self.running_avg_last3[0]
                 self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
 
-                tol = 1e-8
+                tol = EQUALTOL
                 # skip the first few steps where we're removing zeros
                 if not self.approx_equal(removed, 0.0, tol):
                     # We have a nonzero running average, and no victor,
@@ -991,7 +989,6 @@ class RainbowQuaternaryLife(object):
         return list(sorted_scores)
 
     def approx_equal(self, a, b, tol):
-        SMOL = 1e-12
         return (abs(b - a) / abs(a + SMOL)) < tol
 
     def is_alive(self, x, y):
@@ -1518,8 +1515,6 @@ class RainbowQuaternaryLife(object):
         self.livecells2 = livecells2
         self.livecells3 = livecells3
         self.livecells4 = livecells4
-
-        SMOL = 1e-12
 
         total_area = self.columns * self.rows
         coverage = livecells / (1.0 * total_area)
