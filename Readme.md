@@ -18,12 +18,14 @@ dimensions, rules, and initial conditions for each team. The manager then create
 underlying life simulator instance.
 
 The main responsibilities of a manager class are:
+
 - Loading and parsing configuration (e.g., initial patterns from JSON).
 - Instantiating the correct life simulator class.
 - Providing a simple interface to the simulation, typically with methods like `next_step()` to advance the
   simulation by one generation and `count()` to retrieve statistics.
 
 The primary manager classes are:
+
 - `ToroidalGOL`: Manages a standard two-team Game of Life on a periodic (toroidal) grid.
 - `HellmouthGOL`: Manages a two-team Game of Life using a high-performance, linked-list-based engine.
 - `KleinGOL`: Manages a two-team Game of Life on a Klein bottle topology.
