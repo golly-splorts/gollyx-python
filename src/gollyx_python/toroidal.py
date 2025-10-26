@@ -1,10 +1,6 @@
-"""
-A toroidal Game of Life implementation using sets of tuples for live cells.
-"""
-
 class ToroidalGOL:
     """
-    A toroidal Game of Life implementation.
+    An implementation of a toroidal Game of Life.
     """
 
     def __init__(self, width, height, rules):
@@ -18,8 +14,17 @@ class ToroidalGOL:
         """
         Set the initial pattern of live cells.
         """
-        self.live_cells_color1 = set(pattern_color1)
-        self.live_cells_color2 = set(pattern_color2)
+        for d in pattern_color1:
+            y_str, xs = list(d.items())[0]
+            y = int(y_str)
+            for x in xs:
+                self.live_cells_color1.add((x, y))
+
+        for d in pattern_color2:
+            y_str, xs = list(d.items())[0]
+            y = int(y_str)
+            for x in xs:
+                self.live_cells_color2.add((x, y))
 
     def next_generation(self):
         """
