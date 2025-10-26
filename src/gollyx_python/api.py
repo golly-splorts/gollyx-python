@@ -115,49 +115,100 @@ class BaseGOL:
         raise NotImplementedError
 
 
-class ToroidalGOL(BaseGOL):
+class ToroidalGOL:
     """
     Public API for the Toroidal Game of Life.
     """
 
+    def __init__(self, **kwargs):
+        self.load_config(**kwargs)
+        self.create_life()
+
+    def load_config(self, **kwargs):
+        """Load configuration from user-provided input params"""
+        if "s1" in kwargs and "s2" in kwargs:
+            self.ic1_str = kwargs["s1"]
+            self.ic2_str = kwargs["s2"]
+        else:
+            raise Exception("ERROR: s1 and s2 parameters must both be specified")
+
+        if "rows" in kwargs and "columns" in kwargs:
+            self.rows = kwargs["rows"]
+            self.columns = kwargs["columns"]
+        else:
+            raise Exception(
+                "ERROR: rows and columns parameters must be provided to GOL constructor"
+            )
+
+        if "rule_b" in kwargs:
+            self.rule_b = [int(j) for j in kwargs["rule_b"]]
+        else:
+            self.rule_b = [3]
+        if "rule_s" in kwargs:
+            self.rule_s = [int(j) for j in kwargs["rule_s"]]
+        else:
+            self.rule_s = [2, 3]
+
+        if "team1" in kwargs and "team2" in kwargs:
+            self.team_names = [kwargs["team1"], kwargs["team2"]]
+        else:
+            self.team_names = ["Team 1", "Team 2"]
+
+        if "maxdim" in kwargs:
+            self.maxdim = kwargs["maxdim"]
+        else:
+            self.maxdim = 280
+
+        if "halt" in kwargs:
+            self.halt = kwargs["halt"]
+        else:
+            self.halt = True
+        self.found_victor = False
+
+
+
     def create_life(self):
-        self.life = ToroidalGOLImpl(self.columns, self.rows, self.rules)
-        self.life.set_pattern(self.ic1, self.ic2)
+        try:
+            ic1 = json.loads(self.ic1_str)
+        except json.decoder.JSONDecodeError:
+            err = "Error: Could not load data as json:\n"
+            err += self.ic1_str
+            raise Exception(err)
+
+        try:
+            ic2 = json.loads(self.ic2_str)
+        except json.decoder.JSONDecodeError:
+            err = "Error: Could not load data as json:\n"
+            err += self.ic2_str
+            raise Exception(err)
+
+        self.life = ToroidalGOLImpl(
+            ic1,
+            ic2,
+            self.rows,
+            self.columns,
+            self.rule_b,
+            self.rule_s,
+            self.maxdim,
+            self.halt,
+        )
+
+    def next_step(self):
+        return self.life.next_step()
 
     def get_live_counts(self):
-        if not self.live_counts_history:
-             live_cells_c1, live_cells_c2 = self.life.get_live_cells()
-             counts = (len(live_cells_c1), len(live_cells_c2))
-        else:
-             counts = self.live_counts_history[-1]
+        return self.life.get_live_counts()
 
-        live_cells1 = counts[0]
-        live_cells2 = counts[1]
-        live_cells = live_cells1 + live_cells2
-        
-        total_area = self.rows * self.columns
-        coverage = (live_cells / (total_area + 1e-12)) * 100
-        
-        victory_pct = 0
-        if live_cells > 0:
-            if live_cells1 > live_cells2:
-                victory_pct = (live_cells1 / (live_cells)) * 100
-            else:
-                victory_pct = (live_cells2 / (live_cells)) * 100
+    def check_for_victor(self):
+        return self.life.found_victor
 
-        territory1 = (live_cells1 / (total_area + 1e-12)) * 100
-        territory2 = (live_cells2 / (total_area + 1e-12)) * 100
+    @property
+    def running(self):
+        return self.life.running
 
-        return {
-            "generation": self.generation,
-            "liveCells": live_cells,
-            "liveCells1": live_cells1,
-            "liveCells2": live_cells2,
-            "victoryPct": victory_pct,
-            "coverage": coverage,
-            "territory1": territory1,
-            "territory2": territory2,
-        }
+    @property
+    def generation(self):
+        return self.life.generation
 
 
 class StarGOL(BaseGOL):
@@ -207,6 +258,15 @@ class StarGOL(BaseGOL):
         }
     
     def check_for_victor(self):
-        # Simplified check for StarGOL, as it has 3 colors
-        # The original logic is complex, this is a placeholder
+        """
+        Check for a victor based on the underlying simulation's state.
+        """
+        if self.life.found_victor:
+            if self.life.who_won == 1:
+                return self.team_names[0]
+            elif self.life.who_won == 2:
+                return self.team_names[1]
+            else:
+                # Tie or invalid win
+                raise Exception("Game ended in a tie or invalid win state.")
         return None
