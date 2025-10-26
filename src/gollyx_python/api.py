@@ -50,14 +50,15 @@ class BaseGOL:
         if isinstance(rule_s, list):
             rule_s = "".join(map(str, rule_s))
 
-        # The 'dead_wait' rule (rule_c) is also passed as a string for consistency,
-        # even though it's converted to an integer for numerical comparisons in the engine.
-        rule_c = kwargs.get('rule_c', '4')
+        # rule_c needs to be modified before storing in rules, so cast to int
+        rule_c = int(kwargs.get('rule_c', '4'))
 
         self.rules = {
+            # str
             'birth': str(rule_b),
             'survival': str(rule_s),
-            'dead_wait': str(rule_c)
+            # int
+            'dead_wait': rule_c - 2,
         }
 
         self.halt = kwargs.get("halt", True)
