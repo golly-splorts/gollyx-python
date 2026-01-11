@@ -1,51 +1,47 @@
-import math
-from operator import indexOf
-import json
+# cython: language_level=3
 
+from operator import indexOf
+import math
+import json
+import cython
 
 # Default value for dimension (in time) of time-average window
-MAXDIM = 280
+cdef int MAXDIM = 280
 
-
-class StarGOL(object):
-
-    generation = 0
-    columns = 0
-    rows = 0
-
-    livecells = 0
-    livecellscolors = []
-
-    victory = 0.0
-    who_won = 0
-    coverage = 0.0
-
-    found_victor = False
-    running_avg_window: list = []
-    running_avg_last3: list = [0.0, 0.0, 0.0]
-    running = False
-    periodic = True
-
-    # These are star cup defaults
-    # Many bothans died to find these tolerances
-    tol_zero = 1e-8
-    tol_stable = 1e-6
+cdef class StarGOL:
+    cdef public int generation
+    cdef public int columns, rows, width, height
+    cdef public int livecells
+    cdef public list livecellscolors
+    cdef public double victory, coverage
+    cdef public int who_won
+    cdef public bint found_victor, running, periodic, halt
+    cdef public list running_avg_window, running_avg_last3
+    cdef public double tol_zero, tol_stable
+    
+    cdef public list rule_b, rule_s
+    cdef public int rule_c, maxdim
+    
+    cdef public list actual_state
+    cdef public list actual_state_colors
+    cdef public list dead_wait_n
+    cdef public list dead_wait_colors_n
 
     def __init__(
         self,
         s1=[],
         s2=[],
-        rows: int = 0,
-        columns: int = 0,
-        rule_b: list = None,
-        rule_s: list = None,
-        rule_c: int = 4,
-        periodic: bool = True,
-        maxdim: int = MAXDIM,
-        b1: list = [],
-        b2: list = [],
-        c1: list = [],
-        c2: list = [],
+        int rows=0,
+        int columns=0,
+        list rule_b=None,
+        list rule_s=None,
+        int rule_c=4,
+        bint periodic=True,
+        int maxdim=MAXDIM,
+        list b1=[],
+        list b2=[],
+        list c1=[],
+        list c2=[],
         **kwargs,
     ):
         if isinstance(s1, str):
@@ -70,34 +66,49 @@ class StarGOL(object):
         self.tol_zero = kwargs.get("tol_zero", 1e-8)
         self.tol_stable = kwargs.get("tol_stable", 1e-6)
 
+        self.running_avg_window = []
+        self.running_avg_last3 = [0.0, 0.0, 0.0]
+        self.livecellscolors = []
+        
         self.set_pattern(s1, s2, b1, b2, c1, c2)
 
-    def set_pattern(self, pattern_color1, pattern_color2, pattern_b1=[], pattern_b2=[], pattern_c1=[], pattern_c2=[]):
+    cpdef set_pattern(self, pattern_color1, pattern_color2, list pattern_b1=[], list pattern_b2=[], list pattern_c1=[], list pattern_c2=[]):
         """similar to setInitialState in starlife.py"""
+        cdef int i, level_index, color, y, yy, xx
+        cdef list dead_wait_color_j, xs
+        cdef dict s1row, s2row, row
+        cdef str y_str
+        cdef bint is_occupied
+        cdef tuple pattern_data
+        
         # Reset state for fresh run
         self.actual_state = []
         self.actual_state_colors = [set(), set(), set()]
         self.dead_wait_n = []
         self.dead_wait_colors_n = []
+        
         for i in range(self.rule_c - 2):
             self.dead_wait_n.append([])
             dead_wait_color_j = [set(), set(), set()]
             self.dead_wait_colors_n.append(dead_wait_color_j)
+            
         self.generation = 0
-        self.running_avg_window = [0] * self.maxdim
-        self.running_avg_last3 = [0, 0, 0]
+        self.running_avg_window = [0.0] * self.maxdim
+        self.running_avg_last3 = [0.0, 0.0, 0.0]
         self.found_victor = False
         self.running = True
 
         # Process alive cells
         for s1row in pattern_color1:
-            for y, xs in s1row.items():
-                yy = int(y)
+            for y_str in s1row:
+                yy = int(y_str)
+                xs = s1row[y_str]
                 for xx in xs:
                     self.add_alive_cell(xx, yy, 1)
         for s2row in pattern_color2:
-            for y, xs in s2row.items():
-                yy = int(y)
+            for y_str in s2row:
+                yy = int(y_str)
+                xs = s2row[y_str]
                 for xx in xs:
                     self.add_alive_cell(xx, yy, 2)
 
@@ -109,10 +120,17 @@ class StarGOL(object):
             (pattern_c2, 2, 1),
         ]
 
-        for pattern_data, color, level_index in dead_wait_patterns:
-            for row in pattern_data:
-                for y, xs in row.items():
-                    yy = int(y)
+        for pattern_data in dead_wait_patterns:
+            # (pattern_data, color, level_index)
+            # Tuple unpacking manually or typed
+            p_data = pattern_data[0]
+            color = pattern_data[1]
+            level_index = pattern_data[2]
+            
+            for row in p_data:
+                for y_str in row:
+                    yy = int(y_str)
+                    xs = row[y_str]
                     for xx in xs:
                         # Check if cell is already occupied at a higher-priority state
                         is_occupied = False
@@ -126,30 +144,42 @@ class StarGOL(object):
                                     break
                         
                         if not is_occupied:
-                            target_state = self.dead_wait_n[level_index]
-                            target_color_set = self.dead_wait_colors_n[level_index]
+                            # target_state = self.dead_wait_n[level_index]
+                            # target_color_set = self.dead_wait_colors_n[level_index]
                             
-                            self.dead_wait_n[level_index], self.dead_wait_colors_n[level_index] = \
-                                self.add_cell_to_custom_state(xx, yy, target_state, target_color_set, color)
+                            res = self.add_cell_to_custom_state(
+                                xx, yy, 
+                                self.dead_wait_n[level_index], 
+                                self.dead_wait_colors_n[level_index], 
+                                color
+                            )
+                            self.dead_wait_n[level_index] = res[0]
+                            self.dead_wait_colors_n[level_index] = res[1]
 
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
 
-    def check_for_victor(self):
+    cpdef bint check_for_victor(self):
         if self.found_victor:
             return True
         else:
             return False
 
-    def is_dead_wait_at_level(self, x, y, level_index):
-        rep = f"({x},{y})"
+    cdef bint is_dead_wait_at_level(self, int x, int y, int level_index):
+        cdef str rep = f"({x},{y})"
+        cdef int color0
+        cdef list colors_n = self.dead_wait_colors_n[level_index]
         for color0 in range(3):
-            if rep in self.dead_wait_colors_n[level_index][color0]:
+            if rep in colors_n[color0]:
                 return True
         return False
 
-    def update_moving_avg(self, livecounts = None):
-        """similar to checkForVictor in js simulator"""
+    cpdef update_moving_avg(self, dict livecounts=None):
+        cdef int maxdim
+        cdef double rootsum, summ, running_avg, removed, tol_zero, tol_stable
+        cdef bint b1, b2, victory_by_stability, victory_by_shutout
+        cdef int i, zero_score_counter, threshold
+
         if livecounts is None:
             livecounts = self.get_live_counts()
 
@@ -227,10 +257,8 @@ class StarGOL(object):
                         # Tie
                         self.who_won = -1
 
-    def next_step(self):
-        """
-        Advances the simulation by one step.
-        """
+    cpdef dict next_step(self):
+        cdef dict live_counts
         if self.running is False:
             return self.get_live_counts()
         elif self.halt and self.found_victor:
@@ -242,39 +270,38 @@ class StarGOL(object):
             self.update_moving_avg(live_counts)
             return live_counts
 
-    def next_generation(self):
-        """
-        Advances the simulation by one step.
-        """
+    cpdef dict next_generation(self):
         return self.next_step()
 
-    def _next_generation_logic(self):
-        """
-        Evolve the actual_state list life state to the next generation.
-        """
-        all_dead_neighbors = {}
+    cdef dict _next_generation_logic(self):
+        cdef dict all_dead_neighbors = {}
+        cdef list new_state = []
+        cdef list new_state_colors = [set(), set(), set()]
+        cdef list new_dead_wait_n = []
+        cdef list new_dead_wait_colors_n = []
+        cdef list new_dead_wait_colors_j
+        cdef int i, j, x, y, xm1, ym1, xp1, yp1, t1, t2, color, neighbors
+        cdef list dead_neighbors, dead_neighbor
+        cdef str key
+        cdef dict result
+        cdef tuple res_tuple
+        cdef int cmax_ix, c, cm1
+        cdef list row
 
-        # -----
-        # init
-        new_state = []
-        new_state_colors = [set(), set(), set()]
-
-        new_dead_wait_n = []
-        new_dead_wait_colors_n = []
         for i in range(self.rule_c - 2):
             new_dead_wait_n.append([])
             new_dead_wait_colors_j = [set(), set(), set()]
             new_dead_wait_colors_n.append(new_dead_wait_colors_j)
-        # -----
-
+        
         # -----
         # SURVIVE step
 
         for i in range(len(self.actual_state)):
-            for j in range(1, len(self.actual_state[i])):
-                x = self.actual_state[i][j]
-                y = self.actual_state[i][0]
-
+            row = self.actual_state[i]
+            y = row[0]
+            for j in range(1, len(row)):
+                x = row[j]
+                
                 xm1 = x - 1
                 ym1 = y - 1
                 xp1 = x + 1
@@ -300,33 +327,42 @@ class StarGOL(object):
 
                 for dead_neighbor in dead_neighbors:
                     if dead_neighbor is not None:
-                        xx, yy = dead_neighbor[0], dead_neighbor[1]
-                        key = str(xx) + "," + str(yy)
-                        if not self.is_dead_wait(xx, yy):
+                        # xx, yy = dead_neighbor[0], dead_neighbor[1]
+                        # key = str(xx) + "," + str(yy)
+                        # key = f"{dead_neighbor[0]},{dead_neighbor[1]}"
+                        # Explicit typing for logic
+                        if not self.is_dead_wait(dead_neighbor[0], dead_neighbor[1]):
+                            key = f"{dead_neighbor[0]},{dead_neighbor[1]}"
                             if key not in all_dead_neighbors:
                                 all_dead_neighbors[key] = 1
                             else:
                                 all_dead_neighbors[key] += 1
 
                 if neighbors in self.rule_s:
-                    new_state, new_state_colors = self.add_cell_to_custom_state(
+                    res_tuple = self.add_cell_to_custom_state(
                         x, y, new_state, new_state_colors, color
                     )
+                    new_state = res_tuple[0]
+                    new_state_colors = res_tuple[1]
                 else:
-                    new_dead_wait_n[0], new_dead_wait_colors_n[0] = self.add_cell_to_custom_state(
+                    res_tuple = self.add_cell_to_custom_state(
                         x, y, new_dead_wait_n[0], new_dead_wait_colors_n[0], color
                     )
+                    new_dead_wait_n[0] = res_tuple[0]
+                    new_dead_wait_colors_n[0] = res_tuple[1]
         # -----
 
         # -----
         # BIRTH step
-        for key, count in all_dead_neighbors.items():
-            if count in self.rule_b:
+        for key in all_dead_neighbors:
+            if all_dead_neighbors[key] in self.rule_b:
                 t1, t2 = map(int, key.split(","))
                 color = self.get_color_from_alive(t1, t2)
-                new_state, new_state_colors = self.add_cell_to_custom_state(
+                res_tuple = self.add_cell_to_custom_state(
                     t1, t2, new_state, new_state_colors, color
                 )
+                new_state = res_tuple[0]
+                new_state_colors = res_tuple[1]
         # -----
 
         # -----
@@ -346,13 +382,15 @@ class StarGOL(object):
 
         return self.get_live_counts()
 
-    def get_live_cells(self):
+    cpdef tuple get_live_cells(self):
         """
         Return the coordinates of all live cells for each color.
         """
-        live_cells_color1 = []
-        live_cells_color2 = []
-        live_cells_color3 = []
+        cdef list live_cells_color1 = []
+        cdef list live_cells_color2 = []
+        cdef list live_cells_color3 = []
+        cdef str rep, x_str, y_str
+        
         for rep in self.actual_state_colors[0]:
             x_str, y_str = rep.strip('()').split(',')
             live_cells_color1.append((int(x_str), int(y_str)))
@@ -364,10 +402,18 @@ class StarGOL(object):
             live_cells_color3.append((int(x_str), int(y_str)))
         return live_cells_color1, live_cells_color2, live_cells_color3
 
-    def _get_state_count(self, state):
-        return sum(len(row) - 1 for row in state)
+    cdef int _get_state_count(self, list state):
+        cdef int count = 0
+        cdef list row
+        for row in state:
+            count += len(row) - 1
+        return count
 
-    def get_live_counts(self):
+    cpdef dict get_live_counts(self):
+        cdef int livecells
+        cdef list livecells_colors
+        cdef double total_area, coverage
+        
         livecells = self._get_state_count(self.actual_state)
         livecells_colors = [len(s) for s in self.actual_state_colors]
         
@@ -376,7 +422,10 @@ class StarGOL(object):
             raise Exception(err)
 
         total_area = self.columns * self.rows
-        coverage = (livecells / (1.0 * total_area)) * 100 if total_area > 0 else 0
+        if total_area > 0:
+            coverage = (livecells / (1.0 * total_area)) * 100
+        else:
+            coverage = 0
         self.coverage = coverage
 
         return dict(
@@ -389,15 +438,23 @@ class StarGOL(object):
             last3=self.running_avg_last3,
         )
 
-    def get_neighbors_from_alive(self, x, y, possible_neighbors_list):
-        neighbors_colors = [0]*3
+    cdef tuple get_neighbors_from_alive(self, int x, int y, list possible_neighbors_list):
+        cdef list neighbors_colors = [0, 0, 0]
+        cdef int i
+        cdef tuple res
+        cdef int neighbors, neighbors_norefs, color
+        cdef list neighbors_dw = [0, 0]
+        cdef int max_neighbor, num_equal_max
+        cdef int max_neighbor_dw, num_equal_max_dw
+        
         for i in range(3):
-            count, possible_neighbors_list = self.get_color_counts_from_possible_neighbors(x, y, i+1, possible_neighbors_list)
-            neighbors_colors[i] = count
+            res = self.get_color_counts_from_possible_neighbors(x, y, i+1, possible_neighbors_list)
+            neighbors_colors[i] = res[0]
+            possible_neighbors_list = res[1]
+            
         neighbors = sum(neighbors_colors)
         neighbors_norefs = neighbors_colors[0] + neighbors_colors[1]
 
-        neighbors_dw = [0]*2
         for i in range(2):
             neighbors_dw[i] = self.get_color_counts_from_dead_wait(x, y, i+1)
 
@@ -424,10 +481,12 @@ class StarGOL(object):
         if color < 0:
             color = self.get_cell_color(x, y)
 
-        return dict(neighbors=neighbors, color=color), possible_neighbors_list
+        return {"neighbors": neighbors, "color": color}, possible_neighbors_list
 
-    def get_color_from_alive(self, x, y):
-        neighbors_colors = [0]*3
+    cdef int get_color_from_alive(self, int x, int y):
+        cdef list neighbors_colors = [0, 0, 0]
+        cdef int i, neighbors, neighbors_norefs, color, max_neighbor, num_equal_max
+        
         for i in range(3):
             neighbors_colors[i] = self.get_color_counts_from_alive(x, y, i+1)
         neighbors = sum(neighbors_colors)
@@ -446,9 +505,12 @@ class StarGOL(object):
                 color = 3 # Only referee neighbors
         return color
 
-    def get_color_counts_from_dead_wait(self, x, y, color):
-        color0 = color - 1
-        dead_wait_count = 0
+    cdef int get_color_counts_from_dead_wait(self, int x, int y, int color):
+        cdef int color0 = color - 1
+        cdef int dead_wait_count = 0
+        cdef int c, iy, ix, xx, yy
+        cdef set points
+        
         for c in range(self.rule_c-2):
             points = self.dead_wait_colors_n[c][color0]
             for iy in [-1, 0, 1]:
@@ -459,10 +521,12 @@ class StarGOL(object):
                         dead_wait_count += 1
         return dead_wait_count
 
-    def get_color_counts_from_alive(self, x, y, color):
-        color0 = color - 1
-        alive_count = 0
-        points = self.actual_state_colors[color0]
+    cdef int get_color_counts_from_alive(self, int x, int y, int color):
+        cdef int color0 = color - 1
+        cdef int alive_count = 0
+        cdef set points = self.actual_state_colors[color0]
+        cdef int iy, ix, xx, yy
+        
         for iy in [-1, 0, 1]:
             for ix in [-1, 0, 1]:
                 if ix == 0 and iy == 0: continue
@@ -471,11 +535,13 @@ class StarGOL(object):
                     alive_count += 1
         return alive_count
 
-    def get_color_counts_from_possible_neighbors(self, x, y, color, possible_dead_neighbors_list):
-        color0 = color - 1
-        points = self.actual_state_colors[color0]
-        count = 0
-        z = 0
+    cdef tuple get_color_counts_from_possible_neighbors(self, int x, int y, int color, list possible_dead_neighbors_list):
+        cdef int color0 = color - 1
+        cdef set points = self.actual_state_colors[color0]
+        cdef int count = 0
+        cdef int z = 0
+        cdef int iy, ix, xx, yy
+        
         for iy in [-1, 0, 1]:
             for ix in [-1, 0, 1]:
                 if ix == 0 and iy == 0: continue
@@ -486,31 +552,38 @@ class StarGOL(object):
                 z += 1
         return count, possible_dead_neighbors_list
 
-    def is_alive(self, x, y):
+    cdef bint is_alive(self, int x, int y):
         x, y = self.periodic_normalize_x(x), self.periodic_normalize_y(y)
-        rep = f"({x},{y})"
+        cdef str rep = f"({x},{y})"
         return rep in self.actual_state_colors[0] or rep in self.actual_state_colors[1] or rep in self.actual_state_colors[2]
 
-    def is_dead_wait(self, x, y):
-        rep = f"({x},{y})"
+    cdef bint is_dead_wait(self, int x, int y):
+        cdef str rep = f"({x},{y})"
+        cdef int c, color0
         for c in range(self.rule_c-2):
             for color0 in range(3):
                 if rep in self.dead_wait_colors_n[c][color0]:
                     return True
         return False
 
-    def get_cell_color(self, x, y):
-        rep = f"({x},{y})"
+    cdef int get_cell_color(self, int x, int y):
+        cdef str rep = f"({x},{y})"
+        cdef int i
         for i in range(3):
             if rep in self.actual_state_colors[i]:
                 return i+1
         return 0
 
-    def add_alive_cell(self, x, y, color):
-        self.actual_state, self.actual_state_colors = self.add_cell_to_custom_state(x, y, self.actual_state, self.actual_state_colors, color)
+    cdef void add_alive_cell(self, int x, int y, int color):
+        res = self.add_cell_to_custom_state(x, y, self.actual_state, self.actual_state_colors, color)
+        self.actual_state = res[0]
+        self.actual_state_colors = res[1]
 
-    def add_cell_to_custom_state(self, x, y, state, color_set, color):
-        color0 = color-1
+    cdef tuple add_cell_to_custom_state(self, int x, int y, list state, list color_set, int color):
+        cdef int color0 = color-1
+        cdef int i
+        cdef str rep
+        
         if not (0 <= color0 < 3):
             raise Exception(f"Invalid color {color} for cell ({x},{y})")
 
@@ -523,9 +596,12 @@ class StarGOL(object):
         color_set[color0].add(rep)
         return state, color_set
 
-    def _add_cell(self, x, y, state):
+    cdef list _add_cell(self, int x, int y, list state):
         x = self.periodic_normalize_x(x)
         y = self.periodic_normalize_y(y)
+        cdef int i, insertion_index
+        cdef list row
+        cdef bint added
 
         if not state:
             return [[y, x]]
@@ -536,15 +612,22 @@ class StarGOL(object):
         
         return self._insert_into_state(x, y, state)
 
-    def _insertion_index(self, x, row):
-        for i, xval in enumerate(row[1:]):
+    cdef int _insertion_index(self, int x, list row):
+        cdef int i, xval
+        for i in range(len(row)-1):
+            # row[1:] -> row[i+1]
+            xval = row[i+1]
             if x < xval:
                 return i+1
         return len(row)
 
-    def _insert_into_state(self, x, y, state):
-        added = False
-        for i, row in enumerate(state):
+    cdef list _insert_into_state(self, int x, int y, list state):
+        cdef bint added = False
+        cdef int i, insertion_index
+        cdef list row
+        
+        for i in range(len(state)):
+            row = state[i]
             if row[0] == y:
                 if x in row[1:]: return state # Already exists
                 insertion_index = self._insertion_index(x, row)
@@ -559,19 +642,19 @@ class StarGOL(object):
              raise Exception(f"Failed to add cell ({x},{y})")
         return state
 
-    def approx_equal(self, a, b, tol):
+    cdef bint approx_equal(self, double a, double b, double tol):
         return self.relative_diff(a, b) < tol
 
-    def relative_diff(self, a, b):
-        SMOL = 1e-12
-        denom = max(abs(a), abs(b), SMOL)
+    cdef double relative_diff(self, double a, double b):
+        cdef double SMOL = 1e-12
+        cdef double denom = max(abs(a), abs(b), SMOL)
         return abs(a - b) / denom
 
-    def _periodic_normalize(self, q, p):
+    cdef int _periodic_normalize(self, int q, int p):
         return q % p
 
-    def periodic_normalize_x(self, x):
+    cdef int periodic_normalize_x(self, int x):
         return self._periodic_normalize(x, self.columns)
 
-    def periodic_normalize_y(self, y):
+    cdef int periodic_normalize_y(self, int y):
         return self._periodic_normalize(y, self.rows)

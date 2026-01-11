@@ -21,7 +21,8 @@ requirements-dev:
 	python3 -m pip install --upgrade -r requirements-dev.txt
 
 build: clean
-	python3 setup.py build install
+	python3 -m pip install Cython numpy setuptools
+	cythonize -3 -i src/gollyx_python/*.pyx
 
 test: requirements-dev build
 	pytest -vs
