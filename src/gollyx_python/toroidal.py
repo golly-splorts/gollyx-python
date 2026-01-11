@@ -1,62 +1,42 @@
 from operator import indexOf
 import math
+import json
 
 EQUALTOL = 1e-8
 SMOL = 1e-12
 
 class ToroidalGOL(object):
-
-    actual_state: list = []
-    actual_state1: list = []
-    actual_state2: list = []
-    running_avg_window: list = []
-    running_avg_last3: list = []
-
-    generation = 0
-    columns = 0
-    rows = 0
-
-    row_b: list = []
-    row_s: list = []
-
-    livecells = 0
-    livecells1 = 0
-    livecells2 = 0
-    victory = 0.0
-    who_won = 0
-    coverage = 0.0
-    territory1 = 0.0
-    territory2 = 0.0
-
-    found_victor = False
-    running_avg_window: list = []
-    running_avg_last3: list = [0.0, 0.0, 0.0]
-    running = False
-    periodic = True
-
-    found_victor: bool = False
-
-
-
+    ...
     def __init__(
         self,
-        ic1: dict,
-        ic2: dict,
+        s1,
+        s2,
         rows: int,
         columns: int,
-        rule_b: list,
-        rule_s: list,
-        maxdim: int,
+        rule_b: list = None,
+        rule_s: list = None,
+        maxdim: int = 280,
         halt: bool = True,
+        periodic: bool = True,
+        b1: list = [],
+        b2: list = [],
+        c1: list = [],
+        c2: list = [],
     ):
-        self.ic1 = ic1
-        self.ic2 = ic2
+        if isinstance(s1, str):
+            s1 = json.loads(s1)
+        if isinstance(s2, str):
+            s2 = json.loads(s2)
+
+        self.ic1 = s1
+        self.ic2 = s2
         self.rows = rows
         self.columns = columns
-        self.rule_b = rule_b
-        self.rule_s = rule_s
+        self.rule_b = rule_b or [3]
+        self.rule_s = rule_s or [2, 3]
         self.maxdim = maxdim
         self.halt = halt
+        self.periodic = periodic
         self.running = True
         self.generation = 0
         self.running_avg_window = [0,]*self.maxdim

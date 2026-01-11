@@ -1,5 +1,6 @@
 import math
 from operator import indexOf
+import json
 
 
 # Default value for dimension (in time) of time-average window
@@ -8,16 +9,9 @@ MAXDIM = 280
 
 class StarGOL(object):
 
-    running_avg_window: list = []
-    running_avg_last3: list = []
-
     generation = 0
     columns = 0
     rows = 0
-
-    row_b: list = []
-    row_s: list = []
-    row_c: list = []
 
     livecells = 0
     livecellscolors = []
@@ -32,8 +26,6 @@ class StarGOL(object):
     running = False
     periodic = True
 
-    found_victor: bool = False
-
     # These are star cup defaults
     # Many bothans died to find these tolerances
     tol_zero = 1e-8
@@ -41,48 +33,46 @@ class StarGOL(object):
 
     def __init__(
         self,
-        width: int,
-        height: int,
-        rules: dict,
+        s1=[],
+        s2=[],
+        rows: int = 0,
+        columns: int = 0,
+        rule_b: list = None,
+        rule_s: list = None,
+        rule_c: int = 4,
         periodic: bool = True,
+        maxdim: int = MAXDIM,
+        b1: list = [],
+        b2: list = [],
+        c1: list = [],
+        c2: list = [],
+        **kwargs,
     ):
-        self.rows = height
-        self.columns = width
-        self.width = width
-        self.height = height
+        if isinstance(s1, str):
+            s1 = json.loads(s1)
+        if isinstance(s2, str):
+            s2 = json.loads(s2)
 
-        self.rule_b = [int(c) for c in rules['birth']]
-        self.rule_s = [int(c) for c in rules['survival']]
-        self.rule_c = rules['dead_wait'] + 2
+        self.rows = rows
+        self.columns = columns
+        self.width = columns
+        self.height = rows
 
-        self.maxdim = MAXDIM
-        self.halt = True # Default from starlife, not configurable in new API
+        self.rule_b = rule_b or [3]
+        self.rule_s = rule_s or [2, 3]
+        self.rule_c = rule_c
+
+        self.maxdim = maxdim
+        self.halt = True
         self.periodic = periodic
 
         # Tolerances
-        self.tol_zero = 1e-8
-        self.tol_stable = 1e-6
+        self.tol_zero = kwargs.get("tol_zero", 1e-8)
+        self.tol_stable = kwargs.get("tol_stable", 1e-6)
 
-        # Initialize alive states
-        self.actual_state = []
-        self.actual_state_colors = [set(), set(), set()]
+        self.set_pattern(s1, s2, b1, b2, c1, c2)
 
-        # Initialize dead wait states
-        self.dead_wait_n = []
-        self.dead_wait_colors_n = []
-        for i in range(self.rule_c - 2):
-            self.dead_wait_n.append([])
-            dead_wait_color_j = [set(), set(), set()]
-            self.dead_wait_colors_n.append(dead_wait_color_j)
-
-        self.running = True
-        self.generation = 0
-
-        self.running_avg_window = [0] * self.maxdim
-        self.running_avg_last3 = [0, 0, 0]
-        self.found_victor = False
-
-    def set_pattern(self, pattern_color1, pattern_color2):
+    def set_pattern(self, pattern_color1, pattern_color2, pattern_b1=[], pattern_b2=[], pattern_c1=[], pattern_c2=[]):
         """similar to setInitialState in starlife.py"""
         # Reset state for fresh run
         self.actual_state = []
@@ -99,19 +89,48 @@ class StarGOL(object):
         self.found_victor = False
         self.running = True
 
-        color = 1
+        # Process alive cells
         for s1row in pattern_color1:
             for y, xs in s1row.items():
                 yy = int(y)
                 for xx in xs:
-                    self.add_alive_cell(xx, yy, color)
-
-        color = 2
+                    self.add_alive_cell(xx, yy, 1)
         for s2row in pattern_color2:
             for y, xs in s2row.items():
                 yy = int(y)
                 for xx in xs:
-                    self.add_alive_cell(xx, yy, color)
+                    self.add_alive_cell(xx, yy, 2)
+
+        # Process dead-but-waiting states
+        dead_wait_patterns = [
+            (pattern_b1, 1, 0),
+            (pattern_b2, 2, 0),
+            (pattern_c1, 1, 1),
+            (pattern_c2, 2, 1),
+        ]
+
+        for pattern_data, color, level_index in dead_wait_patterns:
+            for row in pattern_data:
+                for y, xs in row.items():
+                    yy = int(y)
+                    for xx in xs:
+                        # Check if cell is already occupied at a higher-priority state
+                        is_occupied = False
+                        if self.is_alive(xx, yy):
+                            is_occupied = True
+                        else:
+                            # Check all dead-wait levels up to (but not including) the current one
+                            for i in range(level_index):
+                                if self.is_dead_wait_at_level(xx, yy, i):
+                                    is_occupied = True
+                                    break
+                        
+                        if not is_occupied:
+                            target_state = self.dead_wait_n[level_index]
+                            target_color_set = self.dead_wait_colors_n[level_index]
+                            
+                            self.dead_wait_n[level_index], self.dead_wait_colors_n[level_index] = \
+                                self.add_cell_to_custom_state(xx, yy, target_state, target_color_set, color)
 
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
@@ -121,6 +140,13 @@ class StarGOL(object):
             return True
         else:
             return False
+
+    def is_dead_wait_at_level(self, x, y, level_index):
+        rep = f"({x},{y})"
+        for color0 in range(3):
+            if rep in self.dead_wait_colors_n[level_index][color0]:
+                return True
+        return False
 
     def update_moving_avg(self, livecounts = None):
         """similar to checkForVictor in js simulator"""
@@ -201,19 +227,26 @@ class StarGOL(object):
                         # Tie
                         self.who_won = -1
 
-    def next_generation(self):
+    def next_step(self):
         """
         Advances the simulation by one step.
         """
         if self.running is False:
-            return
+            return self.get_live_counts()
         elif self.halt and self.found_victor:
             self.running = False
-            return
+            return self.get_live_counts()
         else:
             self.generation += 1
             live_counts = self._next_generation_logic()
             self.update_moving_avg(live_counts)
+            return live_counts
+
+    def next_generation(self):
+        """
+        Advances the simulation by one step.
+        """
+        return self.next_step()
 
     def _next_generation_logic(self):
         """

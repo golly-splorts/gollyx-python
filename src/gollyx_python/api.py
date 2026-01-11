@@ -24,11 +24,14 @@ class BaseGOL:
         """
         Load configuration from user-provided input params.
         """
-        if "s1" in kwargs and "s2" in kwargs:
-            self.ic1 = json.loads(kwargs["s1"])
-            self.ic2 = json.loads(kwargs["s2"])
+        ic1_val = kwargs.get("initialConditions1")
+        ic2_val = kwargs.get("initialConditions2")
+
+        if ic1_val is not None and ic2_val is not None:
+            self.ic1 = json.loads(ic1_val)
+            self.ic2 = json.loads(ic2_val)
         else:
-            raise Exception("ERROR: s1 and s2 parameters must both be specified")
+            raise Exception("ERROR: initialConditions1 and initialConditions2 parameters must both be specified")
 
         if "rows" in kwargs and "columns" in kwargs:
             self.rows = kwargs["rows"]
@@ -115,83 +118,39 @@ class BaseGOL:
         raise NotImplementedError
 
 
-class ToroidalGOL:
+class ToroidalGOL(BaseGOL):
     """
     Public API for the Toroidal Game of Life.
     """
 
-    def __init__(self, **kwargs):
-        self.load_config(**kwargs)
-        self.create_life()
-
     def load_config(self, **kwargs):
-        """Load configuration from user-provided input params"""
-        if "s1" in kwargs and "s2" in kwargs:
-            self.ic1_str = kwargs["s1"]
-            self.ic2_str = kwargs["s2"]
-        else:
-            raise Exception("ERROR: s1 and s2 parameters must both be specified")
-
-        if "rows" in kwargs and "columns" in kwargs:
-            self.rows = kwargs["rows"]
-            self.columns = kwargs["columns"]
-        else:
-            raise Exception(
-                "ERROR: rows and columns parameters must be provided to GOL constructor"
-            )
-
-        if "rule_b" in kwargs:
-            self.rule_b = [int(j) for j in kwargs["rule_b"]]
-        else:
-            self.rule_b = [3]
-        if "rule_s" in kwargs:
-            self.rule_s = [int(j) for j in kwargs["rule_s"]]
-        else:
-            self.rule_s = [2, 3]
-
-        if "team1" in kwargs and "team2" in kwargs:
-            self.team_names = [kwargs["team1"], kwargs["team2"]]
-        else:
-            self.team_names = ["Team 1", "Team 2"]
-
-        if "maxdim" in kwargs:
-            self.maxdim = kwargs["maxdim"]
-        else:
-            self.maxdim = 280
-
-        if "halt" in kwargs:
-            self.halt = kwargs["halt"]
-        else:
-            self.halt = True
-        self.found_victor = False
-
-
+        """Load configuration specific to ToroidalGOL."""
+        # ToroidalGOL defaults to periodic=True if not specified, 
+        # whereas BaseGOL defaults to False.
+        if "periodic" not in kwargs:
+            kwargs["periodic"] = True
+            
+        super().load_config(**kwargs)
+        self.maxdim = kwargs.get("maxdim", 280)
 
     def create_life(self):
-        try:
-            ic1 = json.loads(self.ic1_str)
-        except json.decoder.JSONDecodeError:
-            err = "Error: Could not load data as json:\n"
-            err += self.ic1_str
-            raise Exception(err)
-
-        try:
-            ic2 = json.loads(self.ic2_str)
-        except json.decoder.JSONDecodeError:
-            err = "Error: Could not load data as json:\n"
-            err += self.ic2_str
-            raise Exception(err)
+        # Convert rules back to list of ints for ToroidalGOL
+        # BaseGOL stores them as strings in self.rules, e.g., "23" -> [2, 3]
+        rule_b_list = [int(d) for d in self.rules['birth']]
+        rule_s_list = [int(d) for d in self.rules['survival']]
 
         self.life = ToroidalGOLImpl(
-            ic1,
-            ic2,
+            self.ic1,
+            self.ic2,
             self.rows,
             self.columns,
-            self.rule_b,
-            self.rule_s,
+            rule_b_list,
+            rule_s_list,
             self.maxdim,
             self.halt,
         )
+        # Ensure implementation syncs with config
+        self.life.periodic = self.periodic
 
     def next_step(self):
         return self.life.next_step()
@@ -205,10 +164,25 @@ class ToroidalGOL:
     @property
     def running(self):
         return self.life.running
+    
+    @running.setter
+    def running(self, value):
+        if hasattr(self, 'life'):
+            self.life.running = value
+        # BaseGOL.__init__ sets self.running = True before create_life is called
+        # We can safely ignore the assignment if self.life doesn't exist yet, 
+        # as self.life will be initialized with running=True in its own __init__.
+        pass
 
     @property
     def generation(self):
         return self.life.generation
+
+    @generation.setter
+    def generation(self, value):
+        if hasattr(self, 'life'):
+            self.life.generation = value
+        pass
 
 
 class StarGOL(BaseGOL):
@@ -216,9 +190,37 @@ class StarGOL(BaseGOL):
     Public API for the Star Game of Life (Generations).
     """
 
+    def load_config(self, **kwargs):
+        """
+        Load configuration specific to StarGOL.
+        """
+        super().load_config(**kwargs)
+
+        # Load dead-but-waiting initial conditions (optional)
+        self.ic_b1 = json.loads(kwargs.get("initialConditionsb1", "[]"))
+        self.ic_b2 = json.loads(kwargs.get("initialConditionsb2", "[]"))
+        self.ic_c1 = json.loads(kwargs.get("initialConditionsc1", "[]"))
+        self.ic_c2 = json.loads(kwargs.get("initialConditionsc2", "[]"))
+
     def create_life(self):
-        self.life = StarGOLImpl(self.columns, self.rows, self.rules, periodic=self.periodic)
-        self.life.set_pattern(self.ic1, self.ic2)
+        rule_b_list = [int(d) for d in self.rules['birth']]
+        rule_s_list = [int(d) for d in self.rules['survival']]
+        rule_c_val = self.rules['dead_wait'] + 2
+
+        self.life = StarGOLImpl(
+            s1=self.ic1,
+            s2=self.ic2,
+            rows=self.rows,
+            columns=self.columns,
+            rule_b=rule_b_list,
+            rule_s=rule_s_list,
+            rule_c=rule_c_val,
+            periodic=self.periodic,
+            b1=self.ic_b1,
+            b2=self.ic_b2,
+            c1=self.ic_c1,
+            c2=self.ic_c2,
+        )
 
     def next_step(self):
         if not self.running:

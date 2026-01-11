@@ -1,3 +1,4 @@
-from .api import ToroidalGOL, StarGOL
+from .toroidal import ToroidalGOL
+from .star import StarGOL
 
-__version__ = "600.1.0"
+__version__ = "700.dev0"
