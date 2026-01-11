@@ -1,5 +1,6 @@
 import math
 from operator import indexOf
+import json
 
 
 # Default value for dimension (in time) of time-average window
@@ -8,16 +9,9 @@ MAXDIM = 280
 
 class StarGOL(object):
 
-    running_avg_window: list = []
-    running_avg_last3: list = []
-
     generation = 0
     columns = 0
     rows = 0
-
-    row_b: list = []
-    row_s: list = []
-    row_c: list = []
 
     livecells = 0
     livecellscolors = []
@@ -32,8 +26,6 @@ class StarGOL(object):
     running = False
     periodic = True
 
-    found_victor: bool = False
-
     # These are star cup defaults
     # Many bothans died to find these tolerances
     tol_zero = 1e-8
@@ -41,33 +33,42 @@ class StarGOL(object):
 
     def __init__(
         self,
-        width: int,
-        height: int,
-        rules: dict,
+        s1=[],
+        s2=[],
+        rows: int = 0,
+        columns: int = 0,
+        rule_b: list = None,
+        rule_s: list = None,
+        rule_c: int = 4,
         periodic: bool = True,
-        s1: list = [],
-        s2: list = [],
+        maxdim: int = MAXDIM,
         b1: list = [],
         b2: list = [],
         c1: list = [],
         c2: list = [],
+        **kwargs,
     ):
-        self.rows = height
-        self.columns = width
-        self.width = width
-        self.height = height
+        if isinstance(s1, str):
+            s1 = json.loads(s1)
+        if isinstance(s2, str):
+            s2 = json.loads(s2)
 
-        self.rule_b = [int(c) for c in rules['birth']]
-        self.rule_s = [int(c) for c in rules['survival']]
-        self.rule_c = rules['dead_wait'] + 2
+        self.rows = rows
+        self.columns = columns
+        self.width = columns
+        self.height = rows
 
-        self.maxdim = MAXDIM
-        self.halt = True # Default from starlife, not configurable in new API
+        self.rule_b = rule_b or [3]
+        self.rule_s = rule_s or [2, 3]
+        self.rule_c = rule_c
+
+        self.maxdim = maxdim
+        self.halt = True
         self.periodic = periodic
 
         # Tolerances
-        self.tol_zero = 1e-8
-        self.tol_stable = 1e-6
+        self.tol_zero = kwargs.get("tol_zero", 1e-8)
+        self.tol_stable = kwargs.get("tol_stable", 1e-6)
 
         self.set_pattern(s1, s2, b1, b2, c1, c2)
 
@@ -226,19 +227,26 @@ class StarGOL(object):
                         # Tie
                         self.who_won = -1
 
-    def next_generation(self):
+    def next_step(self):
         """
         Advances the simulation by one step.
         """
         if self.running is False:
-            return
+            return self.get_live_counts()
         elif self.halt and self.found_victor:
             self.running = False
-            return
+            return self.get_live_counts()
         else:
             self.generation += 1
             live_counts = self._next_generation_logic()
             self.update_moving_avg(live_counts)
+            return live_counts
+
+    def next_generation(self):
+        """
+        Advances the simulation by one step.
+        """
+        return self.next_step()
 
     def _next_generation_logic(self):
         """
