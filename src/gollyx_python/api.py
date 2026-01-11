@@ -4,8 +4,8 @@ Public API for gollyx-python.
 
 import json
 from collections import deque
-from .toroidal import ToroidalGOL
-from .star import StarGOL
+from .toroidal import ToroidalGOL as ToroidalGOLImpl
+from .star import StarGOL as StarGOLImpl
 
 class BaseGOL:
     """
@@ -139,7 +139,7 @@ class ToroidalGOL(BaseGOL):
         rule_b_list = [int(d) for d in self.rules['birth']]
         rule_s_list = [int(d) for d in self.rules['survival']]
 
-        self.life = ToroidalGOL(
+        self.life = ToroidalGOLImpl(
             self.ic1,
             self.ic2,
             self.rows,
@@ -203,8 +203,24 @@ class StarGOL(BaseGOL):
         self.ic_c2 = json.loads(kwargs.get("initialConditionsc2", "[]"))
 
     def create_life(self):
-        self.life = StarGOL(self.columns, self.rows, self.rules, periodic=self.periodic)
-        self.life.set_pattern(self.ic1, self.ic2, self.ic_b1, self.ic_b2, self.ic_c1, self.ic_c2)
+        rule_b_list = [int(d) for d in self.rules['birth']]
+        rule_s_list = [int(d) for d in self.rules['survival']]
+        rule_c_val = self.rules['dead_wait'] + 2
+
+        self.life = StarGOLImpl(
+            s1=self.ic1,
+            s2=self.ic2,
+            rows=self.rows,
+            columns=self.columns,
+            rule_b=rule_b_list,
+            rule_s=rule_s_list,
+            rule_c=rule_c_val,
+            periodic=self.periodic,
+            b1=self.ic_b1,
+            b2=self.ic_b2,
+            c1=self.ic_c1,
+            c2=self.ic_c2,
+        )
 
     def next_step(self):
         if not self.running:
