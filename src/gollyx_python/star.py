@@ -45,6 +45,12 @@ class StarGOL(object):
         height: int,
         rules: dict,
         periodic: bool = True,
+        s1: list = [],
+        s2: list = [],
+        b1: list = [],
+        b2: list = [],
+        c1: list = [],
+        c2: list = [],
     ):
         self.rows = height
         self.columns = width
@@ -63,26 +69,9 @@ class StarGOL(object):
         self.tol_zero = 1e-8
         self.tol_stable = 1e-6
 
-        # Initialize alive states
-        self.actual_state = []
-        self.actual_state_colors = [set(), set(), set()]
+        self.set_pattern(s1, s2, b1, b2, c1, c2)
 
-        # Initialize dead wait states
-        self.dead_wait_n = []
-        self.dead_wait_colors_n = []
-        for i in range(self.rule_c - 2):
-            self.dead_wait_n.append([])
-            dead_wait_color_j = [set(), set(), set()]
-            self.dead_wait_colors_n.append(dead_wait_color_j)
-
-        self.running = True
-        self.generation = 0
-
-        self.running_avg_window = [0] * self.maxdim
-        self.running_avg_last3 = [0, 0, 0]
-        self.found_victor = False
-
-    def set_pattern(self, pattern_color1, pattern_color2):
+    def set_pattern(self, pattern_color1, pattern_color2, pattern_b1=[], pattern_b2=[], pattern_c1=[], pattern_c2=[]):
         """similar to setInitialState in starlife.py"""
         # Reset state for fresh run
         self.actual_state = []
@@ -99,19 +88,48 @@ class StarGOL(object):
         self.found_victor = False
         self.running = True
 
-        color = 1
+        # Process alive cells
         for s1row in pattern_color1:
             for y, xs in s1row.items():
                 yy = int(y)
                 for xx in xs:
-                    self.add_alive_cell(xx, yy, color)
-
-        color = 2
+                    self.add_alive_cell(xx, yy, 1)
         for s2row in pattern_color2:
             for y, xs in s2row.items():
                 yy = int(y)
                 for xx in xs:
-                    self.add_alive_cell(xx, yy, color)
+                    self.add_alive_cell(xx, yy, 2)
+
+        # Process dead-but-waiting states
+        dead_wait_patterns = [
+            (pattern_b1, 1, 0),
+            (pattern_b2, 2, 0),
+            (pattern_c1, 1, 1),
+            (pattern_c2, 2, 1),
+        ]
+
+        for pattern_data, color, level_index in dead_wait_patterns:
+            for row in pattern_data:
+                for y, xs in row.items():
+                    yy = int(y)
+                    for xx in xs:
+                        # Check if cell is already occupied at a higher-priority state
+                        is_occupied = False
+                        if self.is_alive(xx, yy):
+                            is_occupied = True
+                        else:
+                            # Check all dead-wait levels up to (but not including) the current one
+                            for i in range(level_index):
+                                if self.is_dead_wait_at_level(xx, yy, i):
+                                    is_occupied = True
+                                    break
+                        
+                        if not is_occupied:
+                            target_state = self.dead_wait_n[level_index]
+                            target_color_set = self.dead_wait_colors_n[level_index]
+                            
+                            self.dead_wait_n[level_index], self.dead_wait_colors_n[level_index] = \
+                                self.add_cell_to_custom_state(xx, yy, target_state, target_color_set, color)
 
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
@@ -121,6 +139,13 @@ class StarGOL(object):
             return True
         else:
             return False
+
+    def is_dead_wait_at_level(self, x, y, level_index):
+        rep = f"({x},{y})"
+        for color0 in range(3):
+            if rep in self.dead_wait_colors_n[level_index][color0]:
+                return True
+        return False
 
     def update_moving_avg(self, livecounts = None):
         """similar to checkForVictor in js simulator"""
