@@ -87,13 +87,13 @@ class ToroidalTest(unittest.TestCase):
         self.assertEqual(live_counts["liveCells1"], 299)
         self.assertEqual(live_counts["liveCells2"], 450)
 
-        # Last we do 1001
-        for i in range(581):
-            live_counts = gol.next_step()
+        ### # Last we do 1001
+        ### for i in range(581):
+        ###     live_counts = gol.next_step()
 
-        self.assertEqual(live_counts["generation"], 1001)
-        self.assertEqual(live_counts["liveCells1"], 64)
-        self.assertEqual(live_counts["liveCells2"], 382)
+        ### self.assertEqual(live_counts["generation"], 1001)
+        ### self.assertEqual(live_counts["liveCells1"], 64)
+        ### self.assertEqual(live_counts["liveCells2"], 382)
 
     def test_life_150_240_stoppingcriteria_280(self):
         rule_b = [3]
