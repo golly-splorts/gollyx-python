@@ -25,7 +25,6 @@ static const char *parse_string(const char *ptr, char **out) {
     }
     // Allocate buffer (len is upper bound)
     char *res = malloc(len + 1);
-    const char *p = start;
     char *d = res;
     // Reset ptr to start to re-traverse
     const char *scan = start;

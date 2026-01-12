@@ -182,16 +182,6 @@ StarSim* star_new(JsonValue *config) {
     return sim;
 }
 
-static bool is_alive(StarSim *sim, int x, int y) {
-    if (sim->base.periodic) {
-        x = periodic_x(sim, x);
-        y = periodic_y(sim, y);
-    }
-    return hashmap_contains(sim->actual_state_colors[0], x, y) ||
-           hashmap_contains(sim->actual_state_colors[1], x, y) ||
-           hashmap_contains(sim->actual_state_colors[2], x, y);
-}
-
 static int get_cell_color_alive(StarSim *sim, int x, int y) {
     if (sim->base.periodic) {
         x = periodic_x(sim, x);
