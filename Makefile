@@ -1,4 +1,6 @@
 MODULES=golly_python
+VP=vp
+PYTHON=$(VP)/bin/python
 
 CB := $(shell git branch --show-current)
 
@@ -9,23 +11,23 @@ help:
 	cat Makefile
 
 lint:
-	flake8 $(MODULES)
+	$(PYTHON) -m flake8 $(MODULES)
 
 mypy:
-	mypy --ignore-missing-imports --no-strict-optional $(MODULES)
+	$(PYTHON) -m mypy --ignore-missing-imports --no-strict-optional $(MODULES)
 
 requirements:
-	python3 -m pip install --upgrade -r requirements.txt
+	$(PYTHON) -m pip install --upgrade Cython numpy setuptools
 
 requirements-dev:
-	python3 -m pip install --upgrade -r requirements-dev.txt
+	$(PYTHON) -m pip install --upgrade pytest flake8 mypy
 
 build: clean
-	python3 -m pip install Cython numpy setuptools
-	cythonize -3 -i src/gollyx_python/*.pyx
+	$(PYTHON) -m pip install Cython numpy setuptools
+	$(VP)/bin/cythonize -3 -i src/gollyx_python/*.pyx
 
 test: requirements-dev build
-	pytest -vs
+	PYTHONPATH=src $(PYTHON) -m pytest -vs
 
 release_mainx:
 	@echo "Releasing current branch $(CB) to mainx"
