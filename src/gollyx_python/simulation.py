@@ -54,7 +54,9 @@ def run_simulation(
         initial_conditions_2: JSON string of team 2 live cells (same format).
         rows: Number of rows in the game board.
         columns: Number of columns in the game board.
-        cup: Cup type ('vi', 'ii', 'star') - determines GOL variant.
+        cup: Cup type - determines GOL variant. Cups with a "star" prefix
+            (e.g., "star-vi") use StarGOL; plain roman numerals (e.g., "vii")
+            use ToroidalGOL.
         rule_b: Birth rule (list of neighbor counts that cause birth).
         rule_s: Survival rule (list of neighbor counts that allow survival).
         rule_c: Generations rule (only for 'star' cup) - dead cells wait this
@@ -90,14 +92,17 @@ def run_simulation(
         else:
             logger.info(message)
 
-    # Validate cup type
+    # Determine GOL variant from cup type:
+    # - Peninsula union cups have a "star-" prefix (e.g., "star-vi", "star-xxi")
+    #   and use StarGOL (Generations rule variant)
+    # - Golly union cups are plain roman numerals (e.g., "vi", "vii", "xxi")
+    #   and use ToroidalGOL (standard two-color variant)
     cup_lower = cup.lower()
-    if cup_lower not in ("star", "ii", "vi"):
-        raise ValueError(f"Unrecognized cup type: {cup}")
+    is_star = cup_lower.startswith("star")
 
     # Create GOL instance based on cup type
     # Both ToroidalGOL and StarGOL accept JSON strings directly
-    if cup_lower == "star":
+    if is_star:
         if rule_c is None:
             raise ValueError("rule_c is required for star cup")
         gol = StarGOL(
@@ -163,7 +168,7 @@ def run_simulation(
     live_counts = gol.get_live_counts()
 
     # Extract scores based on cup type
-    if cup_lower == "star":
+    if is_star:
         team1_score = live_counts["liveCellsColors"][0]
         team2_score = live_counts["liveCellsColors"][1]
     else:
