@@ -52,6 +52,14 @@ class StarGOL(object):
             s1 = json.loads(s1)
         if isinstance(s2, str):
             s2 = json.loads(s2)
+        if isinstance(b1, str):
+            b1 = json.loads(b1)
+        if isinstance(b2, str):
+            b2 = json.loads(b2)
+        if isinstance(c1, str):
+            c1 = json.loads(c1)
+        if isinstance(c2, str):
+            c2 = json.loads(c2)
 
         self.rows = rows
         self.columns = columns
