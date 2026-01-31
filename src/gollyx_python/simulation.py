@@ -92,12 +92,13 @@ def run_simulation(
 
     # Validate cup type
     cup_lower = cup.lower()
-    if cup_lower not in ("star", "ii", "vi"):
+    is_star = "star" in cup_lower
+    if not is_star and cup_lower not in ("ii", "vi"):
         raise ValueError(f"Unrecognized cup type: {cup}")
 
     # Create GOL instance based on cup type
     # Both ToroidalGOL and StarGOL accept JSON strings directly
-    if cup_lower == "star":
+    if is_star:
         if rule_c is None:
             raise ValueError("rule_c is required for star cup")
         gol = StarGOL(
@@ -163,7 +164,7 @@ def run_simulation(
     live_counts = gol.get_live_counts()
 
     # Extract scores based on cup type
-    if cup_lower == "star":
+    if is_star:
         team1_score = live_counts["liveCellsColors"][0]
         team2_score = live_counts["liveCellsColors"][1]
     else:
