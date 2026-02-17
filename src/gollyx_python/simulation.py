@@ -32,6 +32,7 @@ def run_simulation(
     rule_c: Optional[int] = None,
     fixed_ngenerations: int = 0,
     min_generations: int = 1000,
+    max_generations: int = 25000,
     timeout_seconds: int = 3600,
     max_attempts: int = 10,
     initial_conditions_b1: str = "[]",
@@ -63,6 +64,7 @@ def run_simulation(
             many generations before they can be reborn.
         fixed_ngenerations: If > 0, stop after this many generations.
         min_generations: Minimum generations before checking for victor.
+        max_generations: Maximum generations before giving up on the simulation.
         timeout_seconds: Maximum wall-clock time for simulation.
         max_attempts: Number of retry attempts for ties (only first attempt used
             since we don't have access to new map realizations - caller should
@@ -130,7 +132,6 @@ def run_simulation(
         )
 
     start = time.time()
-    max_generation = 25000
 
     # Run simulation loop
     while True:
@@ -156,8 +157,8 @@ def run_simulation(
                 break
 
             # Max generation check
-            if gol.generation >= max_generation:
-                log(f"Simulation reached max generation limit ({max_generation})")
+            if gol.generation >= max_generations:
+                log(f"Simulation reached max generation limit ({max_generations})")
                 break
 
             # Progress logging every 1000 generations
