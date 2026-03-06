@@ -120,7 +120,8 @@ class ToroidalGOL(object):
                                 self.who_won = 2
 
     def approx_equal(self, a, b, tol):
-        return (abs(b - a) / abs(a + SMOL)) < tol
+        denom = max(abs(a), abs(b), SMOL)
+        return (abs(a - b) / denom) < tol
 
     def is_alive(self, x, y):
         if self.periodic:
