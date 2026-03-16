@@ -184,7 +184,7 @@ def run_simulation(
     if fixed_ngenerations > 0 and gol.generation >= fixed_ngenerations:
         # Fixed generation mode: success if we reached the target and no tie
         success = not is_tie
-    elif gol.generation >= min_generations and not is_tie:
+    elif not gol.running and gol.generation >= min_generations and not is_tie:
         # Victory mode: success if we passed min generations with a winner
         success = True
 
