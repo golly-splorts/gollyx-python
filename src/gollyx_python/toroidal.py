@@ -40,6 +40,7 @@ class ToroidalGOL(object):
         self.generation = 0
         self.running_avg_window = [0,]*self.maxdim
         self.running_avg_last3 = [0, 0, 0]
+        self.running_avg_sum = 0.0
         self.found_victor = False
 
         sz = rows * columns
@@ -156,11 +157,13 @@ class ToroidalGOL(object):
         gen = self.generation
         if gen < maxdim:
             self.running_avg_window[gen] = victoryPct
+            self.running_avg_sum += victoryPct
         else:
             w = self.running_avg_window
-            w.pop(0)
+            old_val = w.pop(0)
             w.append(victoryPct)
-            running_avg = sum(w) / (1.0 * len(w))
+            self.running_avg_sum += victoryPct - old_val
+            running_avg = self.running_avg_sum / (1.0 * len(w))
 
             removed = self.running_avg_last3[0]
             self.running_avg_last3 = [self.running_avg_last3[1], self.running_avg_last3[2], running_avg]
@@ -237,9 +240,15 @@ class ToroidalGOL(object):
                 c1_buf[n0] += 1; c1_buf[n1] += 1; c1_buf[n2] += 1; c1_buf[n3] += 1
                 c1_buf[n4] += 1; c1_buf[n5] += 1; c1_buf[n6] += 1; c1_buf[n7] += 1
 
-        # Build new state
-        new_g1 = bytearray(self.sz)
-        new_g2 = bytearray(self.sz)
+        # Build alive set from old live cells for O(1) alive check
+        old_alive = set(self.live_cells)
+
+        # Clear old live cells from grids
+        for idx in self.live_cells:
+            g1[idx] = 0
+            g2[idx] = 0
+
+        # Build new state in-place
         new_live = []
         new_live_append = new_live.append
         lc1 = 0
@@ -248,9 +257,12 @@ class ToroidalGOL(object):
         for i in range(dirty_count):
             idx = dirty[i]
             total = total_buf[idx]
-            is_alive = g1[idx] or g2[idx]
+            # Reset buffers inline
+            total_buf[idx] = 0
+            c1 = c1_buf[idx]
+            c1_buf[idx] = 0
 
-            if is_alive:
+            if idx in old_alive:
                 if total not in rule_s:
                     continue
             else:
@@ -258,29 +270,20 @@ class ToroidalGOL(object):
                     continue
 
             new_live_append(idx)
-            c1 = c1_buf[idx]
             c2 = total - c1
             if c1 > c2:
-                new_g1[idx] = 1
+                g1[idx] = 1
                 lc1 += 1
             elif c2 > c1:
-                new_g2[idx] = 1
+                g2[idx] = 1
                 lc2 += 1
             elif checker[idx]:
-                new_g1[idx] = 1
+                g1[idx] = 1
                 lc1 += 1
             else:
-                new_g2[idx] = 1
+                g2[idx] = 1
                 lc2 += 1
 
-        # Reset dirty entries
-        for i in range(dirty_count):
-            idx = dirty[i]
-            total_buf[idx] = 0
-            c1_buf[idx] = 0
-
-        self.grid1 = new_g1
-        self.grid2 = new_g2
         self.live_cells = new_live
         self.livecells1 = lc1
         self.livecells2 = lc2
