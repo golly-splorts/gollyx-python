@@ -45,8 +45,13 @@ class ToroidalGOL(object):
 
         sz = rows * columns
         self.sz = sz
+        # Double-buffered grids: current and next
         self.grid1 = bytearray(sz)
         self.grid2 = bytearray(sz)
+        self.grid1_next = bytearray(sz)
+        self.grid2_next = bytearray(sz)
+        # Combined alive flag for fast alive check
+        self.alive_buf = bytearray(sz)
         self.live_cells = []
 
         # Flat neighbor table: 8 neighbors per cell stored contiguously
@@ -88,6 +93,7 @@ class ToroidalGOL(object):
         rows = self.rows
         g1 = self.grid1
         g2 = self.grid2
+        ab = self.alive_buf
         live = []
 
         for s1row in s1:
@@ -97,6 +103,7 @@ class ToroidalGOL(object):
                     x = x % columns
                     idx = y * columns + x
                     g1[idx] = 1
+                    ab[idx] = 1
                     live.append(idx)
 
         for s2row in s2:
@@ -106,6 +113,7 @@ class ToroidalGOL(object):
                     x = x % columns
                     idx = y * columns + x
                     g2[idx] = 1
+                    ab[idx] = 1
                     live.append(idx)
 
         self.live_cells = live
@@ -203,6 +211,9 @@ class ToroidalGOL(object):
     def _next_generation_logic(self):
         g1 = self.grid1
         g2 = self.grid2
+        ab = self.alive_buf
+        ng1 = self.grid1_next
+        ng2 = self.grid2_next
         nt = self._nt
         checker = self._checker
         rule_s = self.rule_s
@@ -240,15 +251,7 @@ class ToroidalGOL(object):
                 c1_buf[n0] += 1; c1_buf[n1] += 1; c1_buf[n2] += 1; c1_buf[n3] += 1
                 c1_buf[n4] += 1; c1_buf[n5] += 1; c1_buf[n6] += 1; c1_buf[n7] += 1
 
-        # Build alive set from old live cells for O(1) alive check
-        old_alive = set(self.live_cells)
-
-        # Clear old live cells from grids
-        for idx in self.live_cells:
-            g1[idx] = 0
-            g2[idx] = 0
-
-        # Build new state in-place
+        # Process dirty cells: read alive from ab, write to next grids
         new_live = []
         new_live_append = new_live.append
         lc1 = 0
@@ -257,12 +260,11 @@ class ToroidalGOL(object):
         for i in range(dirty_count):
             idx = dirty[i]
             total = total_buf[idx]
-            # Reset buffers inline
             total_buf[idx] = 0
             c1 = c1_buf[idx]
             c1_buf[idx] = 0
 
-            if idx in old_alive:
+            if ab[idx]:
                 if total not in rule_s:
                     continue
             else:
@@ -272,18 +274,33 @@ class ToroidalGOL(object):
             new_live_append(idx)
             c2 = total - c1
             if c1 > c2:
-                g1[idx] = 1
+                ng1[idx] = 1
                 lc1 += 1
             elif c2 > c1:
-                g2[idx] = 1
+                ng2[idx] = 1
                 lc2 += 1
             elif checker[idx]:
-                g1[idx] = 1
+                ng1[idx] = 1
                 lc1 += 1
             else:
-                g2[idx] = 1
+                ng2[idx] = 1
                 lc2 += 1
 
+        # Clear old state from current grids, then swap
+        for idx in self.live_cells:
+            g1[idx] = 0
+            g2[idx] = 0
+            ab[idx] = 0
+
+        # Mark new alive cells
+        for idx in new_live:
+            ab[idx] = 1
+
+        # Swap buffers
+        self.grid1 = ng1
+        self.grid2 = ng2
+        self.grid1_next = g1
+        self.grid2_next = g2
         self.live_cells = new_live
         self.livecells1 = lc1
         self.livecells2 = lc2
