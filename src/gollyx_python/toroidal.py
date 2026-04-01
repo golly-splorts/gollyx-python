@@ -306,14 +306,76 @@ class ToroidalGOL(object):
         self.livecells2 = lc2
         self.livecells = lc1 + lc2
 
+        # Inline stats computation
+        if lc1 > lc2:
+            victory = lc1 / (1.0 * lc1 + lc2 + SMOL) * 100
+        else:
+            victory = lc2 / (1.0 * lc1 + lc2 + SMOL) * 100
+        self.victory = victory
+
+        total_area = self.columns * self.rows
+        self.coverage = (lc1 + lc2) / (1.0 * total_area) * 100
+        self.territory1 = lc1 / (1.0 * total_area) * 100
+        self.territory2 = lc2 / (1.0 * total_area) * 100
+
+        # Inline moving average update
+        if not self.found_victor:
+            gen = self.generation
+            maxdim = self.maxdim
+            if gen < maxdim:
+                self.running_avg_window[gen] = victory
+                self.running_avg_sum += victory
+            else:
+                w = self.running_avg_window
+                old_val = w.pop(0)
+                w.append(victory)
+                self.running_avg_sum += victory - old_val
+                running_avg = self.running_avg_sum / (1.0 * len(w))
+
+                removed = self.running_avg_last3[0]
+                self.running_avg_last3 = [self.running_avg_last3[1], self.running_avg_last3[2], running_avg]
+
+                tol = EQUALTOL
+                smol = SMOL
+                denom = max(abs(removed), smol)
+                if not ((abs(removed) / denom) < tol):
+                    ra = self.running_avg_last3
+                    d01 = abs(ra[0] - ra[1])
+                    mx01 = max(abs(ra[0]), abs(ra[1]), smol)
+                    b1_ = (d01 / mx01) < tol
+                    d12 = abs(ra[1] - ra[2])
+                    mx12 = max(abs(ra[1]), abs(ra[2]), smol)
+                    b2_ = (d12 / mx12) < tol
+
+                    zerocells = lc1 == 0 or lc2 == 0
+
+                    if (b1_ and b2_) or zerocells:
+                        d050 = abs(ra[0] - 50.0)
+                        mx050 = max(abs(ra[0]), 50.0, smol)
+                        z1 = (d050 / mx050) < tol
+                        d150 = abs(ra[1] - 50.0)
+                        mx150 = max(abs(ra[1]), 50.0, smol)
+                        z2 = (d150 / mx150) < tol
+                        d250 = abs(ra[2] - 50.0)
+                        mx250 = max(abs(ra[2]), 50.0, smol)
+                        z3 = (d250 / mx250) < tol
+                        if (not (z1 or z2 or z3)) or zerocells:
+                            if lc1 > lc2:
+                                self.found_victor = True
+                                self.who_won = 1
+                            elif lc1 < lc2:
+                                self.found_victor = True
+                                self.who_won = 2
+
     def get_live_counts(self):
-        lc1, lc2, vp = self._compute_stats()
+        lc1 = self.livecells1
+        lc2 = self.livecells2
         return dict(
             generation=self.generation,
             liveCells=self.livecells,
             liveCells1=lc1,
             liveCells2=lc2,
-            victoryPct=vp,
+            victoryPct=self.victory,
             coverage=self.coverage,
             territory1=self.territory1,
             territory2=self.territory2,
@@ -329,5 +391,4 @@ class ToroidalGOL(object):
         else:
             self.generation += 1
             self._next_generation_logic()
-            self._update_moving_avg(self._compute_stats())
             return self.get_live_counts()
