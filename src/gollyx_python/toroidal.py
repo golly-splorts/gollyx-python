@@ -1,4 +1,5 @@
 import json
+from array import array
 
 EQUALTOL = 1e-8
 SMOL = 1e-12
@@ -43,32 +44,39 @@ class ToroidalGOL(object):
 
         sz = rows * columns
         self.sz = sz
-        # grid1[idx] = 1 if team1, grid2[idx] = 1 if team2
         self.grid1 = bytearray(sz)
         self.grid2 = bytearray(sz)
-        # List of linear indices of all live cells
         self.live_cells = []
 
-        # Precompute neighbor offset table: for each linear index, store 8 neighbor indices
-        self._neighbor_offsets = []
+        # Flat neighbor table: 8 neighbors per cell stored contiguously
+        nt = array('i', [0] * (sz * 8))
         for y in range(rows):
             for x in range(columns):
+                base = (y * columns + x) * 8
                 xm1 = (x - 1) % columns
                 xp1 = (x + 1) % columns
                 ym1 = (y - 1) % rows
                 yp1 = (y + 1) % rows
-                self._neighbor_offsets.append((
-                    ym1 * columns + xm1, ym1 * columns + x, ym1 * columns + xp1,
-                    y * columns + xm1,                       y * columns + xp1,
-                    yp1 * columns + xm1, yp1 * columns + x, yp1 * columns + xp1,
-                ))
+                nt[base]     = ym1 * columns + xm1
+                nt[base + 1] = ym1 * columns + x
+                nt[base + 2] = ym1 * columns + xp1
+                nt[base + 3] = y * columns + xm1
+                nt[base + 4] = y * columns + xp1
+                nt[base + 5] = yp1 * columns + xm1
+                nt[base + 6] = yp1 * columns + x
+                nt[base + 7] = yp1 * columns + xp1
+        self._nt = nt
 
-        # Precompute checkerboard
         self._checker = bytearray(sz)
         for y in range(rows):
             for x in range(columns):
                 if x % 2 == y % 2:
                     self._checker[y * columns + x] = 1
+
+        # Reusable flat arrays for neighbor counting (avoid dict allocation)
+        self._total_buf = array('i', [0] * sz)
+        self._c1_buf = array('i', [0] * sz)
+        self._dirty = array('i', [0] * (sz * 9))
 
         self.prepare()
 
@@ -100,7 +108,10 @@ class ToroidalGOL(object):
                     live.append(idx)
 
         self.live_cells = live
-        livecounts = self._get_live_counts_internal()
+        self.livecells1 = sum(g1)
+        self.livecells2 = sum(g2)
+        self.livecells = self.livecells1 + self.livecells2
+        livecounts = self._compute_stats()
         self._update_moving_avg(livecounts)
 
     def get_live_cells(self):
@@ -117,12 +128,32 @@ class ToroidalGOL(object):
                 live2.append((x, y))
         return live1, live2
 
+    def _compute_stats(self):
+        livecells1 = self.livecells1
+        livecells2 = self.livecells2
+        livecells = self.livecells
+
+        victory = 0.0
+        if livecells1 > livecells2:
+            victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
+        else:
+            victory = livecells2 / (1.0 * livecells1 + livecells2 + SMOL)
+        victory = victory * 100
+        self.victory = victory
+
+        total_area = self.columns * self.rows
+        self.coverage = livecells / (1.0 * total_area) * 100
+        self.territory1 = livecells1 / (1.0 * total_area) * 100
+        self.territory2 = livecells2 / (1.0 * total_area) * 100
+
+        return (livecells1, livecells2, victory)
+
     def _update_moving_avg(self, livecounts):
         if self.found_victor:
             return
+        lc1, lc2, victoryPct = livecounts
         maxdim = self.maxdim
         gen = self.generation
-        victoryPct = livecounts[4]
         if gen < maxdim:
             self.running_avg_window[gen] = victoryPct
         else:
@@ -146,8 +177,6 @@ class ToroidalGOL(object):
                 mx12 = max(abs(ra[1]), abs(ra[2]), smol)
                 b2 = (d12 / mx12) < tol
 
-                lc1 = livecounts[2]
-                lc2 = livecounts[3]
                 zerocells = lc1 == 0 or lc2 == 0
 
                 if (b1 and b2) or zerocells:
@@ -171,78 +200,54 @@ class ToroidalGOL(object):
     def _next_generation_logic(self):
         g1 = self.grid1
         g2 = self.grid2
-        offsets = self._neighbor_offsets
+        nt = self._nt
         checker = self._checker
         rule_s = self.rule_s
         rule_b = self.rule_b
+        total_buf = self._total_buf
+        c1_buf = self._c1_buf
+        dirty = self._dirty
+        dirty_count = 0
 
-        # For each cell adjacent to a live cell, count total neighbors and c1 neighbors
-        counts = {}
-        counts_get = counts.get
-
+        # Scatter neighbor counts into flat arrays
         for idx in self.live_cells:
             is_c1 = g1[idx]
-            n0, n1, n2, n3, n4, n5, n6, n7 = offsets[idx]
+            base = idx * 8
+            n0 = nt[base]; n1 = nt[base+1]; n2 = nt[base+2]; n3 = nt[base+3]
+            n4 = nt[base+4]; n5 = nt[base+5]; n6 = nt[base+6]; n7 = nt[base+7]
+
+            if total_buf[n0] == 0: dirty[dirty_count] = n0; dirty_count += 1
+            total_buf[n0] += 1
+            if total_buf[n1] == 0: dirty[dirty_count] = n1; dirty_count += 1
+            total_buf[n1] += 1
+            if total_buf[n2] == 0: dirty[dirty_count] = n2; dirty_count += 1
+            total_buf[n2] += 1
+            if total_buf[n3] == 0: dirty[dirty_count] = n3; dirty_count += 1
+            total_buf[n3] += 1
+            if total_buf[n4] == 0: dirty[dirty_count] = n4; dirty_count += 1
+            total_buf[n4] += 1
+            if total_buf[n5] == 0: dirty[dirty_count] = n5; dirty_count += 1
+            total_buf[n5] += 1
+            if total_buf[n6] == 0: dirty[dirty_count] = n6; dirty_count += 1
+            total_buf[n6] += 1
+            if total_buf[n7] == 0: dirty[dirty_count] = n7; dirty_count += 1
+            total_buf[n7] += 1
 
             if is_c1:
-                v = counts_get(n0)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n0] = [1, 1]
-                v = counts_get(n1)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n1] = [1, 1]
-                v = counts_get(n2)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n2] = [1, 1]
-                v = counts_get(n3)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n3] = [1, 1]
-                v = counts_get(n4)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n4] = [1, 1]
-                v = counts_get(n5)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n5] = [1, 1]
-                v = counts_get(n6)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n6] = [1, 1]
-                v = counts_get(n7)
-                if v is not None: v[0] += 1; v[1] += 1
-                else: counts[n7] = [1, 1]
-            else:
-                v = counts_get(n0)
-                if v is not None: v[0] += 1
-                else: counts[n0] = [1, 0]
-                v = counts_get(n1)
-                if v is not None: v[0] += 1
-                else: counts[n1] = [1, 0]
-                v = counts_get(n2)
-                if v is not None: v[0] += 1
-                else: counts[n2] = [1, 0]
-                v = counts_get(n3)
-                if v is not None: v[0] += 1
-                else: counts[n3] = [1, 0]
-                v = counts_get(n4)
-                if v is not None: v[0] += 1
-                else: counts[n4] = [1, 0]
-                v = counts_get(n5)
-                if v is not None: v[0] += 1
-                else: counts[n5] = [1, 0]
-                v = counts_get(n6)
-                if v is not None: v[0] += 1
-                else: counts[n6] = [1, 0]
-                v = counts_get(n7)
-                if v is not None: v[0] += 1
-                else: counts[n7] = [1, 0]
+                c1_buf[n0] += 1; c1_buf[n1] += 1; c1_buf[n2] += 1; c1_buf[n3] += 1
+                c1_buf[n4] += 1; c1_buf[n5] += 1; c1_buf[n6] += 1; c1_buf[n7] += 1
 
         # Build new state
-        new_g1 = bytearray(len(g1))
-        new_g2 = bytearray(len(g2))
+        new_g1 = bytearray(self.sz)
+        new_g2 = bytearray(self.sz)
         new_live = []
         new_live_append = new_live.append
+        lc1 = 0
+        lc2 = 0
 
-        for idx, val in counts.items():
-            total = val[0]
+        for i in range(dirty_count):
+            idx = dirty[i]
+            total = total_buf[idx]
             is_alive = g1[idx] or g2[idx]
 
             if is_alive:
@@ -253,57 +258,46 @@ class ToroidalGOL(object):
                     continue
 
             new_live_append(idx)
-            c1 = val[1]
+            c1 = c1_buf[idx]
             c2 = total - c1
             if c1 > c2:
                 new_g1[idx] = 1
+                lc1 += 1
             elif c2 > c1:
                 new_g2[idx] = 1
+                lc2 += 1
             elif checker[idx]:
                 new_g1[idx] = 1
+                lc1 += 1
             else:
                 new_g2[idx] = 1
+                lc2 += 1
+
+        # Reset dirty entries
+        for i in range(dirty_count):
+            idx = dirty[i]
+            total_buf[idx] = 0
+            c1_buf[idx] = 0
 
         self.grid1 = new_g1
         self.grid2 = new_g2
         self.live_cells = new_live
-        return self._get_live_counts_internal()
-
-    def _get_live_counts_internal(self):
-        livecells1 = sum(self.grid1)
-        livecells2 = sum(self.grid2)
-        livecells = livecells1 + livecells2
-
-        self.livecells = livecells
-        self.livecells1 = livecells1
-        self.livecells2 = livecells2
-
-        victory = 0.0
-        if livecells1 > livecells2:
-            victory = livecells1 / (1.0 * livecells1 + livecells2 + SMOL)
-        else:
-            victory = livecells2 / (1.0 * livecells1 + livecells2 + SMOL)
-        victory = victory * 100
-        self.victory = victory
-
-        total_area = self.columns * self.rows
-        coverage = livecells / (1.0 * total_area) * 100
-        self.coverage = coverage
-
-        territory1 = livecells1 / (1.0 * total_area) * 100
-        territory2 = livecells2 / (1.0 * total_area) * 100
-        self.territory1 = territory1
-        self.territory2 = territory2
-
-        return (self.generation, livecells, livecells1, livecells2, victory,
-                coverage, territory1, territory2, self.running_avg_last3)
+        self.livecells1 = lc1
+        self.livecells2 = lc2
+        self.livecells = lc1 + lc2
 
     def get_live_counts(self):
-        t = self._get_live_counts_internal()
+        lc1, lc2, vp = self._compute_stats()
         return dict(
-            generation=t[0], liveCells=t[1], liveCells1=t[2], liveCells2=t[3],
-            victoryPct=t[4], coverage=t[5], territory1=t[6], territory2=t[7],
-            last3=t[8],
+            generation=self.generation,
+            liveCells=self.livecells,
+            liveCells1=lc1,
+            liveCells2=lc2,
+            victoryPct=vp,
+            coverage=self.coverage,
+            territory1=self.territory1,
+            territory2=self.territory2,
+            last3=self.running_avg_last3,
         )
 
     def next_step(self):
@@ -315,5 +309,5 @@ class ToroidalGOL(object):
         else:
             self.generation += 1
             self._next_generation_logic()
-            self._update_moving_avg(self._get_live_counts_internal())
+            self._update_moving_avg(self._compute_stats())
             return self.get_live_counts()
