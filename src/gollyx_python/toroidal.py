@@ -1,5 +1,3 @@
-from operator import indexOf
-import math
 import json
 
 EQUALTOL = 1e-8
@@ -32,8 +30,8 @@ class ToroidalGOL(object):
         self.ic2 = s2
         self.rows = rows
         self.columns = columns
-        self.rule_b = rule_b or [3]
-        self.rule_s = rule_s or [2, 3]
+        self.rule_b = set(rule_b) if rule_b else {3}
+        self.rule_s = set(rule_s) if rule_s else {2, 3}
         self.maxdim = maxdim
         self.halt = halt
         self.periodic = periodic
@@ -42,41 +40,47 @@ class ToroidalGOL(object):
         self.running_avg_window = [0,]*self.maxdim
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
-        self.actual_state = []
-        self.actual_state1 = []
-        self.actual_state2 = []
+
+        # Set-based state: sets of (x, y) tuples
+        self.alive = set()
+        self.alive1 = set()
+        self.alive2 = set()
+
+        # Precompute neighbor offsets
+        self._neighbor_offsets = [
+            (-1, -1), (0, -1), (1, -1),
+            (-1,  0),          (1,  0),
+            (-1,  1), (0,  1), (1,  1),
+        ]
+
         self.prepare()
 
     def get_live_cells(self):
-        live1 = []
-        for row in self.actual_state1:
-            y = row[0]
-            for x in row[1:]:
-                live1.append((x, y))
-        live2 = []
-        for row in self.actual_state2:
-            y = row[0]
-            for x in row[1:]:
-                live2.append((x, y))
+        live1 = list(self.alive1)
+        live2 = list(self.alive2)
         return live1, live2
 
     def prepare(self):
         s1 = self.ic1
         s2 = self.ic2
+        columns = self.columns
+        rows = self.rows
 
         for s1row in s1:
             for y in s1row:
-                yy = int(y)
+                yy = int(y) % rows
                 for xx in s1row[y]:
-                    self.actual_state = self.add_cell(xx, yy, self.actual_state)
-                    self.actual_state1 = self.add_cell(xx, yy, self.actual_state1)
+                    xx = xx % columns
+                    self.alive.add((xx, yy))
+                    self.alive1.add((xx, yy))
 
         for s2row in s2:
             for y in s2row:
-                yy = int(y)
+                yy = int(y) % rows
                 for xx in s2row[y]:
-                    self.actual_state = self.add_cell(xx, yy, self.actual_state)
-                    self.actual_state2 = self.add_cell(xx, yy, self.actual_state2)
+                    xx = xx % columns
+                    self.alive.add((xx, yy))
+                    self.alive2.add((xx, yy))
 
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
@@ -123,406 +127,74 @@ class ToroidalGOL(object):
         denom = max(abs(a), abs(b), SMOL)
         return (abs(a - b) / denom) < tol
 
-    def is_alive(self, x, y):
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-
-        for row in self.actual_state:
-            if row[0] == y:
-                for c in row[1:]:
-                    if c == x:
-                        return True
-        return False
-
-    def get_cell_color(self, x, y):
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-
-        for row in self.actual_state1:
-            if row[0] == y:
-                for c in row[1:]:
-                    if c == x:
-                        return 1
-            elif row[0] > y:
-                break
-
-        for row in self.actual_state2:
-            if row[0] == y:
-                for c in row[1:]:
-                    if c == x:
-                        return 2
-            elif row[0] > y:
-                break
-        return 0
-
-    def remove_cell(self, x, y, state):
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-
-        for i, row in enumerate(state):
-            if row[0] == y:
-                if len(row) == 2:
-                    state = state[:i] + state[i + 1 :]
-                    return
-                else:
-                    j = indexOf(row, x)
-                    state[i] = row[:j] + row[j + 1 :]
-
-    def add_cell(self, x, y, state):
-        if self.periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-
-        if len(state) == 0:
-            return [[y, x]]
-
-        if y < state[0][0]:
-            return [[y, x]] + state
-
-        elif y > state[-1][0]:
-            return state + [[y, x]]
-
-        else:
-            new_state = []
-            added = False
-            for row in state:
-                if (not added) and (row[0] == y):
-                    new_row = [y]
-                    for c in row[1:]:
-                        if (not added) and (x < c):
-                            new_row.append(x)
-                            added = True
-                        new_row.append(c)
-                    if not added:
-                        new_row.append(x)
-                        added = True
-                    new_state.append(new_row)
-                elif (not added) and (y < row[0]):
-                    new_row = [y, x]
-                    new_state.append(new_row)
-                    added = True
-                    new_state.append(row)
-                else:
-                    new_state.append(row)
-
-            if added is False:
-                raise Exception(f"Error adding cell ({x},{y}): new_state = {new_state}")
-
-            return new_state
-
-    def get_neighbors_from_alive(self, x, y, i, state, possible_neighbors_list):
-        neighbors = 0
-        neighbors1 = 0
-        neighbors2 = 0
-
-        xm1 = x - 1
-        ym1 = y - 1
-        xp1 = x + 1
-        yp1 = y + 1
-
-        periodic = self.periodic
-        if periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-            xm1 = ((x-1) + self.columns)%(self.columns)
-            ym1 = ((y-1) + self.rows)%(self.rows)
-            xp1 = ((x+1) + self.columns)%(self.columns)
-            yp1 = ((y+1) + self.rows)%(self.rows)
-
-        im1 = i-1
-        if im1 < 0:
-            im1 = len(state)-1
-        if im1 < len(state):
-            if state[im1][0] == ym1:
-                for k in range(1, len(state[im1])):
-                    if state[im1][k] >= xm1 or periodic:
-                        if state[im1][k] == xm1:
-                            possible_neighbors_list[0] = None
-                            neighbors += 1
-                            neighborcolor = self.get_cell_color(state[im1][k], state[im1][0])
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-                        if state[im1][k] == x:
-                            possible_neighbors_list[1] = None
-                            neighbors += 1
-                            neighborcolor = self.get_cell_color(state[im1][k], state[im1][0])
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-                        if state[im1][k] == xp1:
-                            possible_neighbors_list[2] = None
-                            neighbors += 1
-                            neighborcolor = self.get_cell_color(state[im1][k], state[im1][0])
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-                        if not periodic and state[im1][k] > xp1:
-                            break
-
-        for k in range(1, len(state[i])):
-            if state[i][k] >= xm1 or periodic:
-                if state[i][k] == xm1:
-                    possible_neighbors_list[3] = None
-                    neighbors += 1
-                    neighborcolor = self.get_cell_color(state[i][k], state[i][0])
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-                if state[i][k] == xp1:
-                    possible_neighbors_list[4] = None
-                    neighbors += 1
-                    neighborcolor = self.get_cell_color(state[i][k], state[i][0])
-                    if neighborcolor == 1:
-                        neighbors1 += 1
-                    elif neighborcolor == 2:
-                        neighbors2 += 1
-                if not periodic and state[i][k] > xp1:
-                    break
-
-        ip1 = i+1
-        if ip1 >= len(state):
-            ip1 = 0
-        if ip1 < len(state):
-            if state[ip1][0] == yp1:
-                for k in range(1, len(state[ip1])):
-                    if state[ip1][k] >= xm1 or periodic:
-                        if state[ip1][k] == xm1:
-                            possible_neighbors_list[5] = None
-                            neighbors += 1
-                            neighborcolor = self.get_cell_color(state[ip1][k], state[ip1][0])
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-                        if state[ip1][k] == x:
-                            possible_neighbors_list[6] = None
-                            neighbors += 1
-                            neighborcolor = self.get_cell_color(state[ip1][k], state[ip1][0])
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-                        if state[ip1][k] == xp1:
-                            possible_neighbors_list[7] = None
-                            neighbors += 1
-                            neighborcolor = self.get_cell_color(state[ip1][k], state[ip1][0])
-                            if neighborcolor == 1:
-                                neighbors1 += 1
-                            elif neighborcolor == 2:
-                                neighbors2 += 1
-                        if not periodic and state[ip1][k] > xp1:
-                            break
-        color = 0
-        if neighbors1 > neighbors2:
-            color = 1
-        elif neighbors2 > neighbors1:
-            color = 2
-        elif x % 2 == y % 2:
-            color = 1
-        else:
-            color = 2
-        return dict(neighbors=neighbors, color=color)
-
-    def get_color_from_alive(self, x, y):
-        state1 = self.actual_state1
-        state2 = self.actual_state2
-        color1 = 0
-        color2 = 0
-        xm1 = x - 1
-        ym1 = y - 1
-        xp1 = x + 1
-        yp1 = y + 1
-
-        periodic = self.periodic
-        if periodic:
-            x = (x + self.columns)%(self.columns)
-            y = (y + self.rows)%(self.rows)
-            xm1 = ((x-1) + self.columns)%(self.columns)
-            ym1 = ((y-1) + self.rows)%(self.rows)
-            xp1 = ((x+1) + self.columns)%(self.columns)
-            yp1 = ((y+1) + self.rows)%(self.rows)
-
-        for i in range(len(state1)):
-            yy = state1[i][0]
-            if yy == ym1:
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            color1 += 1
-                        elif xx == x:
-                            color1 += 1
-                        elif xx == xp1:
-                            color1 += 1
-                    if not periodic and xx >= xp1:
-                        break
-            elif yy == y:
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            color1 += 1
-                        elif xx == xp1:
-                            color1 += 1
-                    if not periodic and xx >= xp1:
-                        break
-            elif yy == yp1:
-                for j in range(1, len(state1[i])):
-                    xx = state1[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            color1 += 1
-                        elif xx == x:
-                            color1 += 1
-                        elif xx == xp1:
-                            color1 += 1
-                    if not periodic and xx >= xp1:
-                        break
-
-        for i in range(len(state2)):
-            yy = state2[i][0]
-            if yy == ym1:
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            color2 += 1
-                        elif xx == x:
-                            color2 += 1
-                        elif xx == xp1:
-                            color2 += 1
-                    if not periodic and xx >= xp1:
-                        break
-            elif yy == y:
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            color2 += 1
-                        elif xx == xp1:
-                            color2 += 1
-                    if not periodic and xx >= xp1:
-                        break
-            elif yy == yp1:
-                for j in range(1, len(state2[i])):
-                    xx = state2[i][j]
-                    if xx >= xm1 or periodic:
-                        if xx == xm1:
-                            color2 += 1
-                        elif xx == x:
-                            color2 += 1
-                        elif xx == xp1:
-                            color2 += 1
-                    if not periodic and xx >= xp1:
-                        break
-
-        if color1 > color2:
-            return 1
-        elif color1 < color2:
-            return 2
-        elif x % 2 == y % 2:
-            color = 1
-        else:
-            color = 2
-        return color
-
     def _next_generation_logic(self):
-        all_dead_neighbors = {}
-        new_state = []
-        new_state1 = []
-        new_state2 = []
-        self.redraw_list = []
+        alive = self.alive
+        alive1 = self.alive1
+        alive2 = self.alive2
+        columns = self.columns
+        rows = self.rows
+        offsets = self._neighbor_offsets
+        rule_s = self.rule_s
+        rule_b = self.rule_b
 
-        for i in range(len(self.actual_state)):
-            self.top_pointer = 1
-            self.bottom_pointer = 1
-            for j in range(1, len(self.actual_state[i])):
-                x = self.actual_state[i][j]
-                y = self.actual_state[i][0]
-                xm1 = x - 1
-                ym1 = y - 1
-                xp1 = x + 1
-                yp1 = y + 1
-
-                if self.periodic:
-                    x = (x + self.columns)%(self.columns)
-                    y = (y + self.rows)%(self.rows)
-                    xm1 = ((x-1) + self.columns)%(self.columns)
-                    ym1 = ((y-1) + self.rows)%(self.rows)
-                    xp1 = ((x+1) + self.columns)%(self.columns)
-                    yp1 = ((y+1) + self.rows)%(self.rows)
-
-                dead_neighbors = [
-                    [xm1, ym1, 1], [x,   ym1, 1], [xp1, ym1, 1],
-                    [xm1, y,   1], [xp1, y,   1],
-                    [xm1, yp1, 1], [x,   yp1, 1], [xp1, yp1, 1],
-                ]
-
-                result = self.get_neighbors_from_alive(
-                    x, y, i, self.actual_state, dead_neighbors
-                )
-                neighbors = result["neighbors"]
-                color = result["color"]
-
-                for dead_neighbor in dead_neighbors:
-                    if dead_neighbor is not None:
-                        xx = dead_neighbor[0]
-                        yy = dead_neighbor[1]
-                        key = str(xx) + "," + str(yy)
-                        if key not in all_dead_neighbors:
-                            all_dead_neighbors[key] = 1
-                        else:
-                            all_dead_neighbors[key] += 1
-
-                if neighbors in self.rule_s:
-                    new_state = self.add_cell(x, y, new_state)
-                    if color == 1:
-                        new_state1 = self.add_cell(x, y, new_state1)
-                    elif color == 2:
-                        new_state2 = self.add_cell(x, y, new_state2)
-                    self.redraw_list.append([x, y, 2])
+        # Count neighbors for all cells adjacent to live cells
+        neighbor_count = {}
+        for (x, y) in alive:
+            for dx, dy in offsets:
+                nx = (x + dx) % columns
+                ny = (y + dy) % rows
+                key = (nx, ny)
+                if key in neighbor_count:
+                    neighbor_count[key] += 1
                 else:
-                    self.redraw_list.append([x, y, 0])
+                    neighbor_count[key] = 1
 
-        for key in all_dead_neighbors:
-            if all_dead_neighbors[key] in self.rule_b:
-                key = key.split(",")
-                t1 = int(key[0])
-                t2 = int(key[1])
-                color = self.get_color_from_alive(t1, t2)
-                new_state = self.add_cell(t1, t2, new_state)
-                if color == 1:
-                    new_state1 = self.add_cell(t1, t2, new_state1)
-                elif color == 2:
-                    new_state2 = self.add_cell(t1, t2, new_state2)
-                self.redraw_list.append([t1, t2, 1])
+        new_alive = set()
+        new_alive1 = set()
+        new_alive2 = set()
 
-        self.actual_state = new_state
-        self.actual_state1 = new_state1
-        self.actual_state2 = new_state2
+        # Process all cells that have at least one neighbor
+        for (cx, cy), count in neighbor_count.items():
+            cell_key = (cx, cy)
+            is_alive = cell_key in alive
+
+            if is_alive:
+                if count not in rule_s:
+                    continue
+            else:
+                if count not in rule_b:
+                    continue
+
+            new_alive.add(cell_key)
+            # Determine color by majority of neighbors
+            c1 = 0
+            c2 = 0
+            for dx, dy in offsets:
+                nx = (cx + dx) % columns
+                ny = (cy + dy) % rows
+                nk = (nx, ny)
+                if nk in alive1:
+                    c1 += 1
+                elif nk in alive2:
+                    c2 += 1
+            if c1 > c2:
+                new_alive1.add(cell_key)
+            elif c2 > c1:
+                new_alive2.add(cell_key)
+            elif cx % 2 == cy % 2:
+                new_alive1.add(cell_key)
+            else:
+                new_alive2.add(cell_key)
+
+        self.alive = new_alive
+        self.alive1 = new_alive1
+        self.alive2 = new_alive2
         return self.get_live_counts()
 
     def get_live_counts(self):
-        def _count_live_cells(state):
-            livecells = 0
-            for i in range(len(state)):
-                if (state[i][0] >= 0) and (state[i][0] < self.rows):
-                    for j in range(1, len(state[i])):
-                        if (state[i][j] >= 0) and (state[i][j] < self.columns):
-                            livecells += 1
-            return livecells
-
-        livecells = _count_live_cells(self.actual_state)
-        livecells1 = _count_live_cells(self.actual_state1)
-        livecells2 = _count_live_cells(self.actual_state2)
+        livecells = len(self.alive)
+        livecells1 = len(self.alive1)
+        livecells2 = len(self.alive2)
 
         self.livecells = livecells
         self.livecells1 = livecells1
