@@ -79,9 +79,10 @@ class ToroidalGOL(object):
                 if x % 2 == y % 2:
                     self._checker[y * columns + x] = 1
 
-        # Reusable flat arrays for neighbor counting (avoid dict allocation)
-        self._total_buf = array('i', [0] * sz)
-        self._c1_buf = array('i', [0] * sz)
+        # Combined buffer: encodes (total << 4) | c1 in single int
+        # Max total = 8, max c1 = 8, so fits in one int
+        # Increment by 17 (=16+1) for team1 neighbor, 16 for team2 neighbor
+        self._combo_buf = array('i', [0] * sz)
         self._dirty = array('i', [0] * (sz * 9))
 
         self.prepare()
@@ -218,40 +219,37 @@ class ToroidalGOL(object):
         checker = self._checker
         rule_s = self.rule_s
         rule_b = self.rule_b
-        total_buf = self._total_buf
-        c1_buf = self._c1_buf
+        combo_buf = self._combo_buf
         dirty = self._dirty
         dirty_count = 0
+        INC_C1 = 17  # (1 << 4) + 1
+        INC_C2 = 16  # (1 << 4)
 
-        # Scatter neighbor counts into flat arrays
+        # Scatter neighbor counts using combined encoding
         for idx in self.live_cells:
-            is_c1 = g1[idx]
+            inc = INC_C1 if g1[idx] else INC_C2
             base = idx * 8
             n0 = nt[base]; n1 = nt[base+1]; n2 = nt[base+2]; n3 = nt[base+3]
             n4 = nt[base+4]; n5 = nt[base+5]; n6 = nt[base+6]; n7 = nt[base+7]
 
-            if total_buf[n0] == 0: dirty[dirty_count] = n0; dirty_count += 1
-            total_buf[n0] += 1
-            if total_buf[n1] == 0: dirty[dirty_count] = n1; dirty_count += 1
-            total_buf[n1] += 1
-            if total_buf[n2] == 0: dirty[dirty_count] = n2; dirty_count += 1
-            total_buf[n2] += 1
-            if total_buf[n3] == 0: dirty[dirty_count] = n3; dirty_count += 1
-            total_buf[n3] += 1
-            if total_buf[n4] == 0: dirty[dirty_count] = n4; dirty_count += 1
-            total_buf[n4] += 1
-            if total_buf[n5] == 0: dirty[dirty_count] = n5; dirty_count += 1
-            total_buf[n5] += 1
-            if total_buf[n6] == 0: dirty[dirty_count] = n6; dirty_count += 1
-            total_buf[n6] += 1
-            if total_buf[n7] == 0: dirty[dirty_count] = n7; dirty_count += 1
-            total_buf[n7] += 1
+            if combo_buf[n0] == 0: dirty[dirty_count] = n0; dirty_count += 1
+            combo_buf[n0] += inc
+            if combo_buf[n1] == 0: dirty[dirty_count] = n1; dirty_count += 1
+            combo_buf[n1] += inc
+            if combo_buf[n2] == 0: dirty[dirty_count] = n2; dirty_count += 1
+            combo_buf[n2] += inc
+            if combo_buf[n3] == 0: dirty[dirty_count] = n3; dirty_count += 1
+            combo_buf[n3] += inc
+            if combo_buf[n4] == 0: dirty[dirty_count] = n4; dirty_count += 1
+            combo_buf[n4] += inc
+            if combo_buf[n5] == 0: dirty[dirty_count] = n5; dirty_count += 1
+            combo_buf[n5] += inc
+            if combo_buf[n6] == 0: dirty[dirty_count] = n6; dirty_count += 1
+            combo_buf[n6] += inc
+            if combo_buf[n7] == 0: dirty[dirty_count] = n7; dirty_count += 1
+            combo_buf[n7] += inc
 
-            if is_c1:
-                c1_buf[n0] += 1; c1_buf[n1] += 1; c1_buf[n2] += 1; c1_buf[n3] += 1
-                c1_buf[n4] += 1; c1_buf[n5] += 1; c1_buf[n6] += 1; c1_buf[n7] += 1
-
-        # Process dirty cells: read alive from ab, write to next grids
+        # Process dirty cells
         new_live = []
         new_live_append = new_live.append
         lc1 = 0
@@ -259,10 +257,10 @@ class ToroidalGOL(object):
 
         for i in range(dirty_count):
             idx = dirty[i]
-            total = total_buf[idx]
-            total_buf[idx] = 0
-            c1 = c1_buf[idx]
-            c1_buf[idx] = 0
+            combo = combo_buf[idx]
+            combo_buf[idx] = 0
+            total = combo >> 4
+            c1 = combo & 15
 
             if ab[idx]:
                 if total not in rule_s:
