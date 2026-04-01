@@ -41,46 +41,94 @@ class ToroidalGOL(object):
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
 
-        self.alive1 = set()
-        self.alive2 = set()
+        sz = rows * columns
+        self.sz = sz
+        # grid1[idx] = 1 if team1, grid2[idx] = 1 if team2
+        self.grid1 = bytearray(sz)
+        self.grid2 = bytearray(sz)
+        # List of linear indices of all live cells
+        self.live_cells = []
+
+        # Precompute neighbor offset table: for each linear index, store 8 neighbor indices
+        self._neighbor_offsets = []
+        for y in range(rows):
+            for x in range(columns):
+                xm1 = (x - 1) % columns
+                xp1 = (x + 1) % columns
+                ym1 = (y - 1) % rows
+                yp1 = (y + 1) % rows
+                self._neighbor_offsets.append((
+                    ym1 * columns + xm1, ym1 * columns + x, ym1 * columns + xp1,
+                    y * columns + xm1,                       y * columns + xp1,
+                    yp1 * columns + xm1, yp1 * columns + x, yp1 * columns + xp1,
+                ))
+
+        # Precompute checkerboard
+        self._checker = bytearray(sz)
+        for y in range(rows):
+            for x in range(columns):
+                if x % 2 == y % 2:
+                    self._checker[y * columns + x] = 1
 
         self.prepare()
-
-    def get_live_cells(self):
-        return list(self.alive1), list(self.alive2)
 
     def prepare(self):
         s1 = self.ic1
         s2 = self.ic2
         columns = self.columns
         rows = self.rows
+        g1 = self.grid1
+        g2 = self.grid2
+        live = []
 
         for s1row in s1:
-            for y in s1row:
-                yy = int(y) % rows
-                for xx in s1row[y]:
-                    self.alive1.add((xx % columns, yy))
+            for y_str in s1row:
+                y = int(y_str) % rows
+                for x in s1row[y_str]:
+                    x = x % columns
+                    idx = y * columns + x
+                    g1[idx] = 1
+                    live.append(idx)
 
         for s2row in s2:
-            for y in s2row:
-                yy = int(y) % rows
-                for xx in s2row[y]:
-                    self.alive2.add((xx % columns, yy))
+            for y_str in s2row:
+                y = int(y_str) % rows
+                for x in s2row[y_str]:
+                    x = x % columns
+                    idx = y * columns + x
+                    g2[idx] = 1
+                    live.append(idx)
 
-        livecounts = self._get_live_counts()
+        self.live_cells = live
+        livecounts = self._get_live_counts_internal()
         self._update_moving_avg(livecounts)
+
+    def get_live_cells(self):
+        columns = self.columns
+        g1 = self.grid1
+        live1 = []
+        live2 = []
+        for idx in self.live_cells:
+            x = idx % columns
+            y = idx // columns
+            if g1[idx]:
+                live1.append((x, y))
+            else:
+                live2.append((x, y))
+        return live1, live2
 
     def _update_moving_avg(self, livecounts):
         if self.found_victor:
             return
         maxdim = self.maxdim
         gen = self.generation
+        victoryPct = livecounts[4]
         if gen < maxdim:
-            self.running_avg_window[gen] = livecounts[4]  # victoryPct
+            self.running_avg_window[gen] = victoryPct
         else:
             w = self.running_avg_window
             w.pop(0)
-            w.append(livecounts[4])
+            w.append(victoryPct)
             running_avg = sum(w) / (1.0 * len(w))
 
             removed = self.running_avg_last3[0]
@@ -88,7 +136,6 @@ class ToroidalGOL(object):
 
             tol = EQUALTOL
             smol = SMOL
-            # inline approx_equal
             denom = max(abs(removed), smol)
             if not ((abs(removed) / denom) < tol):
                 ra = self.running_avg_last3
@@ -122,90 +169,81 @@ class ToroidalGOL(object):
                             self.who_won = 2
 
     def _next_generation_logic(self):
-        alive1 = self.alive1
-        alive2 = self.alive2
-        columns = self.columns
-        rows = self.rows
+        g1 = self.grid1
+        g2 = self.grid2
+        offsets = self._neighbor_offsets
+        checker = self._checker
+        rule_s = self.rule_s
+        rule_b = self.rule_b
 
-        # Single dict: key -> [total_count, c1_count]
+        # For each cell adjacent to a live cell, count total neighbors and c1 neighbors
         counts = {}
         counts_get = counts.get
 
-        for x, y in alive1:
-            xm1 = (x - 1) % columns
-            xp1 = (x + 1) % columns
-            ym1 = (y - 1) % rows
-            yp1 = (y + 1) % rows
+        for idx in self.live_cells:
+            is_c1 = g1[idx]
+            n0, n1, n2, n3, n4, n5, n6, n7 = offsets[idx]
 
-            k = (xm1, ym1); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (x, ym1); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (xp1, ym1); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (xm1, y); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (xp1, y); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (xm1, yp1); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (x, yp1); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
-            k = (xp1, yp1); v = counts_get(k)
-            if v is not None: v[0] += 1; v[1] += 1
-            else: counts[k] = [1, 1]
+            if is_c1:
+                v = counts_get(n0)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n0] = [1, 1]
+                v = counts_get(n1)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n1] = [1, 1]
+                v = counts_get(n2)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n2] = [1, 1]
+                v = counts_get(n3)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n3] = [1, 1]
+                v = counts_get(n4)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n4] = [1, 1]
+                v = counts_get(n5)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n5] = [1, 1]
+                v = counts_get(n6)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n6] = [1, 1]
+                v = counts_get(n7)
+                if v is not None: v[0] += 1; v[1] += 1
+                else: counts[n7] = [1, 1]
+            else:
+                v = counts_get(n0)
+                if v is not None: v[0] += 1
+                else: counts[n0] = [1, 0]
+                v = counts_get(n1)
+                if v is not None: v[0] += 1
+                else: counts[n1] = [1, 0]
+                v = counts_get(n2)
+                if v is not None: v[0] += 1
+                else: counts[n2] = [1, 0]
+                v = counts_get(n3)
+                if v is not None: v[0] += 1
+                else: counts[n3] = [1, 0]
+                v = counts_get(n4)
+                if v is not None: v[0] += 1
+                else: counts[n4] = [1, 0]
+                v = counts_get(n5)
+                if v is not None: v[0] += 1
+                else: counts[n5] = [1, 0]
+                v = counts_get(n6)
+                if v is not None: v[0] += 1
+                else: counts[n6] = [1, 0]
+                v = counts_get(n7)
+                if v is not None: v[0] += 1
+                else: counts[n7] = [1, 0]
 
-        for x, y in alive2:
-            xm1 = (x - 1) % columns
-            xp1 = (x + 1) % columns
-            ym1 = (y - 1) % rows
-            yp1 = (y + 1) % rows
+        # Build new state
+        new_g1 = bytearray(len(g1))
+        new_g2 = bytearray(len(g2))
+        new_live = []
+        new_live_append = new_live.append
 
-            k = (xm1, ym1); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (x, ym1); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (xp1, ym1); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (xm1, y); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (xp1, y); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (xm1, yp1); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (x, yp1); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-            k = (xp1, yp1); v = counts_get(k)
-            if v is not None: v[0] += 1
-            else: counts[k] = [1, 0]
-
-        new_alive1 = set()
-        new_alive2 = set()
-        na1_add = new_alive1.add
-        na2_add = new_alive2.add
-
-        rule_s = self.rule_s
-        rule_b = self.rule_b
-        a1_contains = alive1.__contains__
-        a2_contains = alive2.__contains__
-
-        for key, val in counts.items():
+        for idx, val in counts.items():
             total = val[0]
-            is_alive = a1_contains(key) or a2_contains(key)
+            is_alive = g1[idx] or g2[idx]
 
             if is_alive:
                 if total not in rule_s:
@@ -214,24 +252,26 @@ class ToroidalGOL(object):
                 if total not in rule_b:
                     continue
 
+            new_live_append(idx)
             c1 = val[1]
             c2 = total - c1
             if c1 > c2:
-                na1_add(key)
+                new_g1[idx] = 1
             elif c2 > c1:
-                na2_add(key)
-            elif key[0] % 2 == key[1] % 2:
-                na1_add(key)
+                new_g2[idx] = 1
+            elif checker[idx]:
+                new_g1[idx] = 1
             else:
-                na2_add(key)
+                new_g2[idx] = 1
 
-        self.alive1 = new_alive1
-        self.alive2 = new_alive2
-        return self._get_live_counts()
+        self.grid1 = new_g1
+        self.grid2 = new_g2
+        self.live_cells = new_live
+        return self._get_live_counts_internal()
 
-    def _get_live_counts(self):
-        livecells1 = len(self.alive1)
-        livecells2 = len(self.alive2)
+    def _get_live_counts_internal(self):
+        livecells1 = sum(self.grid1)
+        livecells2 = sum(self.grid2)
         livecells = livecells1 + livecells2
 
         self.livecells = livecells
@@ -259,7 +299,7 @@ class ToroidalGOL(object):
                 coverage, territory1, territory2, self.running_avg_last3)
 
     def get_live_counts(self):
-        t = self._get_live_counts()
+        t = self._get_live_counts_internal()
         return dict(
             generation=t[0], liveCells=t[1], liveCells1=t[2], liveCells2=t[3],
             victoryPct=t[4], coverage=t[5], territory1=t[6], territory2=t[7],
@@ -274,6 +314,6 @@ class ToroidalGOL(object):
             return self.get_live_counts()
         else:
             self.generation += 1
-            live_counts = self._next_generation_logic()
-            self._update_moving_avg(live_counts)
+            self._next_generation_logic()
+            self._update_moving_avg(self._get_live_counts_internal())
             return self.get_live_counts()
