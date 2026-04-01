@@ -95,7 +95,8 @@ class ToroidalGOL(object):
         g1 = self.grid1
         g2 = self.grid2
         ab = self.alive_buf
-        live = []
+        live_c1 = []
+        live_c2 = []
 
         for s1row in s1:
             for y_str in s1row:
@@ -105,7 +106,7 @@ class ToroidalGOL(object):
                     idx = y * columns + x
                     g1[idx] = 1
                     ab[idx] = 1
-                    live.append(idx)
+                    live_c1.append(idx)
 
         for s2row in s2:
             for y_str in s2row:
@@ -115,27 +116,20 @@ class ToroidalGOL(object):
                     idx = y * columns + x
                     g2[idx] = 1
                     ab[idx] = 1
-                    live.append(idx)
+                    live_c2.append(idx)
 
-        self.live_cells = live
-        self.livecells1 = sum(g1)
-        self.livecells2 = sum(g2)
+        self.live_c1 = live_c1
+        self.live_c2 = live_c2
+        self.livecells1 = len(live_c1)
+        self.livecells2 = len(live_c2)
         self.livecells = self.livecells1 + self.livecells2
         livecounts = self._compute_stats()
         self._update_moving_avg(livecounts)
 
     def get_live_cells(self):
         columns = self.columns
-        g1 = self.grid1
-        live1 = []
-        live2 = []
-        for idx in self.live_cells:
-            x = idx % columns
-            y = idx // columns
-            if g1[idx]:
-                live1.append((x, y))
-            else:
-                live2.append((x, y))
+        live1 = [(idx % columns, idx // columns) for idx in self.live_c1]
+        live2 = [(idx % columns, idx // columns) for idx in self.live_c2]
         return live1, live2
 
     def _compute_stats(self):
@@ -225,35 +219,57 @@ class ToroidalGOL(object):
         INC_C1 = 17  # (1 << 4) + 1
         INC_C2 = 16  # (1 << 4)
 
-        # Scatter neighbor counts using combined encoding
-        for idx in self.live_cells:
-            inc = INC_C1 if g1[idx] else INC_C2
+        # Scatter from team1 cells
+        for idx in self.live_c1:
             base = idx * 8
             n0 = nt[base]; n1 = nt[base+1]; n2 = nt[base+2]; n3 = nt[base+3]
             n4 = nt[base+4]; n5 = nt[base+5]; n6 = nt[base+6]; n7 = nt[base+7]
 
             if combo_buf[n0] == 0: dirty[dirty_count] = n0; dirty_count += 1
-            combo_buf[n0] += inc
+            combo_buf[n0] += INC_C1
             if combo_buf[n1] == 0: dirty[dirty_count] = n1; dirty_count += 1
-            combo_buf[n1] += inc
+            combo_buf[n1] += INC_C1
             if combo_buf[n2] == 0: dirty[dirty_count] = n2; dirty_count += 1
-            combo_buf[n2] += inc
+            combo_buf[n2] += INC_C1
             if combo_buf[n3] == 0: dirty[dirty_count] = n3; dirty_count += 1
-            combo_buf[n3] += inc
+            combo_buf[n3] += INC_C1
             if combo_buf[n4] == 0: dirty[dirty_count] = n4; dirty_count += 1
-            combo_buf[n4] += inc
+            combo_buf[n4] += INC_C1
             if combo_buf[n5] == 0: dirty[dirty_count] = n5; dirty_count += 1
-            combo_buf[n5] += inc
+            combo_buf[n5] += INC_C1
             if combo_buf[n6] == 0: dirty[dirty_count] = n6; dirty_count += 1
-            combo_buf[n6] += inc
+            combo_buf[n6] += INC_C1
             if combo_buf[n7] == 0: dirty[dirty_count] = n7; dirty_count += 1
-            combo_buf[n7] += inc
+            combo_buf[n7] += INC_C1
+
+        # Scatter from team2 cells
+        for idx in self.live_c2:
+            base = idx * 8
+            n0 = nt[base]; n1 = nt[base+1]; n2 = nt[base+2]; n3 = nt[base+3]
+            n4 = nt[base+4]; n5 = nt[base+5]; n6 = nt[base+6]; n7 = nt[base+7]
+
+            if combo_buf[n0] == 0: dirty[dirty_count] = n0; dirty_count += 1
+            combo_buf[n0] += INC_C2
+            if combo_buf[n1] == 0: dirty[dirty_count] = n1; dirty_count += 1
+            combo_buf[n1] += INC_C2
+            if combo_buf[n2] == 0: dirty[dirty_count] = n2; dirty_count += 1
+            combo_buf[n2] += INC_C2
+            if combo_buf[n3] == 0: dirty[dirty_count] = n3; dirty_count += 1
+            combo_buf[n3] += INC_C2
+            if combo_buf[n4] == 0: dirty[dirty_count] = n4; dirty_count += 1
+            combo_buf[n4] += INC_C2
+            if combo_buf[n5] == 0: dirty[dirty_count] = n5; dirty_count += 1
+            combo_buf[n5] += INC_C2
+            if combo_buf[n6] == 0: dirty[dirty_count] = n6; dirty_count += 1
+            combo_buf[n6] += INC_C2
+            if combo_buf[n7] == 0: dirty[dirty_count] = n7; dirty_count += 1
+            combo_buf[n7] += INC_C2
 
         # Process dirty cells
-        new_live = []
-        new_live_append = new_live.append
-        lc1 = 0
-        lc2 = 0
+        new_c1 = []
+        new_c1_append = new_c1.append
+        new_c2 = []
+        new_c2_append = new_c2.append
 
         for i in range(dirty_count):
             idx = dirty[i]
@@ -269,29 +285,32 @@ class ToroidalGOL(object):
                 if total not in rule_b:
                     continue
 
-            new_live_append(idx)
             c2 = total - c1
             if c1 > c2:
                 ng1[idx] = 1
-                lc1 += 1
+                new_c1_append(idx)
             elif c2 > c1:
                 ng2[idx] = 1
-                lc2 += 1
+                new_c2_append(idx)
             elif checker[idx]:
                 ng1[idx] = 1
-                lc1 += 1
+                new_c1_append(idx)
             else:
                 ng2[idx] = 1
-                lc2 += 1
+                new_c2_append(idx)
 
-        # Clear old state from current grids, then swap
-        for idx in self.live_cells:
+        # Clear old state
+        for idx in self.live_c1:
             g1[idx] = 0
+            ab[idx] = 0
+        for idx in self.live_c2:
             g2[idx] = 0
             ab[idx] = 0
 
         # Mark new alive cells
-        for idx in new_live:
+        for idx in new_c1:
+            ab[idx] = 1
+        for idx in new_c2:
             ab[idx] = 1
 
         # Swap buffers
@@ -299,7 +318,10 @@ class ToroidalGOL(object):
         self.grid2 = ng2
         self.grid1_next = g1
         self.grid2_next = g2
-        self.live_cells = new_live
+        self.live_c1 = new_c1
+        self.live_c2 = new_c2
+        lc1 = len(new_c1)
+        lc2 = len(new_c2)
         self.livecells1 = lc1
         self.livecells2 = lc2
         self.livecells = lc1 + lc2
