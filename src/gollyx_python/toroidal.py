@@ -45,14 +45,8 @@ class ToroidalGOL(object):
 
         sz = rows * columns
         self.sz = sz
-        # Double-buffered grids: current and next
-        self.grid1 = bytearray(sz)
-        self.grid2 = bytearray(sz)
-        self.grid1_next = bytearray(sz)
-        self.grid2_next = bytearray(sz)
-        # Combined alive flag for fast alive check
+        # Alive buffer: ab[idx] = 1 if cell is alive (either team)
         self.alive_buf = bytearray(sz)
-        self.live_cells = []
 
         # Flat neighbor table: 8 neighbors per cell stored contiguously
         nt = array('i', [0] * (sz * 8))
@@ -92,8 +86,6 @@ class ToroidalGOL(object):
         s2 = self.ic2
         columns = self.columns
         rows = self.rows
-        g1 = self.grid1
-        g2 = self.grid2
         ab = self.alive_buf
         live_c1 = []
         live_c2 = []
@@ -104,7 +96,6 @@ class ToroidalGOL(object):
                 for x in s1row[y_str]:
                     x = x % columns
                     idx = y * columns + x
-                    g1[idx] = 1
                     ab[idx] = 1
                     live_c1.append(idx)
 
@@ -114,7 +105,6 @@ class ToroidalGOL(object):
                 for x in s2row[y_str]:
                     x = x % columns
                     idx = y * columns + x
-                    g2[idx] = 1
                     ab[idx] = 1
                     live_c2.append(idx)
 
@@ -204,11 +194,7 @@ class ToroidalGOL(object):
                             self.who_won = 2
 
     def _next_generation_logic(self):
-        g1 = self.grid1
-        g2 = self.grid2
         ab = self.alive_buf
-        ng1 = self.grid1_next
-        ng2 = self.grid2_next
         nt = self._nt
         checker = self._checker
         rule_s = self.rule_s
@@ -287,37 +273,23 @@ class ToroidalGOL(object):
 
             c2 = total - c1
             if c1 > c2:
-                ng1[idx] = 1
                 new_c1_append(idx)
             elif c2 > c1:
-                ng2[idx] = 1
                 new_c2_append(idx)
             elif checker[idx]:
-                ng1[idx] = 1
                 new_c1_append(idx)
             else:
-                ng2[idx] = 1
                 new_c2_append(idx)
 
-        # Clear old state
+        # Update alive buffer
         for idx in self.live_c1:
-            g1[idx] = 0
             ab[idx] = 0
         for idx in self.live_c2:
-            g2[idx] = 0
             ab[idx] = 0
-
-        # Mark new alive cells
         for idx in new_c1:
             ab[idx] = 1
         for idx in new_c2:
             ab[idx] = 1
-
-        # Swap buffers
-        self.grid1 = ng1
-        self.grid2 = ng2
-        self.grid1_next = g1
-        self.grid2_next = g2
         self.live_c1 = new_c1
         self.live_c2 = new_c2
         lc1 = len(new_c1)
