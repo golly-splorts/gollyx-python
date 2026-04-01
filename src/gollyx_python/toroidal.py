@@ -50,7 +50,7 @@ class ToroidalGOL(object):
         self.alive_buf = bytearray(sz)
 
         # Flat neighbor table: 8 neighbors per cell stored contiguously
-        nt = array('i', [0] * (sz * 8))
+        nt = array('l', [0] * (sz * 8))
         for y in range(rows):
             for x in range(columns):
                 base = (y * columns + x) * 8
@@ -77,8 +77,8 @@ class ToroidalGOL(object):
         # Combined buffer: encodes (total << 4) | c1 in single int
         # Max total = 8, max c1 = 8, so fits in one int
         # Increment by 17 (=16+1) for team1 neighbor, 16 for team2 neighbor
-        self._combo_buf = array('i', [0] * sz)
-        self._dirty = array('i', [0] * (sz * 9))
+        self._combo_buf = array('l', [0] * sz)
+        self._dirty = array('l', [0] * (sz * 9))
 
         self.prepare()
 
