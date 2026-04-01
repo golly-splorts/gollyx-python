@@ -39,6 +39,7 @@ class ToroidalGOL(object):
         self.running = True
         self.generation = 0
         self.running_avg_window = [0,]*self.maxdim
+        self.running_avg_idx = 0  # circular buffer write index
         self.running_avg_last3 = [0, 0, 0]
         self.running_avg_sum = 0.0
         self.found_victor = False
@@ -319,10 +320,12 @@ class ToroidalGOL(object):
                 self.running_avg_sum += victory
             else:
                 w = self.running_avg_window
-                old_val = w.pop(0)
-                w.append(victory)
+                widx = self.running_avg_idx
+                old_val = w[widx]
+                w[widx] = victory
+                self.running_avg_idx = (widx + 1) % maxdim
                 self.running_avg_sum += victory - old_val
-                running_avg = self.running_avg_sum / (1.0 * len(w))
+                running_avg = self.running_avg_sum / (1.0 * maxdim)
 
                 removed = self.running_avg_last3[0]
                 self.running_avg_last3 = [self.running_avg_last3[1], self.running_avg_last3[2], running_avg]
