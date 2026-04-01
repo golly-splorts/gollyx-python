@@ -46,6 +46,7 @@ class ToroidalGOL(object):
 
         sz = rows * columns
         self.sz = sz
+        self.total_area = float(sz)
         # Alive buffer: ab[idx] = 1 if cell is alive (either team)
         self.alive_buf = bytearray(sz)
 
@@ -301,7 +302,7 @@ class ToroidalGOL(object):
         else:
             victory = lc2 / (1.0 * lc1 + lc2 + SMOL) * 100
 
-        total_area = self.columns * self.rows
+        total_area = self.total_area
         return dict(
             generation=self.generation,
             liveCells=livecells,
