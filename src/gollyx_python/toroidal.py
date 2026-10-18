@@ -39,9 +39,7 @@ class ToroidalGOL(object):
         self.running = True
         self.generation = 0
         self.running_avg_window = [0,]*self.maxdim
-        self.running_avg_idx = 0  # circular buffer write index
         self.running_avg_last3 = [0, 0, 0]
-        self.running_avg_sum = 0.0
         self.found_victor = False
 
         sz = rows * columns
@@ -116,15 +114,50 @@ class ToroidalGOL(object):
         self.livecells2 = len(live_c2)
         self.livecells = self.livecells1 + self.livecells2
 
-        # Initialize victory detection
-        lc1 = self.livecells1
-        lc2 = self.livecells2
-        if lc1 > lc2:
-            vp = lc1 / (1.0 * lc1 + lc2 + SMOL) * 100
-        else:
-            vp = lc2 / (1.0 * lc1 + lc2 + SMOL) * 100
-        self.running_avg_window[0] = vp
-        self.running_avg_sum = vp
+        livecounts = self.get_live_counts()
+        self.update_moving_avg(livecounts)
+
+    def update_moving_avg(self, livecounts):
+        if not self.found_victor:
+            maxdim = self.maxdim
+            if self.generation < maxdim:
+                self.running_avg_window[self.generation] = livecounts["victoryPct"]
+            else:
+                self.running_avg_window = self.running_avg_window[1:] + [
+                    livecounts["victoryPct"]
+                ]
+                summ = sum(self.running_avg_window)
+                running_avg = summ / (1.0 * len(self.running_avg_window))
+
+                removed = self.running_avg_last3[0]
+                self.running_avg_last3 = self.running_avg_last3[1:] + [running_avg]
+
+                tol = EQUALTOL
+                if not self.approx_equal(removed, 0.0, tol):
+                    b1 = self.approx_equal(
+                        self.running_avg_last3[0], self.running_avg_last3[1], tol
+                    )
+                    b2 = self.approx_equal(
+                        self.running_avg_last3[1], self.running_avg_last3[2], tol
+                    )
+                    zerocells = (
+                        livecounts["liveCells1"] == 0 or livecounts["liveCells2"] == 0
+                    )
+                    if (b1 and b2) or zerocells:
+                        z1 = self.approx_equal(self.running_avg_last3[0], 50.0, tol)
+                        z2 = self.approx_equal(self.running_avg_last3[1], 50.0, tol)
+                        z3 = self.approx_equal(self.running_avg_last3[2], 50.0, tol)
+                        if (not (z1 or z2 or z3)) or zerocells:
+                            if livecounts["liveCells1"] > livecounts["liveCells2"]:
+                                self.found_victor = True
+                                self.who_won = 1
+                            elif livecounts["liveCells1"] < livecounts["liveCells2"]:
+                                self.found_victor = True
+                                self.who_won = 2
+
+    def approx_equal(self, a, b, tol):
+        denom = max(abs(a), abs(b), SMOL)
+        return (abs(a - b) / denom) < tol
 
     def get_live_cells(self):
         columns = self.columns
@@ -236,61 +269,7 @@ class ToroidalGOL(object):
         self.livecells1 = lc1
         self.livecells2 = lc2
         self.livecells = lc1 + lc2
-
-        # Victory detection (skip entirely once found)
-        if not self.found_victor:
-            if lc1 > lc2:
-                victory = lc1 / (1.0 * lc1 + lc2 + SMOL) * 100
-            else:
-                victory = lc2 / (1.0 * lc1 + lc2 + SMOL) * 100
-            gen = self.generation
-            maxdim = self.maxdim
-            if gen < maxdim:
-                self.running_avg_window[gen] = victory
-                self.running_avg_sum += victory
-            else:
-                w = self.running_avg_window
-                widx = self.running_avg_idx
-                old_val = w[widx]
-                w[widx] = victory
-                self.running_avg_idx = (widx + 1) % maxdim
-                self.running_avg_sum += victory - old_val
-                running_avg = self.running_avg_sum / (1.0 * maxdim)
-
-                removed = self.running_avg_last3[0]
-                self.running_avg_last3 = [self.running_avg_last3[1], self.running_avg_last3[2], running_avg]
-
-                tol = EQUALTOL
-                smol = SMOL
-                denom = max(abs(removed), smol)
-                if not ((abs(removed) / denom) < tol):
-                    ra = self.running_avg_last3
-                    d01 = abs(ra[0] - ra[1])
-                    mx01 = max(abs(ra[0]), abs(ra[1]), smol)
-                    b1_ = (d01 / mx01) < tol
-                    d12 = abs(ra[1] - ra[2])
-                    mx12 = max(abs(ra[1]), abs(ra[2]), smol)
-                    b2_ = (d12 / mx12) < tol
-
-                    zerocells = lc1 == 0 or lc2 == 0
-
-                    if (b1_ and b2_) or zerocells:
-                        d050 = abs(ra[0] - 50.0)
-                        mx050 = max(abs(ra[0]), 50.0, smol)
-                        z1 = (d050 / mx050) < tol
-                        d150 = abs(ra[1] - 50.0)
-                        mx150 = max(abs(ra[1]), 50.0, smol)
-                        z2 = (d150 / mx150) < tol
-                        d250 = abs(ra[2] - 50.0)
-                        mx250 = max(abs(ra[2]), 50.0, smol)
-                        z3 = (d250 / mx250) < tol
-                        if (not (z1 or z2 or z3)) or zerocells:
-                            if lc1 > lc2:
-                                self.found_victor = True
-                                self.who_won = 1
-                            elif lc1 < lc2:
-                                self.found_victor = True
-                                self.who_won = 2
+        return self.get_live_counts()
 
     def get_live_counts(self):
         lc1 = self.livecells1
@@ -323,5 +302,6 @@ class ToroidalGOL(object):
             return self.get_live_counts()
         else:
             self.generation += 1
-            self._next_generation_logic()
-            return self.get_live_counts()
+            live_counts = self._next_generation_logic()
+            self.update_moving_avg(live_counts)
+            return live_counts
