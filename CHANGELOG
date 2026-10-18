@@ -1,3 +1,8 @@
+Version 700.1.0:
+
+* Faster ToroidalGOL kernel (flat neighbor table, per-team cell lists), about 30x faster on PyPy; results bit-identical to 700.0
+* ToroidalGOL raises ValueError on periodic=False
+
 Version 299:
 
 * Prepare for Star II
