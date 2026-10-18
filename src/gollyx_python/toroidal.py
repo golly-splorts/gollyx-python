@@ -81,6 +81,16 @@ class ToroidalGOL(object):
 
         self.prepare()
 
+    @property
+    def periodic(self):
+        return True
+
+    @periodic.setter
+    def periodic(self, value):
+        # The neighbor table always wraps around the board edges
+        if not value:
+            raise ValueError("ToroidalGOL only supports periodic=True")
+
     def prepare(self):
         s1 = self.ic1
         s2 = self.ic2

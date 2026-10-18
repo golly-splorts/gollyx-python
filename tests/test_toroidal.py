@@ -46,6 +46,28 @@ class ToroidalTest(unittest.TestCase):
         for i in range(20):
             gol.next_step()
 
+    def test_non_periodic_raises(self):
+        """
+        Check that periodic=False is rejected, in the constructor and when set afterward
+        """
+        with self.assertRaises(ValueError):
+            ToroidalGOL(
+                s1=self.STATE1,
+                s2=self.STATE2,
+                rows=self.ROWS,
+                columns=self.COLS,
+                periodic=False,
+            )
+
+        gol = ToroidalGOL(
+            s1=self.STATE1,
+            s2=self.STATE2,
+            rows=self.ROWS,
+            columns=self.COLS,
+        )
+        with self.assertRaises(ValueError):
+            gol.periodic = False
+
     def test_periodic_life_100_120(self):
         """
         Check the actual results of the calculations against known good results
