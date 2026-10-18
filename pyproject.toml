@@ -25,6 +25,8 @@ dev = [
     "pytest",
     "flake8",
     "mypy",
+    # Only for scripts/make_golden_outcomes.py
+    "gollyx-maps @ git+https://github.com/golly-splorts/gollyx-maps.git@mainx",
 ]
 
 [tool.setuptools]
