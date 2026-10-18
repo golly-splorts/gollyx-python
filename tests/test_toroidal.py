@@ -1,5 +1,12 @@
 from gollyx_python import ToroidalGOL
 import unittest
+from .fixtures_toroidal import (
+    domino_party_150_240_state1,
+    domino_party_150_240_state2,
+    domino_party_150_240_rows,
+    domino_party_150_240_cols,
+    domino_party_150_240_checkpoints,
+)
 
 
 class ToroidalTest(unittest.TestCase):
@@ -166,4 +173,24 @@ class ToroidalTest(unittest.TestCase):
         self.assertEqual(live_counts["liveCells"],  689)
         self.assertEqual(live_counts["liveCells1"], 132)
         self.assertEqual(live_counts["liveCells2"], 557)
+
+    def test_domino_party_checkpoints(self):
+        """
+        Check live cell counts for each team against the Domino Party checkpoints
+        """
+        checkpoints = domino_party_150_240_checkpoints
+        gol = ToroidalGOL(
+            s1=domino_party_150_240_state1,
+            s2=domino_party_150_240_state2,
+            rows=domino_party_150_240_rows,
+            columns=domino_party_150_240_cols,
+        )
+        live_counts = gol.get_live_counts()
+        observed = {0: (live_counts["liveCells1"], live_counts["liveCells2"])}
+        for i in range(max(checkpoints)):
+            live_counts = gol.next_step()
+            if live_counts["generation"] in checkpoints:
+                observed[live_counts["generation"]] = (live_counts["liveCells1"], live_counts["liveCells2"])
+
+        self.assertEqual(observed, checkpoints)
 
