@@ -1,3 +1,9 @@
+Version 812.0:
+
+* Faster StarGOL kernel (flat neighbor table, packed neighbor counts, per-color cell lists), about 120x faster on PyPy and 25x on CPython; results identical to 807.0
+* StarGOL raises ValueError on periodic=False; api.StarGOL defaults to periodic=True
+* StarGOL.get_dead_wait_cells() returns dead-wait cells by phase and color
+
 Version 700.1.0:
 
 * Faster ToroidalGOL kernel (flat neighbor table, per-team cell lists), about 30x faster on PyPy; results bit-identical to 700.0
