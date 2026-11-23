@@ -33,6 +33,7 @@ def run_simulation(
     fixed_ngenerations: int = 0,
     min_generations: int = 1000,
     max_generations: int = 25000,
+    maxdim: int = 280,
     timeout_seconds: int = 3600,
     max_attempts: int = 10,
     initial_conditions_b1: str = "[]",
@@ -65,6 +66,8 @@ def run_simulation(
         fixed_ngenerations: If > 0, stop after this many generations.
         min_generations: Minimum generations before checking for victor.
         max_generations: Maximum generations before giving up on the simulation.
+        maxdim: Length in generations of the moving-average window used to detect a
+            stable game; a shutout before this many generations is a tie.
         timeout_seconds: Maximum wall-clock time for simulation.
         max_attempts: Number of retry attempts for ties (only first attempt used
             since we don't have access to new map realizations - caller should
@@ -119,6 +122,7 @@ def run_simulation(
             b2=initial_conditions_b2,
             c1=initial_conditions_c1,
             c2=initial_conditions_c2,
+            maxdim=maxdim,
         )
     else:
         # Cup II and VI use ToroidalGOL
@@ -129,6 +133,7 @@ def run_simulation(
             columns,
             rule_b,
             rule_s,
+            maxdim=maxdim,
         )
 
     start = time.time()
