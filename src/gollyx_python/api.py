@@ -194,6 +194,10 @@ class StarGOL(BaseGOL):
         """
         Load configuration specific to StarGOL.
         """
+        # StarGOL only supports periodic boards
+        if "periodic" not in kwargs:
+            kwargs["periodic"] = True
+
         super().load_config(**kwargs)
 
         # Load dead-but-waiting initial conditions (optional)
