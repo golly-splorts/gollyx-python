@@ -3,6 +3,7 @@ Version 812.0:
 * Faster StarGOL kernel (flat neighbor table, packed neighbor counts, per-color cell lists), about 120x faster on PyPy and 25x on CPython; results identical to 807.0
 * StarGOL raises ValueError on periodic=False; api.StarGOL defaults to periodic=True
 * StarGOL.get_dead_wait_cells() returns dead-wait cells by phase and color
+* run_simulation() takes maxdim, the moving-average window length (default 280)
 
 Version 700.1.0:
 
