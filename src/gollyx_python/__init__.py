@@ -2,4 +2,4 @@ from .toroidal import ToroidalGOL
 from .star import StarGOL
 from .simulation import run_simulation
 
-__version__ = "807.0"
+__version__ = "812.0"
