@@ -1,35 +1,28 @@
 import math
-from operator import indexOf
 import json
+from array import array
 
 
 # Default value for dimension (in time) of time-average window
 MAXDIM = 280
 
+# Packed neighbor counts: bits 0-3 total, bits 4-7 team 1, bits 8-11 team 2 (referees count toward the total only)
+INC_C1 = 0x011
+INC_C2 = 0x101
+INC_REF = 0x001
+
 
 class StarGOL(object):
+    """
+    Star Wars style Generations cellular automaton (default B2/S345/C4) with two teams and referees,
+    on a periodic (toroidal) board.
 
-    generation = 0
-    columns = 0
-    rows = 0
+    Cell state lives in flat buffers indexed y * columns + x:
+    _state is 0 for dead, 1 for alive, 2 + k for dead-wait phase k; _color is 1 (team 1),
+    2 (team 2) or 3 (referee) for alive and dead-wait cells, 0 for dead cells.
+    """
 
-    livecells = 0
-    livecellscolors = []
-
-    victory = 0.0
     who_won = 0
-    coverage = 0.0
-
-    found_victor = False
-    running_avg_window: list = []
-    running_avg_last3: list = [0.0, 0.0, 0.0]
-    running = False
-    periodic = True
-
-    # These are star cup defaults
-    # Many bothans died to find these tolerances
-    tol_zero = 1e-8
-    tol_stable = 1e-6
 
     def __init__(
         self,
@@ -48,6 +41,25 @@ class StarGOL(object):
         c2: list = [],
         **kwargs,
     ):
+        """
+        Args:
+            s1 (list or str): team 1 live cells, [{"y": [x, ...]}, ...] or its JSON string.
+            s2 (list or str): team 2 live cells, same format.
+            rows (int): board rows.
+            columns (int): board columns.
+            rule_b (list of int): neighbor counts that cause birth (default [3]).
+            rule_s (list of int): neighbor counts that allow survival (default [2, 3]).
+            rule_c (int): number of states; dying cells wait rule_c - 2 phases before rebirth (at least 3).
+            periodic (bool): must be True; the board always wraps.
+            maxdim (int): length of the moving-average window, in generations.
+            b1, b2 (list or str): team 1/2 cells starting in dead-wait phase 0.
+            c1, c2 (list or str): team 1/2 cells starting in dead-wait phase 1.
+            tol_zero (float, keyword): tolerance for a zero running average (default 1e-8).
+            tol_stable (float, keyword): tolerance for a stable running average (default 1e-6).
+
+        Raises:
+            ValueError: if periodic is False or rule_c is below 3.
+        """
         if isinstance(s1, str):
             s1 = json.loads(s1)
         if isinstance(s2, str):
@@ -68,96 +80,133 @@ class StarGOL(object):
 
         self.rule_b = rule_b or [3]
         self.rule_s = rule_s or [2, 3]
+        if rule_c < 3:
+            raise ValueError("StarGOL requires rule_c >= 3")
         self.rule_c = rule_c
+        self.ndw = rule_c - 2
 
         self.maxdim = maxdim
         self.halt = True
         self.periodic = periodic
 
-        # Tolerances
         self.tol_zero = kwargs.get("tol_zero", 1e-8)
         self.tol_stable = kwargs.get("tol_stable", 1e-6)
 
+        # Survive/birth lookup by number of alive neighbors
+        self._survive = bytearray(9)
+        self._born = bytearray(9)
+        for n in self.rule_s:
+            if 0 <= n <= 8:
+                self._survive[n] = 1
+        for n in self.rule_b:
+            if 0 <= n <= 8:
+                self._born[n] = 1
+
+        sz = rows * columns
+        self.sz = sz
+        self.total_area = columns * rows
+
+        # Flat neighbor table: 8 neighbors per cell, NW N NE W E SW S SE
+        nt = array('l', [0] * (sz * 8))
+        for y in range(rows):
+            ym1 = ((y - 1) % rows) * columns
+            yy = y * columns
+            yp1 = ((y + 1) % rows) * columns
+            for x in range(columns):
+                base = (yy + x) * 8
+                xm1 = (x - 1) % columns
+                xp1 = (x + 1) % columns
+                nt[base] = ym1 + xm1
+                nt[base + 1] = ym1 + x
+                nt[base + 2] = ym1 + xp1
+                nt[base + 3] = yy + xm1
+                nt[base + 4] = yy + xp1
+                nt[base + 5] = yp1 + xm1
+                nt[base + 6] = yp1 + x
+                nt[base + 7] = yp1 + xp1
+        self._nt = nt
+
+        self._combo_buf = array('l', [0] * sz)
+        self._dirty = array('l', [0] * sz)
+
         self.set_pattern(s1, s2, b1, b2, c1, c2)
 
+    @property
+    def periodic(self):
+        return True
+
+    @periodic.setter
+    def periodic(self, value):
+        # The neighbor table always wraps around the board edges
+        if not value:
+            raise ValueError("StarGOL only supports periodic=True")
+
     def set_pattern(self, pattern_color1, pattern_color2, pattern_b1=[], pattern_b2=[], pattern_c1=[], pattern_c2=[]):
-        """similar to setInitialState in starlife.py"""
-        # Reset state for fresh run
-        self.actual_state = []
-        self.actual_state_colors = [set(), set(), set()]
-        self.dead_wait_n = []
-        self.dead_wait_colors_n = []
-        for i in range(self.rule_c - 2):
-            self.dead_wait_n.append([])
-            dead_wait_color_j = [set(), set(), set()]
-            self.dead_wait_colors_n.append(dead_wait_color_j)
+        """
+        Reset the board and load initial conditions. Team 1 wins overlaps; a dead-wait cell is
+        skipped if its cell is already alive or holds an earlier phase.
+
+        Args:
+            pattern_color1, pattern_color2 (list): team 1/2 live cells, [{"y": [x, ...]}, ...].
+            pattern_b1, pattern_b2 (list): team 1/2 cells in dead-wait phase 0.
+            pattern_c1, pattern_c2 (list): team 1/2 cells in dead-wait phase 1.
+        """
+        sz = self.sz
+        self._state = bytearray(sz)
+        self._color = bytearray(sz)
+        self.live_c1 = []
+        self.live_c2 = []
+        self.live_ref = []
+        self._dw = [[] for _ in range(self.ndw)]
         self.generation = 0
         self.running_avg_window = [0] * self.maxdim
         self.running_avg_last3 = [0, 0, 0]
         self.found_victor = False
         self.running = True
 
-        # Process alive cells
-        for s1row in pattern_color1:
-            for y, xs in s1row.items():
-                yy = int(y)
-                for xx in xs:
-                    self.add_alive_cell(xx, yy, 1)
-        for s2row in pattern_color2:
-            for y, xs in s2row.items():
-                yy = int(y)
-                for xx in xs:
-                    self.add_alive_cell(xx, yy, 2)
-
-        # Process dead-but-waiting states
-        dead_wait_patterns = [
-            (pattern_b1, 1, 0),
-            (pattern_b2, 2, 0),
-            (pattern_c1, 1, 1),
-            (pattern_c2, 2, 1),
-        ]
-
-        for pattern_data, color, level_index in dead_wait_patterns:
-            for row in pattern_data:
-                for y, xs in row.items():
-                    yy = int(y)
-                    for xx in xs:
-                        # Check if cell is already occupied at a higher-priority state
-                        is_occupied = False
-                        if self.is_alive(xx, yy):
-                            is_occupied = True
-                        else:
-                            # Check all dead-wait levels up to (but not including) the current one
-                            for i in range(level_index):
-                                if self.is_dead_wait_at_level(xx, yy, i):
-                                    is_occupied = True
-                                    break
-                        
-                        if not is_occupied:
-                            target_state = self.dead_wait_n[level_index]
-                            target_color_set = self.dead_wait_colors_n[level_index]
-                            
-                            self.dead_wait_n[level_index], self.dead_wait_colors_n[level_index] = \
-                                self.add_cell_to_custom_state(xx, yy, target_state, target_color_set, color)
+        self._load_cells(pattern_color1, 1, 1, self.live_c1)
+        self._load_cells(pattern_color2, 2, 1, self.live_c2)
+        for pattern_data, color, phase in ((pattern_b1, 1, 0), (pattern_b2, 2, 0), (pattern_c1, 1, 1), (pattern_c2, 2, 1)):
+            if phase < self.ndw:
+                self._load_cells(pattern_data, color, phase + 2, self._dw[phase])
 
         livecounts = self.get_live_counts()
         self.update_moving_avg(livecounts)
 
+    def _load_cells(self, pattern, color, state_value, cell_list):
+        """
+        Place cells from a pattern into empty board cells.
+
+        Args:
+            pattern (list): cells, [{"y": [x, ...]}, ...].
+            color (int): color to give the cells (1 or 2).
+            state_value (int): _state value to give the cells (1 alive, 2 + k dead-wait phase k).
+            cell_list (list of int): list that receives the flat indices of placed cells.
+        """
+        rows = self.rows
+        columns = self.columns
+        state = self._state
+        colors = self._color
+        for row in pattern:
+            for y, xs in row.items():
+                yy = (int(y) % rows) * columns
+                for x in xs:
+                    idx = yy + x % columns
+                    if state[idx] == 0:
+                        state[idx] = state_value
+                        colors[idx] = color
+                        cell_list.append(idx)
+
     def check_for_victor(self):
-        if self.found_victor:
-            return True
-        else:
-            return False
+        return self.found_victor
 
-    def is_dead_wait_at_level(self, x, y, level_index):
-        rep = f"({x},{y})"
-        for color0 in range(3):
-            if rep in self.dead_wait_colors_n[level_index][color0]:
-                return True
-        return False
+    def update_moving_avg(self, livecounts=None):
+        """
+        Update the moving average of sqrt(team1^2 + team2^2) and declare a victor on stability or shutout.
 
-    def update_moving_avg(self, livecounts = None):
-        """similar to checkForVictor in js simulator"""
+        Args:
+            livecounts (dict): output of get_live_counts() for the current generation (computed if None).
+        """
         if livecounts is None:
             livecounts = self.get_live_counts()
 
@@ -186,8 +235,6 @@ class StarGOL(object):
 
                 # skip the first few steps where we're removing zeros
                 if not self.approx_equal(removed, 0.0, tol_zero):
-                    # We are here because we have a nonzero running average (game is going), and no victor
-                    # Check if average has become stable
                     b1 = self.approx_equal(
                         self.running_avg_last3[0], self.running_avg_last3[1], tol_stable
                     )
@@ -197,32 +244,16 @@ class StarGOL(object):
                     victory_by_stability = (b1 and b2) and (livecounts['liveCells'] > 0)
 
                     if victory_by_stability:
-                        # Someone won due to simulation becoming stable
                         self.found_victor = True
                         if livecounts["liveCellsColors"][0] > livecounts["liveCellsColors"][1]:
                             self.who_won = 1
                         elif livecounts["liveCellsColors"][0] < livecounts["liveCellsColors"][1]:
                             self.who_won = 2
                         else:
-                            # Tie
                             self.who_won = -1
 
-            # The second way for a victor to be declared,
-            # is to have all other teams get shut out.
-            # But if gen < maxDim, this game is invalid.
-            victory_by_shutout = False
-
-            # Hard-coded rules format
-            zero_score_counter = 0
-            threshold = 1
-            for i in range(2):
-                if livecounts["liveCellsColors"][i] == 0:
-                    zero_score_counter += 1
-            if zero_score_counter >= threshold:
-                victory_by_shutout = True
-
-            if victory_by_shutout:
-                # Someone won by shutting out the other team
+            # A team shut out ends the game; before maxdim generations it counts as a tie
+            if livecounts["liveCellsColors"][0] == 0 or livecounts["liveCellsColors"][1] == 0:
                 self.found_victor = True
                 if self.generation < maxdim:
                     self.who_won = -1
@@ -232,12 +263,14 @@ class StarGOL(object):
                     elif livecounts["liveCellsColors"][0] < livecounts["liveCellsColors"][1]:
                         self.who_won = 2
                     else:
-                        # Tie
                         self.who_won = -1
 
     def next_step(self):
         """
-        Advances the simulation by one step.
+        Advance the simulation one generation (unless halted after a victor).
+
+        Returns:
+            dict: get_live_counts() after the step.
         """
         if self.running is False:
             return self.get_live_counts()
@@ -252,320 +285,245 @@ class StarGOL(object):
 
     def next_generation(self):
         """
-        Advances the simulation by one step.
+        Same as next_step().
+
+        Returns:
+            dict: get_live_counts() after the step.
         """
         return self.next_step()
 
     def _next_generation_logic(self):
         """
-        Evolve the actual_state list life state to the next generation.
+        Advance the board one generation.
+
+        Alive cells take the majority color of their alive team neighbors; a tie above zero goes to
+        the majority of dead-wait team neighbors, and a second tie (or no alive team neighbors)
+        keeps the cell's color. Survivors stay alive with that color, the rest enter dead-wait
+        phase 0 with it. Dead cells outside dead-wait with a birth count come alive with the
+        majority team color, or as referees on a tie. Dead-wait phases then advance by one.
+
+        Returns:
+            dict: get_live_counts() for the new generation.
         """
-        all_dead_neighbors = {}
+        state = self._state
+        color = self._color
+        nt = self._nt
+        cb = self._combo_buf
+        dirty = self._dirty
+        survive = self._survive
+        born = self._born
+        dc = 0
 
-        # -----
-        # init
-        new_state = []
-        new_state_colors = [set(), set(), set()]
+        live_c1 = self.live_c1
+        live_c2 = self.live_c2
+        live_ref = self.live_ref
 
-        new_dead_wait_n = []
-        new_dead_wait_colors_n = []
-        for i in range(self.rule_c - 2):
-            new_dead_wait_n.append([])
-            new_dead_wait_colors_j = [set(), set(), set()]
-            new_dead_wait_colors_n.append(new_dead_wait_colors_j)
-        # -----
+        # Scatter packed alive-neighbor counts, tracking every touched cell
+        for cells, inc in ((live_c1, INC_C1), (live_c2, INC_C2), (live_ref, INC_REF)):
+            for idx in cells:
+                base = idx * 8
+                n = nt[base]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 1]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 2]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 3]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 4]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 5]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 6]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
+                n = nt[base + 7]
+                if cb[n] == 0: dirty[dc] = n; dc += 1
+                cb[n] += inc
 
-        # -----
-        # SURVIVE step
+        new_c1 = []
+        new_c2 = []
+        new_ref = []
+        dying = []
 
-        for i in range(len(self.actual_state)):
-            for j in range(1, len(self.actual_state[i])):
-                x = self.actual_state[i][j]
-                y = self.actual_state[i][0]
-
-                xm1 = x - 1
-                ym1 = y - 1
-                xp1 = x + 1
-                yp1 = y + 1
-
-                if self.periodic:
-                    xm1 = self.periodic_normalize_x(x - 1)
-                    ym1 = self.periodic_normalize_y(y - 1)
-                    xp1 = self.periodic_normalize_x(x + 1)
-                    yp1 = self.periodic_normalize_y(y + 1)
-                    x = self.periodic_normalize_x(x)
-                    y = self.periodic_normalize_y(y)
-
-                dead_neighbors = [
-                    [xm1, ym1, 1], [x, ym1, 1], [xp1, ym1, 1],
-                    [xm1, y, 1], [xp1, y, 1],
-                    [xm1, yp1, 1], [x, yp1, 1], [xp1, yp1, 1],
-                ]
-
-                result, dead_neighbors = self.get_neighbors_from_alive(x, y, dead_neighbors)
-                neighbors = result["neighbors"]
-                color = result["color"]
-
-                for dead_neighbor in dead_neighbors:
-                    if dead_neighbor is not None:
-                        xx, yy = dead_neighbor[0], dead_neighbor[1]
-                        key = str(xx) + "," + str(yy)
-                        if not self.is_dead_wait(xx, yy):
-                            if key not in all_dead_neighbors:
-                                all_dead_neighbors[key] = 1
-                            else:
-                                all_dead_neighbors[key] += 1
-
-                if neighbors in self.rule_s:
-                    new_state, new_state_colors = self.add_cell_to_custom_state(
-                        x, y, new_state, new_state_colors, color
-                    )
+        # Survive step: dying cells keep state 1 until the dead-wait cycle below,
+        # so tiebreaks only see cells that were already in dead-wait
+        for cells, own in ((live_c1, 1), (live_c2, 2), (live_ref, 3)):
+            for idx in cells:
+                p = cb[idx]
+                n1 = (p >> 4) & 15
+                n2 = (p >> 8) & 15
+                if n1 > n2:
+                    c = 1
+                elif n2 > n1:
+                    c = 2
+                elif n1 > 0:
+                    base = idx * 8
+                    dw1 = 0
+                    dw2 = 0
+                    for m in range(base, base + 8):
+                        k = nt[m]
+                        if state[k] >= 2:
+                            kc = color[k]
+                            if kc == 1:
+                                dw1 += 1
+                            elif kc == 2:
+                                dw2 += 1
+                    if dw1 > dw2:
+                        c = 1
+                    elif dw2 > dw1:
+                        c = 2
+                    else:
+                        c = own
                 else:
-                    new_dead_wait_n[0], new_dead_wait_colors_n[0] = self.add_cell_to_custom_state(
-                        x, y, new_dead_wait_n[0], new_dead_wait_colors_n[0], color
-                    )
-        # -----
+                    c = own
 
-        # -----
-        # BIRTH step
-        for key, count in all_dead_neighbors.items():
-            if count in self.rule_b:
-                t1, t2 = map(int, key.split(","))
-                color = self.get_color_from_alive(t1, t2)
-                new_state, new_state_colors = self.add_cell_to_custom_state(
-                    t1, t2, new_state, new_state_colors, color
-                )
-        # -----
+                if survive[p & 15]:
+                    if c == 1:
+                        new_c1.append(idx)
+                    elif c == 2:
+                        new_c2.append(idx)
+                    else:
+                        new_ref.append(idx)
+                else:
+                    color[idx] = c
+                    dying.append(idx)
 
-        # -----
-        # DEAD WAIT CYCLING step
-        cmax_ix = self.rule_c - 2 - 1
-        for c in range(cmax_ix, -1, -1):
-            if c > 0:
-                cm1 = c - 1
-                new_dead_wait_n[c] = self.dead_wait_n[cm1]
-                new_dead_wait_colors_n[c] = [s.copy() for s in self.dead_wait_colors_n[cm1]]
-        # -----
+        # Birth step: touched cells that are fully dead, then clear the counts
+        for i in range(dc):
+            idx = dirty[i]
+            p = cb[idx]
+            cb[idx] = 0
+            if state[idx] == 0 and born[p & 15]:
+                n1 = (p >> 4) & 15
+                n2 = (p >> 8) & 15
+                if n1 > n2:
+                    new_c1.append(idx)
+                elif n2 > n1:
+                    new_c2.append(idx)
+                else:
+                    new_ref.append(idx)
 
-        self.actual_state = new_state
-        self.actual_state_colors = new_state_colors
-        self.dead_wait_n = new_dead_wait_n
-        self.dead_wait_colors_n = new_dead_wait_colors_n
+        for idx in new_c1:
+            state[idx] = 1
+            color[idx] = 1
+        for idx in new_c2:
+            state[idx] = 1
+            color[idx] = 2
+        for idx in new_ref:
+            state[idx] = 1
+            color[idx] = 3
+
+        # Dead-wait cycle: the last phase dies, the others advance, the dying enter phase 0
+        dw = self._dw
+        last = self.ndw - 1
+        for idx in dw[last]:
+            state[idx] = 0
+            color[idx] = 0
+        for ph in range(last, 0, -1):
+            cells = dw[ph - 1]
+            sv = ph + 2
+            for idx in cells:
+                state[idx] = sv
+            dw[ph] = cells
+        for idx in dying:
+            state[idx] = 2
+        dw[0] = dying
+
+        self.live_c1 = new_c1
+        self.live_c2 = new_c2
+        self.live_ref = new_ref
 
         return self.get_live_counts()
 
     def get_live_cells(self):
         """
         Return the coordinates of all live cells for each color.
-        """
-        live_cells_color1 = []
-        live_cells_color2 = []
-        live_cells_color3 = []
-        for rep in self.actual_state_colors[0]:
-            x_str, y_str = rep.strip('()').split(',')
-            live_cells_color1.append((int(x_str), int(y_str)))
-        for rep in self.actual_state_colors[1]:
-            x_str, y_str = rep.strip('()').split(',')
-            live_cells_color2.append((int(x_str), int(y_str)))
-        for rep in self.actual_state_colors[2]:
-            x_str, y_str = rep.strip('()').split(',')
-            live_cells_color3.append((int(x_str), int(y_str)))
-        return live_cells_color1, live_cells_color2, live_cells_color3
 
-    def _get_state_count(self, state):
-        return sum(len(row) - 1 for row in state)
+        Returns:
+            tuple: three lists of (x, y) int tuples, for team 1, team 2 and referees.
+        """
+        columns = self.columns
+        return tuple(
+            [(idx % columns, idx // columns) for idx in cells]
+            for cells in (self.live_c1, self.live_c2, self.live_ref)
+        )
+
+    def get_dead_wait_cells(self):
+        """
+        Return the coordinates of all dead-wait cells, by phase and color.
+
+        Returns:
+            list: one entry per dead-wait phase (rule_c - 2 phases, phase 0 first).
+                Each entry is a 3-tuple of sorted lists of (x, y) int tuples, for
+                colors 1, 2 and 3 (referee).
+        """
+        columns = self.columns
+        color = self._color
+        result = []
+        for cells in self._dw:
+            per_color = ([], [], [])
+            for idx in cells:
+                per_color[color[idx] - 1].append((idx % columns, idx // columns))
+            result.append(tuple(sorted(c) for c in per_color))
+        return result
 
     def get_live_counts(self):
-        livecells = self._get_state_count(self.actual_state)
-        livecells_colors = [len(s) for s in self.actual_state_colors]
-        
-        if sum(livecells_colors) != livecells:
-            err = f"Error: get_live_counts inconsistent: alive={livecells}, sum_colors={sum(livecells_colors)}"
-            raise Exception(err)
+        """
+        Returns:
+            dict: generation (int), liveCells (int), liveCells1 (int), liveCells2 (int),
+                liveCellsColors (list of 3 ints: team 1, team 2, referees), coverage (float, percent
+                of the board alive), last3 (list of the last three running averages).
+        """
+        lc1 = len(self.live_c1)
+        lc2 = len(self.live_c2)
+        lcr = len(self.live_ref)
+        livecells = lc1 + lc2 + lcr
 
-        total_area = self.columns * self.rows
+        total_area = self.total_area
         coverage = (livecells / (1.0 * total_area)) * 100 if total_area > 0 else 0
         self.coverage = coverage
 
         return dict(
             generation=self.generation,
             liveCells=livecells,
-            liveCells1=livecells_colors[0],
-            liveCells2=livecells_colors[1],
-            liveCellsColors=livecells_colors,
+            liveCells1=lc1,
+            liveCells2=lc2,
+            liveCellsColors=[lc1, lc2, lcr],
             coverage=coverage,
             last3=self.running_avg_last3,
         )
 
-    def get_neighbors_from_alive(self, x, y, possible_neighbors_list):
-        neighbors_colors = [0]*3
-        for i in range(3):
-            count, possible_neighbors_list = self.get_color_counts_from_possible_neighbors(x, y, i+1, possible_neighbors_list)
-            neighbors_colors[i] = count
-        neighbors = sum(neighbors_colors)
-        neighbors_norefs = neighbors_colors[0] + neighbors_colors[1]
-
-        neighbors_dw = [0]*2
-        for i in range(2):
-            neighbors_dw[i] = self.get_color_counts_from_dead_wait(x, y, i+1)
-
-        color = 0
-        if neighbors > 0:
-            if neighbors_norefs > 0:
-                max_neighbor = max(neighbors_colors[0], neighbors_colors[1])
-                num_equal_max = (neighbors_colors[0] == max_neighbor) + (neighbors_colors[1] == max_neighbor)
-                
-                if num_equal_max == 1:
-                    color = 1 if neighbors_colors[0] > neighbors_colors[1] else 2
-                else: # Tie
-                    max_neighbor_dw = max(neighbors_colors[0]+neighbors_dw[0], neighbors_colors[1]+neighbors_dw[1])
-                    num_equal_max_dw = (neighbors_colors[0]+neighbors_dw[0] == max_neighbor_dw) + (neighbors_colors[1]+neighbors_dw[1] == max_neighbor_dw)
-                    if num_equal_max_dw == 1:
-                        color = 1 if (neighbors_colors[0]+neighbors_dw[0]) > (neighbors_colors[1]+neighbors_dw[1]) else 2
-                    else:
-                        color = -1 # Still a tie, keep original color
-            else:
-                color = -1 # Only ref neighbors, keep original color
-        else:
-            color = -1 # No neighbors, keep original color
-
-        if color < 0:
-            color = self.get_cell_color(x, y)
-
-        return dict(neighbors=neighbors, color=color), possible_neighbors_list
-
-    def get_color_from_alive(self, x, y):
-        neighbors_colors = [0]*3
-        for i in range(3):
-            neighbors_colors[i] = self.get_color_counts_from_alive(x, y, i+1)
-        neighbors = sum(neighbors_colors)
-        neighbors_norefs = neighbors_colors[0] + neighbors_colors[1]
-
-        color = 0
-        if neighbors > 0:
-            if neighbors_norefs > 0:
-                max_neighbor = max(neighbors_colors[0], neighbors_colors[1])
-                num_equal_max = (neighbors_colors[0] == max_neighbor) + (neighbors_colors[1] == max_neighbor)
-                if num_equal_max == 1:
-                    color = 1 if neighbors_colors[0] > neighbors_colors[1] else 2
-                else:
-                    color = 3 # Tie becomes a referee
-            else:
-                color = 3 # Only referee neighbors
-        return color
-
-    def get_color_counts_from_dead_wait(self, x, y, color):
-        color0 = color - 1
-        dead_wait_count = 0
-        for c in range(self.rule_c-2):
-            points = self.dead_wait_colors_n[c][color0]
-            for iy in [-1, 0, 1]:
-                for ix in [-1, 0, 1]:
-                    if ix == 0 and iy == 0: continue
-                    xx, yy = self.periodic_normalize_x(x + ix), self.periodic_normalize_y(y + iy)
-                    if f"({xx},{yy})" in points:
-                        dead_wait_count += 1
-        return dead_wait_count
-
-    def get_color_counts_from_alive(self, x, y, color):
-        color0 = color - 1
-        alive_count = 0
-        points = self.actual_state_colors[color0]
-        for iy in [-1, 0, 1]:
-            for ix in [-1, 0, 1]:
-                if ix == 0 and iy == 0: continue
-                xx, yy = self.periodic_normalize_x(x + ix), self.periodic_normalize_y(y + iy)
-                if f"({xx},{yy})" in points:
-                    alive_count += 1
-        return alive_count
-
-    def get_color_counts_from_possible_neighbors(self, x, y, color, possible_dead_neighbors_list):
-        color0 = color - 1
-        points = self.actual_state_colors[color0]
-        count = 0
-        z = 0
-        for iy in [-1, 0, 1]:
-            for ix in [-1, 0, 1]:
-                if ix == 0 and iy == 0: continue
-                xx, yy = self.periodic_normalize_x(x + ix), self.periodic_normalize_y(y + iy)
-                if f"({xx},{yy})" in points:
-                    possible_dead_neighbors_list[z] = None
-                    count += 1
-                z += 1
-        return count, possible_dead_neighbors_list
+    def _index(self, x, y):
+        return (y % self.rows) * self.columns + (x % self.columns)
 
     def is_alive(self, x, y):
-        x, y = self.periodic_normalize_x(x), self.periodic_normalize_y(y)
-        rep = f"({x},{y})"
-        return rep in self.actual_state_colors[0] or rep in self.actual_state_colors[1] or rep in self.actual_state_colors[2]
+        """
+        Returns:
+            bool: True if cell (x, y) is alive (coordinates wrap).
+        """
+        return self._state[self._index(x, y)] == 1
 
     def is_dead_wait(self, x, y):
-        rep = f"({x},{y})"
-        for c in range(self.rule_c-2):
-            for color0 in range(3):
-                if rep in self.dead_wait_colors_n[c][color0]:
-                    return True
-        return False
+        """
+        Returns:
+            bool: True if cell (x, y) is in any dead-wait phase (coordinates wrap).
+        """
+        return self._state[self._index(x, y)] >= 2
 
     def get_cell_color(self, x, y):
-        rep = f"({x},{y})"
-        for i in range(3):
-            if rep in self.actual_state_colors[i]:
-                return i+1
-        return 0
-
-    def add_alive_cell(self, x, y, color):
-        self.actual_state, self.actual_state_colors = self.add_cell_to_custom_state(x, y, self.actual_state, self.actual_state_colors, color)
-
-    def add_cell_to_custom_state(self, x, y, state, color_set, color):
-        color0 = color-1
-        if not (0 <= color0 < 3):
-            raise Exception(f"Invalid color {color} for cell ({x},{y})")
-
-        rep = f"({x},{y})"
-        for i in range(3):
-            if i != color0 and rep in color_set[i]:
-                return state, color_set # Do not add duplicate cell with different color
-
-        state = self._add_cell(x, y, state)
-        color_set[color0].add(rep)
-        return state, color_set
-
-    def _add_cell(self, x, y, state):
-        x = self.periodic_normalize_x(x)
-        y = self.periodic_normalize_y(y)
-
-        if not state:
-            return [[y, x]]
-        if y < state[0][0]:
-            return [[y, x]] + state
-        if y > state[-1][0]:
-            return state + [[y, x]]
-        
-        return self._insert_into_state(x, y, state)
-
-    def _insertion_index(self, x, row):
-        for i, xval in enumerate(row[1:]):
-            if x < xval:
-                return i+1
-        return len(row)
-
-    def _insert_into_state(self, x, y, state):
-        added = False
-        for i, row in enumerate(state):
-            if row[0] == y:
-                if x in row[1:]: return state # Already exists
-                insertion_index = self._insertion_index(x, row)
-                state[i] = row[:insertion_index] + [x] + row[insertion_index:]
-                added = True
-                break
-            elif y < row[0]:
-                state.insert(i, [y, x])
-                added = True
-                break
-        if not added:
-             raise Exception(f"Failed to add cell ({x},{y})")
-        return state
+        """
+        Returns:
+            int: color of alive cell (x, y) (1, 2 or 3), or 0 if it is not alive (coordinates wrap).
+        """
+        idx = self._index(x, y)
+        return self._color[idx] if self._state[idx] == 1 else 0
 
     def approx_equal(self, a, b, tol):
         return self.relative_diff(a, b) < tol
@@ -574,12 +532,3 @@ class StarGOL(object):
         SMOL = 1e-12
         denom = max(abs(a), abs(b), SMOL)
         return abs(a - b) / denom
-
-    def _periodic_normalize(self, q, p):
-        return q % p
-
-    def periodic_normalize_x(self, x):
-        return self._periodic_normalize(x, self.columns)
-
-    def periodic_normalize_y(self, y):
-        return self._periodic_normalize(y, self.rows)
