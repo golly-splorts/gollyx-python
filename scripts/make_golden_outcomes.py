@@ -12,7 +12,7 @@ import os
 import sys
 from concurrent.futures import ProcessPoolExecutor
 
-from gollyx_maps.maps import get_map_realization
+from gollyx_maps.maps import get_all_map_patterns, get_map_realization
 from gollyx_python import run_simulation
 
 REPO_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -40,6 +40,18 @@ MAP_GAMES = [
     ("hellmouth-randommethuselahs", "hellmouth", "randommethuselahs", None, None, 9, LIFE),
     ("vi-random-97x151", "vi", "random", 97, 151, 11, LIFE),
     ("vi-random-b36s23", "vi", "random", None, None, 10, HIGHLIFE),
+]
+
+# Star Wars: B2/S345/C4
+STAR_RULES = dict(rule_b=[2], rule_s=[3, 4, 5], rule_c=4)
+STAR_CUP = "star-viii"
+STAR_ROWS, STAR_COLUMNS = 160, 240
+# Every star-viii pattern, one game each, seeds 100 and up
+STAR_PATTERNS = sorted(get_all_map_patterns(STAR_CUP))
+# (name, pattern, seed, extra run_simulation kwargs)
+STAR_EXTRA_GAMES = [
+    ("star-viii-random-max-2000", "random", 200, dict(max_generations=2000)),
+    ("star-viii-ironhorse-fixed-500", "ironhorse", 201, dict(fixed_ngenerations=500)),
 ]
 
 # Acorn for team 1; team 2's two isolated cells die in generation 1
@@ -88,6 +100,23 @@ def build_games():
             rule_b=rule_b,
             rule_s=rule_s,
         )))
+    star_games = [(f"star-viii-{p}", p, 100 + i, {}) for i, p in enumerate(STAR_PATTERNS)]
+    for name, pattern, seed, extra in star_games + STAR_EXTRA_GAMES:
+        m = get_map_realization(STAR_CUP, pattern, rows=STAR_ROWS, columns=STAR_COLUMNS, seed=seed)
+        kwargs = dict(
+            initial_conditions_1=m["initialConditions1"],
+            initial_conditions_2=m["initialConditions2"],
+            rows=m["rows"],
+            columns=m["columns"],
+            cup=STAR_CUP,
+            **STAR_RULES,
+            **extra,
+        )
+        for key, ic in (("b1", "initialConditionsb1"), ("b2", "initialConditionsb2"),
+                        ("c1", "initialConditionsc1"), ("c2", "initialConditionsc2")):
+            if ic in m:
+                kwargs[f"initial_conditions_{key}"] = m[ic]
+        games.append((name, kwargs))
     for name, kwargs in games:
         # No wall-clock limit, so results do not depend on machine speed
         kwargs["timeout_seconds"] = 0

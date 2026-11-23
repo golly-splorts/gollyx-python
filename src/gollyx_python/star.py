@@ -372,6 +372,27 @@ class StarGOL(object):
             live_cells_color3.append((int(x_str), int(y_str)))
         return live_cells_color1, live_cells_color2, live_cells_color3
 
+    def get_dead_wait_cells(self):
+        """
+        Return the coordinates of all dead-wait cells, by phase and color.
+
+        Returns:
+            list: one entry per dead-wait phase (rule_c - 2 phases, phase 0 first).
+                Each entry is a 3-tuple of sorted lists of (x, y) int tuples, for
+                colors 1, 2 and 3 (referee).
+        """
+        result = []
+        for level in self.dead_wait_colors_n:
+            per_color = []
+            for color_set in level:
+                cells = []
+                for rep in color_set:
+                    x_str, y_str = rep.strip('()').split(',')
+                    cells.append((int(x_str), int(y_str)))
+                per_color.append(sorted(cells))
+            result.append(tuple(per_color))
+        return result
+
     def _get_state_count(self, state):
         return sum(len(row) - 1 for row in state)
 
